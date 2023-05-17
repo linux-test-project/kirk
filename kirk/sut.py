@@ -5,8 +5,11 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+import os
 import re
 import asyncio
+import inspect
+import importlib
 from kirk import KirkException
 
 
@@ -266,3 +269,40 @@ class SUT:
                 messages.append(msg)
 
         return code, messages
+
+
+def discover(folder: str) -> list:
+    """
+    Discover new SUT implementations inside a specific folder.
+    """
+    if not folder or not os.path.isdir(folder):
+        raise ValueError("SUT folder doesn't exist")
+
+    loaded_sut = []
+
+    for myfile in os.listdir(folder):
+        if not myfile.endswith('.py'):
+            continue
+
+        path = os.path.join(folder, myfile)
+        if not os.path.isfile(path):
+            continue
+
+        spec = importlib.util.spec_from_file_location('sut', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        members = inspect.getmembers(module, inspect.isclass)
+        for _, klass in members:
+            if klass.__module__ != module.__name__ or \
+                    klass is SUT or \
+                    klass in loaded_sut:
+                continue
+
+            if issubclass(klass, SUT):
+                loaded_sut.append(klass())
+
+    if len(loaded_sut) > 0:
+        loaded_sut.sort(key=lambda x: x.name)
+
+    return loaded_sut

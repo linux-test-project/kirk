@@ -8,11 +8,9 @@
 import os
 import re
 import asyncio
-import inspect
 import argparse
-import importlib
-import importlib.util
 import kirk
+import kirk.sut
 import kirk.data
 import kirk.events
 from kirk import KirkException
@@ -107,38 +105,6 @@ def _env_config(value: str) -> dict:
     config = _from_params_to_config(params)
 
     return config
-
-
-def _discover_sut(folder: str) -> list:
-    """
-    Discover new SUT implementations inside a specific folder.
-    """
-    LOADED_SUT.clear()
-
-    for myfile in os.listdir(folder):
-        if not myfile.endswith('.py'):
-            continue
-
-        path = os.path.join(folder, myfile)
-        if not os.path.isfile(path):
-            continue
-
-        spec = importlib.util.spec_from_file_location('sut', path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        members = inspect.getmembers(module, inspect.isclass)
-        for _, klass in members:
-            if klass.__module__ != module.__name__ or \
-                    klass is SUT or \
-                    klass in LOADED_SUT:
-                continue
-
-            if issubclass(klass, SUT):
-                LOADED_SUT.append(klass())
-
-    if len(LOADED_SUT) > 0:
-        LOADED_SUT.sort(key=lambda x: x.name)
 
 
 def _get_sut(sut_name: str) -> SUT:
@@ -255,7 +221,9 @@ def run(cmd_args: list = None) -> None:
     """
     Entry point of the application.
     """
-    _discover_sut(os.path.dirname(os.path.realpath(__file__)))
+    global LOADED_SUT
+
+    LOADED_SUT = kirk.sut.discover(os.path.dirname(os.path.realpath(__file__)))
 
     parser = argparse.ArgumentParser(
         description='Generic Linux Testing Framework')
