@@ -223,7 +223,10 @@ def run(cmd_args: list = None) -> None:
     """
     global LOADED_SUT
 
-    LOADED_SUT = kirk.sut.discover(os.path.dirname(os.path.realpath(__file__)))
+    LOADED_SUT = kirk.discover_objects(
+        SUT,
+        os.path.dirname(os.path.realpath(__file__))
+    )
 
     parser = argparse.ArgumentParser(
         description='Generic Linux Testing Framework')
