@@ -3,11 +3,11 @@ omit =
     *tests*
     *test_*
     *.tox*
-    ltp/ui.py
-    ltp/main.py
+    kirk/ui.py
+    kirk/main.py
 
 [paths]
-source = ltp
+source = kirk
 
 [report]
 # Regexes for lines to exclude from consideration

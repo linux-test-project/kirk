@@ -1,7 +1,7 @@
 pipeline {
   agent {
     node {
-      label "runltp-ng"
+      label "kirk"
     }
   }
   environment {

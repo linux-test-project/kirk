@@ -27,8 +27,10 @@ jobs:
     - name: Install dependencies
       run: python3 -m pip install pylint
 
-    - name: Test runltp-ng
-      run: python3 runltp-ng --help
+    - name: Test kirk
+      run:
+        - pip install -e .
+        - kirk --help
 
     - name: Lint with pylint
-      run: pylint --rcfile=pylint.ini ltp altp
+      run: pylint --rcfile=pylint.ini kirk

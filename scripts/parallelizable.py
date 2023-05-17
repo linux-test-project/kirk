@@ -4,6 +4,8 @@
     :synopsis: Script that checks how many LTP tests can run in parallel
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+import kirk.data
+import kirk
 import os
 import sys
 import json
@@ -11,9 +13,6 @@ import argparse
 import asyncio
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
-
-import altp
-import altp.data
 
 
 async def get_suites(args: argparse.Namespace) -> list:
@@ -45,7 +44,7 @@ async def get_suites(args: argparse.Namespace) -> list:
     tasks = []
     for runtest in runtests:
         with open(runtest, 'r') as runtest_f:
-            task = altp.data.read_runtest(
+            task = kirk.data.read_runtest(
                 os.path.basename(runtest),
                 runtest_f.read(),
                 metadata=metadata_content)
@@ -125,4 +124,4 @@ if __name__ == "__main__":
                     os.path.join(args.ltp_dir, "runtest", runtest)):
                 parser.error(f"'{runtest}' runtest file doesn't exist")
 
-    altp.run(main(args))
+    kirk.run(main(args))
