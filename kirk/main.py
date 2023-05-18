@@ -15,10 +15,12 @@ import kirk.data
 import kirk.events
 from kirk import KirkException
 from kirk.sut import SUT
+from kirk.framework import Framework
 from kirk.ui import SimpleUserInterface
 from kirk.ui import VerboseUserInterface
 from kirk.ui import ParallelUserInterface
 from kirk.session import Session
+from kirk.tempfile import TempDir
 
 # runtime loaded SUT(s)
 LOADED_SUT = []
@@ -107,6 +109,21 @@ def _env_config(value: str) -> dict:
     return config
 
 
+def _suites_config(value: str) -> dict:
+    """
+    Return a couple, parsing parameter in the "framework:suite" format.
+    """
+    if not value:
+        return None
+
+    parts = value.split(':')
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise argparse.ArgumentTypeError(
+            f"'{value}' is not in the 'framework:suite' format")
+
+    return (parts[0], parts[1])
+
+
 def _get_sut(sut_name: str) -> SUT:
     """
     Return the SUT with name `sut_name`.
@@ -166,19 +183,33 @@ def _start_session(
     if not sut:
         parser.error(f"'{sut_name}' is not an available SUT")
 
+    # initialize frameworks
+    frameworks = kirk.discover_objects(
+        Framework,
+        os.path.dirname(os.path.realpath(__file__))
+    )
+    for fwork in frameworks:
+        fwork.setup(env=args.env)
+
     # create session object
+    tmpdir = None
+    if args.tmp_dir == '':
+        tmpdir = TempDir(None)
+    elif args.tmp_dir:
+        tmpdir = TempDir(args.tmp_dir)
+    else:
+        tmpdir = TempDir("/tmp")
+
     session = Session(
         sut=sut,
         sut_config=args.sut,
-        tmpdir=args.tmp_dir,
-        ltpdir=args.cwd_dir,
-        suitesdir=args.suites_dir,
+        frameworks=frameworks,
+        tmpdir=tmpdir,
         no_colors=args.no_colors,
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         skip_tests=skip_tests,
         workers=args.workers,
-        env=args.env,
         force_parallel=args.force_parallel)
 
     # initialize user interface
@@ -193,13 +224,24 @@ def _start_session(
     # start event loop
     exit_code = RC_OK
 
+    # merge suites into a compatible session dict
+    suites = {}
+    for item in args.run_suite:
+        fwork = item[0]
+        suite = item[1]
+
+        if fwork not in suites:
+            suites[fwork] = []
+
+        suites[fwork].append(suite)
+
     async def session_run() -> None:
         """
         Run session then stop events handler.
         """
         await session.run(
             command=args.run_command,
-            suites=args.run_suite,
+            suites=suites,
             report_path=args.json_report
         )
         await kirk.events.stop()
@@ -224,9 +266,7 @@ def run(cmd_args: list = None) -> None:
     global LOADED_SUT
 
     LOADED_SUT = kirk.discover_objects(
-        SUT,
-        os.path.dirname(os.path.realpath(__file__))
-    )
+        SUT, os.path.dirname(os.path.realpath(__file__)))
 
     parser = argparse.ArgumentParser(
         description='Generic Linux Testing Framework')
@@ -244,12 +284,6 @@ def run(cmd_args: list = None) -> None:
         help="If defined, no colors are shown")
 
     # generic directories arguments
-    parser.add_argument(
-        "--cwd-dir",
-        "-b",
-        type=str,
-        default=os.path.abspath("."),
-        help="Current working directory")
     parser.add_argument(
         "--tmp-dir",
         "-d",
@@ -297,7 +331,8 @@ def run(cmd_args: list = None) -> None:
         "--run-suite",
         "-r",
         nargs="*",
-        help="Suites to run")
+        type=_suites_config,
+        help="List of suites to run in the format myframework:suitename")
     parser.add_argument(
         "--run-command",
         "-c",

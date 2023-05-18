@@ -42,8 +42,6 @@ class ConsoleUserInterface:
         kirk.events.register("run_cmd_start", self.run_cmd_start)
         kirk.events.register("run_cmd_stdout", self.run_cmd_stdout)
         kirk.events.register("run_cmd_stop", self.run_cmd_stop)
-        kirk.events.register("suite_download_started",
-                             self.suite_download_started)
         kirk.events.register("suite_started", self.suite_started)
         kirk.events.register("suite_completed", self.suite_completed)
         kirk.events.register("session_error", self.session_error)
@@ -117,12 +115,6 @@ class ConsoleUserInterface:
             stdout: str,
             returncode: int) -> None:
         self._print(f"\nExit code: {returncode}\n")
-
-    async def suite_download_started(
-            self,
-            name: str,
-            target: str) -> None:
-        self._print(f"Downloading suite: {name}")
 
     async def suite_started(self, suite: Suite) -> None:
         self._print(f"Starting suite: {suite.name}")

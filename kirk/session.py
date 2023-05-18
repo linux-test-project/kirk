@@ -6,7 +6,6 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 import os
-import json
 import logging
 import asyncio
 import kirk
@@ -15,7 +14,6 @@ import kirk.events
 from kirk import KirkException
 from kirk.sut import SUT
 from kirk.sut import IOBuffer
-from kirk.tempfile import TempDir
 from kirk.export import JSONExporter
 from kirk.scheduler import SuiteScheduler
 
@@ -43,10 +41,10 @@ class Session:
 
     def __init__(self, **kwargs) -> None:
         """
-        :param tmpdir: temporary directory path
-        :type tmpdir: str
-        :param ltpdir: LTP directory path
-        :type ltpdir: str
+        :param tmpdir: temporary directory
+        :type tmpdir: TempDir
+        :param frameworks: list of frameworks
+        :type frameworks: list(Framework)
         :param sut: SUT communication object
         :type sut: SUT
         :param sut_config: SUT object configuration
@@ -67,12 +65,21 @@ class Session:
         :type force_parallel: bool
         """
         self._logger = logging.getLogger("kirk.session")
-        self._tmpdir = TempDir(kwargs.get("tmpdir", "/tmp"))
-        self._ltpdir = kwargs.get("ltpdir", "/opt/ltp")
+        self._tmpdir = kwargs.get("tmpdir", None)
+        self._frameworks = kwargs.get("frameworks", None)
         self._sut = kwargs.get("sut", None)
         self._no_colors = kwargs.get("no_colors", False)
         self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
         self._env = kwargs.get("env", None)
+
+        if not self._tmpdir:
+            raise ValueError("tmpdir is empty")
+
+        if not self._frameworks:
+            raise ValueError("frameworks is empty")
+
+        if not self._sut:
+            raise ValueError("sut is empty")
 
         suite_timeout = kwargs.get("suite_timeout", 3600.0)
         skip_tests = kwargs.get("skip_tests", "")
@@ -87,9 +94,6 @@ class Session:
             skip_tests=skip_tests,
             force_parallel=force_parallel)
 
-        if not self._sut:
-            raise ValueError("sut is empty")
-
         self._sut_config = self._get_sut_config(kwargs.get("sut_config", {}))
         self._setup_debug_log()
 
@@ -98,12 +102,6 @@ class Session:
                 "SUT doesn't support parallel execution. "
                 "Forcing workers=1.")
             self._workers = 1
-
-        metadata_path = os.path.join(self._ltpdir, "metadata", "kirk.json")
-        self._metadata_json = None
-        if os.path.isfile(metadata_path):
-            with open(metadata_path, 'r', encoding='utf-8') as metadata:
-                self._metadata_json = json.loads(metadata.read())
 
     def _setup_debug_log(self) -> None:
         """
@@ -131,31 +129,8 @@ class Session:
         `setup` method of the SUT, in order to setup the environment before
         running tests.
         """
-        testcases = os.path.join(self._ltpdir, "testcases", "bin")
-
-        env = {}
-        env["PATH"] = "/sbin:/usr/sbin:/usr/local/sbin:" + \
-            f"/root/bin:/usr/local/bin:/usr/bin:/bin:{testcases}"
-        env["LTPROOT"] = self._ltpdir
-        env["TMPDIR"] = self._tmpdir.root if self._tmpdir.root else "/tmp"
-        env["LTP_TIMEOUT_MUL"] = str((self._exec_timeout * 0.9) / 300.0)
-
-        if self._no_colors:
-            env["LTP_COLORIZE_OUTPUT"] = "0"
-        else:
-            env["LTP_COLORIZE_OUTPUT"] = "1"
-
-        if self._env:
-            for key, value in self._env.items():
-                if key in env:
-                    continue
-
-                self._logger.info("Set environment variable %s=%s", key, value)
-                env[key] = value
-
         config = sut_config.copy()
-        config['env'] = env
-        config['cwd'] = testcases
+        config['env'] = self._env
         config['tmpdir'] = self._tmpdir.abspath
 
         return config
@@ -180,45 +155,23 @@ class Session:
         await kirk.events.fire("sut_stop", self._sut.name)
         await self._sut.stop(iobuffer=RedirectSUTStdout(self._sut, False))
 
-    async def _download_suites(self, suites: list) -> list:
+    async def _read_suites(self, request: dict) -> list:
         """
-        Download all testing suites and return suites objects list.
+        Read all testing suites and return suites objects.
         """
-        if not os.path.isdir(os.path.join(self._tmpdir.abspath, "runtest")):
-            self._tmpdir.mkdir("runtest")
+        coros = []
+        for fwname, suites in request.items():
+            fwork = None
+            for item in self._frameworks:
+                if item.name == fwname:
+                    fwork = item
+                    break
 
-        async def _download(suite: str) -> None:
-            """
-            Download a single suite inside temporary folder.
-            """
-            target = os.path.join(self._ltpdir, "runtest", suite)
+            if fwork:
+                for suite in suites:
+                    coros.append(fwork.find_suite(self._sut, suite))
 
-            await kirk.events.fire(
-                "suite_download_started",
-                suite,
-                target)
-
-            data = await self._sut.fetch_file(target)
-            data_str = data.decode(encoding="utf-8", errors="ignore")
-
-            self._tmpdir.mkfile(os.path.join("runtest", suite), data_str)
-
-            await kirk.events.fire(
-                "suite_download_completed",
-                suite,
-                target)
-
-            suite = await kirk.data.read_runtest(
-                suite,
-                data_str,
-                metadata=self._metadata_json)
-
-            return suite
-
-        suites_obj = await asyncio.gather(*[
-            _download(suite)
-            for suite in suites
-        ])
+        suites_obj = await asyncio.gather(*coros)
 
         return suites_obj
 
@@ -254,14 +207,14 @@ class Session:
     async def run(
             self,
             command: str = None,
-            suites: list = None,
+            suites: dict = None,
             report_path: str = None) -> None:
         """
         Run a new session and store results inside a JSON file.
         :param command: single command to run before suites
         :type command: str
-        :param suites: name of the testing suites to run
-        :type suites: list(str)
+        :param suites: list of suites by framework
+        :type suites: dict
         :param report_path: JSON report path
         :type report_path: str
         """
@@ -276,8 +229,8 @@ class Session:
                 await self._exec_command(command)
 
             if suites:
-                suites = await self._download_suites(suites)
-                await self._scheduler.schedule(suites)
+                suites_obj = await self._read_suites(suites)
+                await self._scheduler.schedule(suites_obj)
 
                 exporter = JSONExporter()
 
