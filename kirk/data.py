@@ -50,32 +50,35 @@ class Test:
     Test definition class.
     """
 
-    def __init__(
-            self,
-            name: str,
-            cmd: str,
-            args: list,
-            parallelizable: bool = False) -> None:
+    def __init__(self, **kwargs: dict) -> None:
         """
         :param name: name of the test
         :type name: str
         :param cmd: command to execute
         :type cmd: str
+        :param cwd: current working directory of the command
+        :type cwd: str
+        :param env: environment variables used to run the command
+        :type env: dict
         :param args: list of arguments
         :type args: list(str)
         :param parallelizable: if True, test can be run in parallel
         :type parallelizable: bool
         """
-        self._name = name
-        self._cmd = cmd
-        self._args = args
-        self._parallelizable = parallelizable
+        self._name = kwargs.get("name", None)
+        self._cmd = kwargs.get("cmd", None)
+        self._args = kwargs.get("args", [])
+        self._cwd = kwargs.get("cwd", None)
+        self._env = kwargs.get("env", {})
+        self._parallelizable = kwargs.get("parallelizable", False)
 
     def __repr__(self) -> str:
         return \
             f"name: '{self._name}', " \
             f"commmand: '{self._cmd}', " \
             f"arguments: {self._args}, " \
+            f"cwd: '{self._cwd}', " \
+            f"environ: '{self._env}', " \
             f"parallelizable: {self._parallelizable}"
 
     @property
@@ -105,6 +108,20 @@ class Test:
         If True, test can be run in parallel.
         """
         return self._parallelizable
+
+    @property
+    def cwd(self):
+        """
+        Current working directory.
+        """
+        return self._cwd
+
+    @property
+    def env(self):
+        """
+        Environment variables
+        """
+        return self._env
 
 
 PARALLEL_BLACKLIST = [
