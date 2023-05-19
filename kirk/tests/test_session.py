@@ -7,10 +7,6 @@ import pytest
 from kirk.host import HostSUT
 from kirk.session import Session
 from kirk.tempfile import TempDir
-from kirk.sut import SUT
-from kirk.data import Suite
-from kirk.data import Test
-from kirk.framework import Framework
 
 
 pytestmark = pytest.mark.asyncio
@@ -34,80 +30,6 @@ async def sut(sut_config):
     await obj.communicate()
     yield obj
     await obj.stop()
-
-
-class DummyFramework(Framework):
-    """
-    A generic framework created for testing.
-    """
-
-    def __init__(self) -> None:
-        self._root = None
-
-    def setup(self, **kwargs: dict) -> None:
-        self._root = kwargs.get("root", "/")
-
-    @property
-    def name(self) -> str:
-        return "dummy"
-
-    async def get_suites(self, sut: SUT) -> list:
-        return ["suite01", "suite02", "sleep", "environ", "kernel_panic"]
-
-    async def find_suite(self, sut: SUT, name: str) -> Suite:
-        if name in ["suite01", "suite02"]:
-            test0 = Test(
-                name="test01",
-                cwd=self._root,
-                cmd="echo",
-                args=["-n", "ciao0"],
-                parallelizable=False)
-
-            test1 = Test(
-                name="test02",
-                cwd=self._root,
-                cmd="sleep",
-                args=["0.2", "&&", "echo", "-n", "ciao1"],
-                parallelizable=True)
-
-            return Suite(name, [test0, test1])
-        elif name in ["sleep"]:
-            test0 = Test(
-                name="test01",
-                cwd=self._root,
-                cmd="sleep",
-                args=["2"],
-                parallelizable=False)
-
-            test1 = Test(
-                name="test02",
-                cwd=self._root,
-                cmd="sleep",
-                args=["2"],
-                parallelizable=False)
-
-            return Suite(name, [test0, test1])
-        elif name in ["environ"]:
-            test0 = Test(
-                name="test01",
-                cwd=self._root,
-                cmd="echo",
-                args=["-n", "$hello"],
-                parallelizable=False)
-
-            return Suite(name, [test0])
-
-        return None
-
-
-@pytest.fixture
-def dummy_framework(tmpdir):
-    """
-    A fummy framework implementation used for testing.
-    """
-    obj = DummyFramework()
-    obj.setup(root=str(tmpdir))
-    yield obj
 
 
 class TestSession:

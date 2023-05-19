@@ -13,54 +13,20 @@ class TestMain:
     """
     The the main module entry point.
     """
-    # number of tests created inside temporary folder
-    TESTS_NUM = 6
 
     @pytest.fixture(autouse=True)
-    def prepare_tmpdir(self, tmpdir):
+    def setup(self, dummy_framework):
         """
-        Prepare the temporary directory adding runtest folder.
+        Setup main before running tests.
         """
-        # create simple testing suites
-        content = ""
-        for i in range(self.TESTS_NUM):
-            content += f"test0{i} echo ciao\n"
-
-        tmpdir.mkdir("testcases").mkdir("bin")
-        runtest = tmpdir.mkdir("runtest")
-
-        for i in range(3):
-            suite = runtest / f"suite{i}"
-            suite.write(content)
-
-        # create a suite that is executing slower than the others
-        content = ""
-        for i in range(self.TESTS_NUM, self.TESTS_NUM * 2):
-            content += f"test0{i} sleep 0.05\n"
-
-        suite = runtest / f"slow_suite"
-        suite.write(content)
-
-        # enable parallelization for 'slow_suite'
-        tests = {}
-        for index in range(self.TESTS_NUM, self.TESTS_NUM * 2):
-            name = f"test0{index}"
-            tests[name] = {}
-
-        metadata_d = {"tests": tests}
-        metadata = tmpdir.mkdir("metadata") / "ltp.json"
-        metadata.write(json.dumps(metadata_d))
-
-        # create a suite printing environment variables
-        suite = runtest / f"env_suite"
-        suite.write("test_env echo -n $VAR0:$VAR1:$VAR2")
+        kirk.main.LOADED_FRAMEWORK.append(dummy_framework)
 
     def read_report(self, temp, tests_num) -> dict:
         """
         Check if report file contains the given number of tests.
         """
         name = pwd.getpwuid(os.getuid()).pw_name
-        report = str(temp / f"runltp.{name}" / "latest" / "results.json")
+        report = str(temp / f"kirk.{name}" / "latest" / "results.json")
         assert os.path.isfile(report)
 
         # read report and check if all suite's tests have been executed
@@ -92,10 +58,13 @@ class TestMain:
 
         kirk.main._discover_sut(str(tmpdir))
 
-        assert len(kirk.main.LOADED_SUT) == 2
+        try:
+            assert len(kirk.main.LOADED_SUT) == 2
 
-        for index in range(0, len(kirk.main.LOADED_SUT)):
-            assert kirk.main.LOADED_SUT[index].name == f"mysut{index}"
+            for index in range(0, len(kirk.main.LOADED_SUT)):
+                assert kirk.main.LOADED_SUT[index].name == f"mysut{index}"
+        finally:
+            kirk.main.LOADED_SUT.clear()
 
     def test_wrong_options(self):
         """
@@ -116,7 +85,6 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
             "--run-command", "ls"
         ]
@@ -132,7 +100,6 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
             "--run-command", "ls",
             "--exec-timeout", "0"
@@ -149,9 +116,8 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0", "suite1", "suite2"
+            "--run-suite", "dummy:suite01"
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -159,7 +125,7 @@ class TestMain:
 
         assert excinfo.value.code == kirk.main.RC_OK
 
-        self.read_report(temp, self.TESTS_NUM * 3)
+        self.read_report(temp, 2)
 
     def test_run_suite_timeout(self, tmpdir):
         """
@@ -167,9 +133,8 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0",
+            "--run-suite", "dummy:suite01",
             "--suite-timeout", "0"
         ]
 
@@ -178,7 +143,7 @@ class TestMain:
 
         assert excinfo.value.code == kirk.main.RC_OK
 
-        report_d = self.read_report(temp, self.TESTS_NUM)
+        report_d = self.read_report(temp, 2)
         for param in report_d["results"]:
             assert param["test"]["passed"] == 0
             assert param["test"]["failed"] == 0
@@ -192,9 +157,8 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0",
+            "--run-suite", "dummy:suite01",
             "--verbose",
         ]
 
@@ -204,7 +168,7 @@ class TestMain:
         assert excinfo.value.code == kirk.main.RC_OK
 
         captured = capsys.readouterr()
-        assert "ciao\n" in captured.out
+        assert "ciao0\n" in captured.out
 
     @pytest.mark.xfail(reason="This test passes if run alone. capsys bug?")
     def test_run_suite_no_colors(self, tmpdir, capsys):
@@ -213,9 +177,8 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0",
+            "--run-suite", "dummy:suite01",
             "--no-colors",
         ]
 
@@ -234,9 +197,8 @@ class TestMain:
         temp = tmpdir.mkdir("temp")
         report = str(tmpdir / "report.json")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite1",
+            "--run-suite", "dummy:suite01",
             "--json-report", report
         ]
 
@@ -246,7 +208,7 @@ class TestMain:
         assert excinfo.value.code == kirk.main.RC_OK
         assert os.path.isfile(report)
 
-        report_a = self.read_report(temp, self.TESTS_NUM)
+        report_a = self.read_report(temp, 2)
         report_b = None
         with open(report, 'r') as report_f:
             report_b = json.loads(report_f.read())
@@ -259,10 +221,9 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0", "suite2",
-            "--skip-tests", "test0[01]"
+            "--run-suite", "dummy:suite01",
+            "--skip-tests", "test0[12]"
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -270,7 +231,7 @@ class TestMain:
 
         assert excinfo.value.code == kirk.main.RC_OK
 
-        self.read_report(temp, (self.TESTS_NUM - 2) * 2)
+        self.read_report(temp, 0)
 
     def test_skip_file(self, tmpdir):
         """
@@ -281,9 +242,8 @@ class TestMain:
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0", "suite2",
+            "--run-suite", "dummy:suite01",
             "--skip-file", str(skipfile)
         ]
 
@@ -292,21 +252,20 @@ class TestMain:
 
         assert excinfo.value.code == kirk.main.RC_OK
 
-        self.read_report(temp, (self.TESTS_NUM - 2) * 2)
+        self.read_report(temp, 0)
 
     def test_skip_tests_and_file(self, tmpdir):
         """
         Test --skip-file option with --skip-tests.
         """
         skipfile = tmpdir / "skipfile"
-        skipfile.write("test02\ntest03")
+        skipfile.write("test02")
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "suite0", "suite2",
-            "--skip-tests", "test0[01]",
+            "--run-suite", "dummy:suite01",
+            "--skip-tests", "test01",
             "--skip-file", str(skipfile)
         ]
 
@@ -315,7 +274,7 @@ class TestMain:
 
         assert excinfo.value.code == kirk.main.RC_OK
 
-        self.read_report(temp, (self.TESTS_NUM - 4) * 2)
+        self.read_report(temp, 0)
 
     def test_workers(self, tmpdir):
         """
@@ -325,9 +284,8 @@ class TestMain:
 
         # run on single worker
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "slow_suite",
+            "--run-suite", "dummy:suite02",
             "--workers", "1",
         ]
 
@@ -338,13 +296,12 @@ class TestMain:
         first_t = time.time() - start_t
 
         assert excinfo.value.code == kirk.main.RC_OK
-        self.read_report(temp, self.TESTS_NUM)
+        self.read_report(temp, 2)
 
         # run on multiple workers
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "slow_suite",
+            "--run-suite", "dummy:suite01",
             "--workers", str(os.cpu_count()),
         ]
 
@@ -355,7 +312,7 @@ class TestMain:
         second_t = time.time() - start_t
 
         assert excinfo.value.code == kirk.main.RC_OK
-        self.read_report(temp, self.TESTS_NUM)
+        self.read_report(temp, 2)
 
         assert second_t < first_t
 
@@ -379,10 +336,9 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--ltp-dir", str(tmpdir),
             "--tmp-dir", str(temp),
-            "--run-suite", "env_suite",
-            "--env", "VAR0=0:VAR1=1:VAR2=2"
+            "--run-suite", "dummy:environ",
+            "--env", "hello=ciao"
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -391,4 +347,4 @@ class TestMain:
         assert excinfo.value.code == kirk.main.RC_OK
 
         report_d = self.read_report(temp, 1)
-        assert report_d["results"][0]["test"]["log"] == "0:1:2"
+        assert report_d["results"][0]["test"]["log"] == "ciao"
