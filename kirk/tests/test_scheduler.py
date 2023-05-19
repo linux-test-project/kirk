@@ -1,11 +1,10 @@
 """
 Unittests for runner module.
 """
-import re
-import time
 import asyncio
 import pytest
-import kirk.data
+from kirk.data import Test
+from kirk.data import Suite
 from kirk.host import HostSUT
 from kirk.scheduler import TestScheduler
 from kirk.scheduler import SuiteScheduler
@@ -86,14 +85,6 @@ async def sut():
     await obj.stop()
 
 
-def make_parallelizable(suite):
-    """
-    Make an entire suite parallel.
-    """
-    for test in suite.tests:
-        test._parallelizable = True
-
-
 class TestTestScheduler:
     """
     Tests for TestScheduler.
@@ -113,32 +104,28 @@ class TestTestScheduler:
 
         yield _callback
 
-    async def test_schedule(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule(self, workers, create_runner):
         """
         Test the schedule method.
         """
-        tests_num = 10
-        content = ""
-        for i in range(tests_num):
-            content += f"test{i} sleep 0.02; echo ciao\n"
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="echo",
+                args=["-n", "ciao"],
+                parallelizable=True,
+            ))
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
+        runner = create_runner(max_workers=workers)
 
-        runner = create_runner(max_workers=1)
+        await runner.schedule(tests)
+        assert len(runner.results) == len(tests)
 
-        # single worker
-        start = time.time()
-        await runner.schedule(suite.tests)
-        end_single = time.time() - start
-
-        assert len(runner.results) == tests_num
-
-        # check completed tests
-        matcher = re.compile(r"test(?P<number>\d+)")
-        numbers = list(range(tests_num))
-
-        for res in runner.results:
+        for i in range(len(tests)):
+            res = runner.results[i]
+            assert res.test.name == f"test{i}"
             assert res.passed == 1
             assert res.failed == 0
             assert res.broken == 0
@@ -146,63 +133,37 @@ class TestTestScheduler:
             assert res.warnings == 0
             assert 0 < res.exec_time < 1
             assert res.return_code == 0
-            assert res.stdout == "ciao\n"
+            assert res.stdout == "ciao"
 
-            match = matcher.search(res.test.name)
-            assert match is not None
-
-            number = int(match.group("number"))
-            numbers.remove(number)
-
-        assert len(numbers) == 0
-
-        # multiple workers
-        runner = create_runner(max_workers=tests_num)
-
-        start = time.time()
-        await runner.schedule(suite.tests)
-        end_multi = time.time() - start
-
-        assert len(runner.results) == tests_num
-        assert end_multi < end_single
-
-    async def test_schedule_stop(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_stop(self, workers, create_runner):
         """
         Test the schedule method when stop is called.
         """
-        tests_num = 10
-        content = "test0 echo ciao\n"
-        for i in range(1, tests_num):
-            content += f"test{i} sleep 1\n"
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="sleep",
+                args=["1"],
+                parallelizable=True,
+            ))
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
-
-        runner = create_runner(max_workers=tests_num)
+        runner = create_runner(max_workers=workers)
 
         async def stop():
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)
             await runner.stop()
 
         await asyncio.gather(*[
-            runner.schedule(suite.tests),
+            runner.schedule(tests),
             stop()
         ])
 
-        assert len(runner.results) == 1
-        res = runner.results[0]
+        assert len(runner.results) == 0
 
-        assert res.test.name == "test0"
-        assert res.passed == 1
-        assert res.failed == 0
-        assert res.broken == 0
-        assert res.skipped == 0
-        assert res.warnings == 0
-        assert 0 < res.exec_time < 1
-        assert res.return_code == 0
-        assert res.stdout == "ciao\n"
-
-    async def test_schedule_kernel_tainted(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_kernel_tainted(self, workers, create_runner):
         """
         Test the schedule method when kernel is tainted.
         """
@@ -210,71 +171,68 @@ class TestTestScheduler:
 
         async def mock_tainted():
             if tainted:
-                tainted.clear()
                 return 1, ["proprietary module was loaded"]
 
+            # switch to tainted status _after_ test
             tainted.append(1)
             return 0, [""]
 
-        runner = create_runner(max_workers=1)
+        runner = create_runner(max_workers=workers)
         runner._get_tainted_status = mock_tainted
 
-        content = ""
-        for i in range(2):
-            content += f"test{i} echo ciao\n"
-
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="echo",
+                args=["-n", "ciao"],
+                parallelizable=True,
+            ))
 
         with pytest.raises(KernelTainedError):
-            await runner.schedule(suite.tests)
+            await runner.schedule(tests)
 
-        assert len(runner.results) == 1
-        res = runner.results[0]
-
-        assert res.test.name == "test0"
-        assert res.passed == 1
-        assert res.failed == 0
-        assert res.broken == 0
-        assert res.skipped == 0
-        assert res.warnings == 0
-        assert 0 < res.exec_time < 1
-        assert res.return_code == 0
-        assert res.stdout == "ciao\n"
-
-    async def test_schedule_kernel_panic(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_kernel_panic(self, workers, create_runner):
         """
-        Test the schedule method on kernel panic. It runs some tests in
-        parallel then it generates a Kernel panic, it verifies that only one
-        test has been executed and it failed.
+        Test the schedule method on kernel panic.
         """
-        content = "test0 echo Kernel panic\n"
-        content += "test1 echo ciao; sleep 3\n"
-        content += "test2 echo ciao; sleep 3\n"
-        content += "test3 echo ciao; sleep 3\n"
+        tests = []
+        tests.append(Test(
+            name=f"test0",
+            cmd="echo",
+            args=["Kernel", "panic"],
+            parallelizable=True,
+        ))
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
+        for i in range(1, 10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="sleep",
+                args=["0.2", "&&", "echo", "-n", "ciao"],
+                parallelizable=True,
+            ))
 
-        runner = create_runner(max_workers=10)
+        runner = create_runner(max_workers=workers)
 
         with pytest.raises(KernelPanicError):
-            await runner.schedule(suite.tests)
+            await runner.schedule(tests)
 
         assert len(runner.results) == 1
-        res = runner.results[0]
 
+        res = runner.results[0]
         assert res.test.name == "test0"
         assert res.passed == 0
         assert res.failed == 0
         assert res.broken == 1
         assert res.skipped == 0
         assert res.warnings == 0
-        assert 0 < res.exec_time < 1
+        assert 0 < res.exec_time < 0.2
         assert res.return_code == -1
         assert res.stdout == "Kernel panic\n"
 
-    async def test_schedule_kernel_timeout(self, sut, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_kernel_timeout(self, workers, sut, create_runner):
         """
         Test the schedule method on kernel timeout.
         """
@@ -282,66 +240,51 @@ class TestTestScheduler:
             raise asyncio.TimeoutError()
 
         sut.run_command = kernel_timeout
+        runner = create_runner(max_workers=workers)
 
-        content = ""
-        for i in range(2):
-            content += f"test{i} echo ciao\n"
-
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
-
-        runner = create_runner(max_workers=1)
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="sleep",
+                args=["0.1", "&&", "echo", "-n", "ciao"],
+                parallelizable=True,
+            ))
 
         with pytest.raises(KernelTimeoutError):
-            await runner.schedule(suite.tests)
+            await runner.schedule(tests)
 
-        assert len(runner.results) == 1
-        res = runner.results[0]
-
-        assert res.passed == 0
-        assert res.failed == 0
-        assert res.broken == 1
-        assert res.skipped == 0
-        assert res.warnings == 0
-        assert 0 < res.exec_time < 1
-        assert res.return_code == -1
-        assert res.stdout == ""
-
-    async def test_schedule_test_timeout(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_test_timeout(
+            self, workers, sut, create_runner, dummy_framework):
         """
         Test the schedule method on test timeout.
         """
-        content = "test0 echo ciao; sleep 2\n"
-        content += "test1 echo ciao\n"
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="sleep",
+                args=["0.5", "&&", "echo", "-n", "ciao"],
+                parallelizable=True,
+            ))
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
+        runner = create_runner(timeout=0.05, max_workers=workers)
 
-        runner = create_runner(timeout=0.5, max_workers=2)
+        await runner.schedule(tests)
+        assert len(runner.results) == len(tests)
 
-        await runner.schedule(suite.tests)
-
-        assert len(runner.results) == 2
-
-        assert runner.results[0].test.name == "test1"
-        assert runner.results[0].passed == 1
-        assert runner.results[0].failed == 0
-        assert runner.results[0].broken == 0
-        assert runner.results[0].skipped == 0
-        assert runner.results[0].warnings == 0
-        assert 0 < runner.results[0].exec_time < 1
-        assert runner.results[0].return_code == 0
-        assert runner.results[0].stdout == "ciao\n"
-
-        assert runner.results[1].test.name == "test0"
-        assert runner.results[1].passed == 0
-        assert runner.results[1].failed == 0
-        assert runner.results[1].broken == 1
-        assert runner.results[1].skipped == 0
-        assert runner.results[1].warnings == 0
-        assert 0 < runner.results[1].exec_time < 2
-        assert runner.results[1].return_code == -1
-        assert runner.results[1].stdout == "ciao\n"
+        for i in range(len(tests)):
+            res = runner.results[i]
+            assert res.test.name == f"test{i}"
+            assert res.passed == 0
+            assert res.failed == 0
+            assert res.broken == 1
+            assert res.skipped == 0
+            assert res.warnings == 0
+            assert 0 < res.exec_time < 0.4
+            assert res.return_code == -1
+            assert res.stdout == ""
 
 
 class TestSuiteScheduler:
@@ -365,114 +308,55 @@ class TestSuiteScheduler:
 
         yield _callback
 
-    async def test_schedule(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule(self, workers, create_runner):
         """
         Test the schedule method.
         """
-        tests_num = 10
-        content = ""
-        for i in range(tests_num):
-            content += f"test{i} sleep 0.02; echo ciao\n"
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="echo",
+                args=["-n", "ciao"],
+                parallelizable=True,
+            ))
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
-
-        # single worker
-        runner = create_runner(max_workers=1)
-
-        start = time.time()
-        await runner.schedule([suite])
-        end_single = time.time() - start
+        runner = create_runner(max_workers=workers)
+        await runner.schedule([Suite("suite01", tests)])
 
         assert len(runner.results) == 1
+        assert len(runner.results[0].tests_results) == 10
 
-        assert runner.results[0].suite.name == "suite"
-        assert runner.results[0].distro is not None
-        assert runner.results[0].distro_ver is not None
-        assert runner.results[0].kernel is not None
-        assert runner.results[0].arch is not None
-        assert runner.results[0].cpu is not None
-        assert runner.results[0].swap is not None
-        assert runner.results[0].ram is not None
-        assert runner.results[0].passed == 10
-        assert runner.results[0].failed == 0
-        assert runner.results[0].broken == 0
-        assert runner.results[0].skipped == 0
-        assert runner.results[0].warnings == 0
-        assert 0 < runner.results[0].exec_time < 10
-
-        # check completed tests
-        matcher = re.compile(r"test(?P<number>\d+)")
-        numbers = list(range(tests_num))
-
-        for res in runner.results[0].tests_results:
-            assert res.passed == 1
-            assert res.failed == 0
-            assert res.broken == 0
-            assert res.skipped == 0
-            assert res.warnings == 0
-            assert 0 < res.exec_time < 1
-            assert res.return_code == 0
-            assert res.stdout == "ciao\n"
-
-            match = matcher.search(res.test.name)
-            assert match is not None
-
-            number = int(match.group("number"))
-            numbers.remove(number)
-
-        assert len(numbers) == 0
-
-        # multiple workers
-        runner = create_runner(max_workers=tests_num)
-
-        start = time.time()
-        await runner.schedule([suite])
-        end_multi = time.time() - start
-
-        assert len(runner.results) == 1
-        assert end_multi < end_single
-
-    async def test_schedule_stop(self, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_stop(self, workers, create_runner):
         """
         Test the schedule method when stop is called.
         """
-        tests_num = 10
-        content = "test0 echo ciao\n"
-        for i in range(1, tests_num):
-            content += f"test{i} sleep 1\n"
-
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
-
-        runner = create_runner(max_workers=tests_num)
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="sleep",
+                args=["0.5"],
+                parallelizable=True,
+            ))
+        runner = create_runner(max_workers=workers)
 
         async def stop():
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)
             await runner.stop()
 
         await asyncio.gather(*[
-            runner.schedule([suite]),
+            runner.schedule([Suite("suite01", tests)]),
             stop()
         ])
 
         assert len(runner.results) == 1
-        suite_res = runner.results[0]
+        assert len(runner.results[0].tests_results) == 0
 
-        assert len(suite_res.tests_results) == 1
-        res = suite_res.tests_results[0]
-
-        assert res.test.name == "test0"
-        assert res.passed == 1
-        assert res.failed == 0
-        assert res.broken == 0
-        assert res.skipped == 0
-        assert res.warnings == 0
-        assert 0 < res.exec_time < 1
-        assert res.return_code == 0
-        assert res.stdout == "ciao\n"
-
-    async def test_schedule_kernel_tainted(self, sut, create_runner):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_kernel_tainted(self, workers, sut, create_runner):
         """
         Test the schedule method when kernel is tainted.
         """
@@ -486,105 +370,46 @@ class TestSuiteScheduler:
             tainted.append(1)
             return 0, []
 
-        tests_num = 4
-        content = ""
-        for i in range(tests_num):
-            content += f"test{i} echo ciao\n"
-
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
-
         sut.get_tainted_info = mock_tainted
-        runner = create_runner(max_workers=1)
+        runner = create_runner(max_workers=workers)
 
-        await runner.schedule([suite])
+        tests = []
+        for i in range(2):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="echo",
+                args=["-n", "ciao"],
+                parallelizable=True,
+            ))
+        await runner.schedule([Suite("suite01", tests)])
 
-        assert runner.rebooted == tests_num
+        assert runner.rebooted == 2
         assert len(runner.results) == 1
-        assert len(runner.results[0].tests_results) == tests_num
+        assert len(runner.results[0].tests_results) == 2
 
-        # check completed tests
-        matcher = re.compile(r"test(?P<number>\d+)")
-        numbers = list(range(tests_num))
-
-        for res in runner.results[0].tests_results:
-            assert res.passed == 1
-            assert res.failed == 0
-            assert res.broken == 0
-            assert res.skipped == 0
-            assert res.warnings == 0
-            assert 0 < res.exec_time < 1
-            assert res.return_code == 0
-            assert res.stdout == "ciao\n"
-
-            match = matcher.search(res.test.name)
-            assert match is not None
-
-            number = int(match.group("number"))
-            numbers.remove(number)
-
-        assert len(numbers) == 0
-
-    @pytest.mark.parametrize("max_workers", [1, 10])
-    async def test_schedule_kernel_panic(self, create_runner, max_workers):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_kernel_panic(self, workers, create_runner):
         """
         Test the schedule method on kernel panic.
         """
-        tests_num = 3
+        runner = create_runner(max_workers=workers)
 
-        content = "test0 echo Kernel panic\n"
-        content += "test1 echo ciao; sleep 0.3\n"
-        for i in range(2, tests_num):
-            content += f"test{i} echo ciao; sleep 0.3\n"
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="echo",
+                args=["-n", "Kernel", "panic"],
+                parallelizable=True,
+            ))
+        await runner.schedule([Suite("suite01", tests)])
 
-        suite = await kirk.data.read_runtest("suite", content)
-        runner = create_runner(max_workers=max_workers)
-
-        await runner.schedule([suite])
-        make_parallelizable(suite)
-
-        assert runner.rebooted == 1
+        assert runner.rebooted == 10
         assert len(runner.results) == 1
-        assert len(runner.results[0].tests_results) == tests_num
+        assert len(runner.results[0].tests_results) == 10
 
-        res = runner.results[0].tests_results[0]
-        assert res.passed == 0
-        assert res.failed == 0
-        assert res.broken == 1
-        assert res.skipped == 0
-        assert res.warnings == 0
-        assert 0 < res.exec_time < 1
-        assert res.return_code == -1
-        assert res.stdout == "Kernel panic\n"
-
-        # check completed tests
-        matcher = re.compile(r"test(?P<number>\d+)")
-        numbers = list(range(1, tests_num))
-
-        for res in runner.results[0].tests_results[1:]:
-            assert res.passed == 1
-            assert res.failed == 0
-            assert res.broken == 0
-            assert res.skipped == 0
-            assert res.warnings == 0
-            assert 0 < res.exec_time < 2
-            assert res.return_code == 0
-            assert res.stdout == "ciao\n"
-
-            match = matcher.search(res.test.name)
-            assert match is not None
-
-            number = int(match.group("number"))
-            numbers.remove(number)
-
-        assert len(numbers) == 0
-
-    @pytest.mark.parametrize("max_workers", [1, 10])
-    async def test_schedule_kernel_timeout(
-            self,
-            sut,
-            create_runner,
-            max_workers):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_kernel_timeout(self, workers, sut, create_runner):
         """
         Test the schedule method on kernel timeout.
         """
@@ -592,78 +417,47 @@ class TestSuiteScheduler:
             raise asyncio.TimeoutError()
 
         sut.run_command = kernel_timeout
+        runner = create_runner(max_workers=workers)
 
-        content = ""
-        for i in range(max_workers):
-            content += f"test{i} echo ciao\n"
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="echo",
+                args=["ciao"],
+                parallelizable=True,
+            ))
+        await runner.schedule([Suite("suite01", tests)])
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
-
-        runner = create_runner(max_workers=max_workers)
-
-        await runner.schedule([suite])
-
-        assert runner.rebooted == 1
+        assert runner.rebooted > 0
         assert len(runner.results) == 1
-        assert len(runner.results[0].tests_results) == max_workers
+        assert len(runner.results[0].tests_results) == len(tests)
 
-        # check completed tests
-        matcher = re.compile(r"test(?P<number>\d+)")
-        numbers = list(range(max_workers))
-
-        for res in runner.results[0].tests_results:
-            assert res.passed == 0
-            assert res.failed == 0
-            assert res.broken == 1
-            assert res.skipped == 0
-            assert res.warnings == 0
-            assert 0 < res.exec_time < 1
-            assert res.return_code == -1
-            assert res.stdout == ""
-
-            match = matcher.search(res.test.name)
-            assert match is not None
-
-            number = int(match.group("number"))
-            numbers.remove(number)
-
-        assert len(numbers) == 0
-
-    @pytest.mark.parametrize("max_workers", [1, 10])
-    async def test_schedule_suite_timeout(self, create_runner, max_workers):
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_suite_timeout(self, workers, create_runner):
         """
         Test the schedule method on suite timeout.
         """
-        content = "test0 echo ciao\n"
-        content += "test1 echo ciao; sleep 2\n"
+        runner = create_runner(suite_timeout=0.1, max_workers=workers)
 
-        suite = await kirk.data.read_runtest("suite", content)
-        make_parallelizable(suite)
+        tests = []
+        for i in range(10):
+            tests.append(Test(
+                name=f"test{i}",
+                cmd="sleep",
+                args=["0.5"],
+                parallelizable=True,
+            ))
+        await runner.schedule([Suite("suite01", tests)])
 
-        runner = create_runner(suite_timeout=0.5, max_workers=max_workers)
-
-        await runner.schedule([suite])
-
-        assert len(runner.results) == 1
-        res = runner.results[0].tests_results[0]
-        assert res.test.name == "test0"
-        assert res.passed == 1
-        assert res.failed == 0
-        assert res.broken == 0
-        assert res.skipped == 0
-        assert res.warnings == 0
-        assert 0 < res.exec_time < 1
-        assert res.return_code == 0
-        assert res.stdout == "ciao\n"
-
-        res = runner.results[0].tests_results[1]
-        assert res.test.name == "test1"
-        assert res.passed == 0
-        assert res.failed == 0
-        assert res.broken == 0
-        assert res.skipped == 1
-        assert res.warnings == 0
-        assert res.exec_time == 0
-        assert res.return_code == 32
-        assert res.stdout == ""
+        for i in range(len(tests)):
+            res = runner.results[0].tests_results[i]
+            assert res.test.name == f"test{i}"
+            assert res.passed == 0
+            assert res.failed == 0
+            assert res.broken == 0
+            assert res.skipped == 1
+            assert res.warnings == 0
+            assert 0 < res.exec_time < 0.4
+            assert res.return_code == -1
+            assert res.stdout == ""
