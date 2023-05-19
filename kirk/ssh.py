@@ -33,8 +33,6 @@ class SSHSUT(SUT):
         self._host = None
         self._port = None
         self._reset_cmd = None
-        self._env = None
-        self._cwd = None
         self._user = None
         self._password = None
         self._key_file = None
@@ -93,21 +91,22 @@ class SSHSUT(SUT):
 
         self._logger.info("Reset command has been executed")
 
-    def _create_command(self, cmd: str) -> str:
+    def _create_command(self, cmd: str, cwd: str, env: dict) -> str:
         """
         Create command to send to SSH client.
         """
-        script = ""
+        args = []
 
-        if self._cwd:
-            script += f"cd {self._cwd};"
+        if cwd:
+            args.append(f"cd {cwd};")
 
-        if self._env:
-            for key, value in self._env.items():
-                script += f"export {key}={value};"
+        if env:
+            for key, value in env.items():
+                args.append(f"export {key}={value};")
 
-        script += cmd
+        args.append(cmd)
 
+        script = ''.join(args)
         if self._sudo:
             script = f"sudo /bin/sh -c '{script}'"
 
@@ -123,8 +122,6 @@ class SSHSUT(SUT):
         self._host = kwargs.get("host", "localhost")
         self._port = kwargs.get("port", 22)
         self._reset_cmd = kwargs.get("reset_cmd", None)
-        self._env = kwargs.get("env", None)
-        self._cwd = kwargs.get("cwd", None)
         self._user = kwargs.get("user", "root")
         self._password = kwargs.get("password", None)
         self._key_file = kwargs.get("key_file", None)
@@ -230,6 +227,8 @@ class SSHSUT(SUT):
     async def run_command(
             self,
             command: str,
+            cwd: str = None,
+            env: dict = None,
             iobuffer: IOBuffer = None) -> dict:
         if not command:
             raise ValueError("command is empty")
@@ -238,7 +237,7 @@ class SSHSUT(SUT):
             raise SUTError("SSH connection is not present")
 
         async with self._session_sem:
-            cmd = self._create_command(command)
+            cmd = self._create_command(command, cwd, env)
             ret = None
             proc = None
             start_t = 0

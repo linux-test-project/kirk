@@ -40,35 +40,6 @@ class _TestSSHSUT(_TestSUT):
         if await sut.is_running:
             await sut.stop()
 
-    async def test_cwd(self, config):
-        """
-        Test CWD constructor argument.
-        """
-        kwargs = dict(cwd="/etc")
-        kwargs.update(config)
-
-        sut = SSHSUT()
-        sut.setup(**kwargs)
-        await sut.communicate()
-
-        ret = await sut.run_command("test -f fstab")
-        assert ret["returncode"] == 0
-
-    async def test_env(self, config):
-        """
-        Test ENV constructor argument.
-        """
-        kwargs = dict(env=dict(BOOOOOH="myfile"))
-        kwargs.update(config)
-
-        sut = SSHSUT()
-        sut.setup(**kwargs)
-        await sut.communicate()
-
-        ret = await sut.run_command("echo -n $BOOOOOH")
-        assert ret["returncode"] == 0
-        assert ret["stdout"] == "myfile"
-
     async def test_reset_command(self, config):
         """
         Test reset_command option.
