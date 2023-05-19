@@ -127,11 +127,17 @@ class SUT:
     async def run_command(
             self,
             command: str,
+            cwd: str = None,
+            env: dict = None,
             iobuffer: IOBuffer = None) -> dict:
         """
         Coroutine to run command on target.
         :param command: command to execute
         :type command: str
+        :param cwd: current working directory
+        :type cwd: str
+        :param env: environment variables
+        :type env: dict
         :param iobuffer: buffer used to write SUT stdout
         :type iobuffer: IOBuffer
         :returns: dictionary containing command execution information

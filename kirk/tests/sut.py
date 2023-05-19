@@ -250,3 +250,31 @@ class _TestSUT:
         kirk.create_task(fetch())
 
         await stop()
+
+    async def test_cwd(self, sut):
+        """
+        Test CWD constructor argument.
+        """
+        await sut.communicate(iobuffer=Printer())
+
+        ret = await sut.run_command(
+            "echo -n $PWD",
+            cwd="/tmp",
+            iobuffer=Printer())
+
+        assert ret["returncode"] == 0
+        assert ret["stdout"].strip() == "/tmp"
+
+    async def test_env(self, sut):
+        """
+        Test ENV constructor argument.
+        """
+        await sut.communicate(iobuffer=Printer())
+
+        ret = await sut.run_command(
+            "echo -n $HELLO",
+            env=dict(HELLO="ciao"),
+            iobuffer=Printer())
+
+        assert ret["returncode"] == 0
+        assert ret["stdout"].strip() == "ciao"
