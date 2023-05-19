@@ -275,7 +275,7 @@ class TestScheduler(Scheduler):
                     task.cancel()
 
             # wait until all tasks have been cancelled
-            asyncio.gather(*self._tasks, return_exceptions=True)
+            await asyncio.gather(*self._tasks, return_exceptions=True)
 
             async with self._lock:
                 pass
@@ -457,7 +457,7 @@ class TestScheduler(Scheduler):
                         task.cancel()
 
                 self._logger.info("Wait for tasks to be done")
-                asyncio.gather(*self._tasks, return_exceptions=True)
+                await asyncio.gather(*self._tasks, return_exceptions=True)
 
                 raise err
             except asyncio.CancelledError as err:
