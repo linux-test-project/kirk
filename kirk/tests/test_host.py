@@ -33,35 +33,5 @@ class TestHostSUT(_TestSUT):
         """
         return request.param * 0
 
-    async def test_cwd(self, tmpdir):
-        """
-        Test CWD constructor argument.
-        """
-        myfile = tmpdir / "myfile"
-        myfile.write("mytests")
-
-        sut = HostSUT()
-        sut.setup(cwd=str(tmpdir))
-        await sut.communicate(iobuffer=Printer())
-
-        ret = await sut.run_command("cat myfile", iobuffer=Printer())
-        assert ret["returncode"] == 0
-        assert ret["stdout"] == "mytests"
-
-    async def test_env(self, tmpdir):
-        """
-        Test ENV constructor argument.
-        """
-        myfile = tmpdir / "myfile"
-        myfile.write("mytests")
-
-        sut = HostSUT()
-        sut.setup(cwd=str(tmpdir), env=dict(FILE=str(myfile)))
-        await sut.communicate(iobuffer=Printer())
-
-        ret = await sut.run_command("cat $FILE", iobuffer=Printer())
-        assert ret["returncode"] == 0
-        assert ret["stdout"] == "mytests"
-
     async def test_fetch_file_stop(self):
         pytest.skip(reason="Coroutines don't support I/O file handling")

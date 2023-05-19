@@ -28,16 +28,11 @@ class HostSUT(SUT):
         self._logger = logging.getLogger("kirk.host")
         self._fetch_lock = asyncio.Lock()
         self._procs = []
-        self._cwd = None
-        self._env = None
         self._running = False
         self._stop = False
 
     def setup(self, **kwargs: dict) -> None:
-        self._logger.info("Initialize SUT")
-
-        self._cwd = kwargs.get('cwd', None)
-        self._env = kwargs.get('env', None)
+        pass
 
     @property
     def config_help(self) -> dict:
@@ -130,6 +125,8 @@ class HostSUT(SUT):
     async def run_command(
             self,
             command: str,
+            cwd: str = None,
+            env: dict = None,
             iobuffer: IOBuffer = None) -> dict:
         if not command:
             raise ValueError("command is empty")
@@ -149,8 +146,8 @@ class HostSUT(SUT):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self._cwd,
-                env=self._env,
+                cwd=cwd,
+                env=env,
                 preexec_fn=os.setsid)
 
             self._procs.append(proc)
