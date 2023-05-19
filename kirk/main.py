@@ -25,6 +25,9 @@ from kirk.tempfile import TempDir
 # runtime loaded SUT(s)
 LOADED_SUT = []
 
+# runtime loaded Framework(s)
+LOADED_FRAMEWORK = []
+
 # return codes of the application
 RC_OK = 0
 RC_ERROR = 1
@@ -124,6 +127,26 @@ def _suites_config(value: str) -> dict:
     return (parts[0], parts[1])
 
 
+def _discover_sut(path: str) -> None:
+    """
+    Discover new SUT implementations.
+    """
+    global LOADED_SUT
+
+    objs = kirk.discover_objects(SUT, path)
+    LOADED_SUT.extend(objs)
+
+
+def _discover_frameworks(path: str) -> None:
+    """
+    Discover new Framework implementations.
+    """
+    global LOADED_FRAMEWORK
+
+    objs = kirk.discover_objects(Framework, path)
+    LOADED_FRAMEWORK.extend(objs)
+
+
 def _get_sut(sut_name: str) -> SUT:
     """
     Return the SUT with name `sut_name`.
@@ -184,11 +207,7 @@ def _start_session(
         parser.error(f"'{sut_name}' is not an available SUT")
 
     # initialize frameworks
-    frameworks = kirk.discover_objects(
-        Framework,
-        os.path.dirname(os.path.realpath(__file__))
-    )
-    for fwork in frameworks:
+    for fwork in LOADED_FRAMEWORK:
         fwork.setup(env=args.env)
 
     # create session object
@@ -203,7 +222,7 @@ def _start_session(
     session = Session(
         sut=sut,
         sut_config=args.sut,
-        frameworks=frameworks,
+        frameworks=LOADED_FRAMEWORK,
         tmpdir=tmpdir,
         no_colors=args.no_colors,
         exec_timeout=args.exec_timeout,
@@ -226,14 +245,15 @@ def _start_session(
 
     # merge suites into a compatible session dict
     suites = {}
-    for item in args.run_suite:
-        fwork = item[0]
-        suite = item[1]
+    if args.run_suite:
+        for item in args.run_suite:
+            fwork = item[0]
+            suite = item[1]
 
-        if fwork not in suites:
-            suites[fwork] = []
+            if fwork not in suites:
+                suites[fwork] = []
 
-        suites[fwork].append(suite)
+            suites[fwork].append(suite)
 
     async def session_run() -> None:
         """
@@ -263,13 +283,11 @@ def run(cmd_args: list = None) -> None:
     """
     Entry point of the application.
     """
-    global LOADED_SUT
-
-    LOADED_SUT = kirk.discover_objects(
-        SUT, os.path.dirname(os.path.realpath(__file__)))
+    currdir = os.path.dirname(os.path.realpath(__file__))
+    _discover_sut(currdir)
 
     parser = argparse.ArgumentParser(
-        description='Generic Linux Testing Framework')
+        description='Kirk - A generic Linux Testing Framework')
 
     # user interface arguments
     parser.add_argument(
@@ -290,12 +308,6 @@ def run(cmd_args: list = None) -> None:
         type=str,
         default="/tmp",
         help="Temporary directory")
-    parser.add_argument(
-        "--suites-dir",
-        "-g",
-        type=str,
-        default=os.path.abspath("."),
-        help="Testing suites directory")
 
     # tests setup arguments
     parser.add_argument(
@@ -383,6 +395,7 @@ def run(cmd_args: list = None) -> None:
     if args.tmp_dir and not os.path.isdir(args.tmp_dir):
         parser.error(f"'{args.tmp_dir}' temporary folder doesn't exist")
 
+    _discover_frameworks(currdir)
     _start_session(args, parser)
 
 
