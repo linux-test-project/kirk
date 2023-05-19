@@ -35,8 +35,6 @@ class QemuSUT(SUT):
         self._cmd_lock = asyncio.Lock()
         self._fetch_lock = asyncio.Lock()
         self._tmpdir = None
-        self._env = None
-        self._cwd = None
         self._proc = None
         self._stop = False
         self._logged_in = False
@@ -141,8 +139,6 @@ class QemuSUT(SUT):
     def setup(self, **kwargs: dict) -> None:
         self._logger.info("Initialize SUT")
 
-        self._env = kwargs.get("env", None)
-        self._cwd = kwargs.get("cwd", None)
         self._tmpdir = kwargs.get("tmpdir", None)
         self._image = kwargs.get("image", None)
         self._image_overlay = kwargs.get("image_overlay", None)
@@ -444,18 +440,6 @@ class QemuSUT(SUT):
                     if retcode != 0:
                         raise SUTError("Failed to mount virtfs")
 
-                if self._cwd:
-                    _, retcode, _ = await self._exec(f"cd {self._cwd}", None)
-                    if retcode != 0:
-                        raise SUTError("Can't setup current working directory")
-
-                if self._env:
-                    for key, value in self._env.items():
-                        _, retcode, _ = await self._exec(
-                            f"export {key}={value}", None)
-                        if retcode != 0:
-                            raise SUTError(f"Can't setup env {key}={value}")
-
                 self._logged_in = True
 
                 self._logger.info("Virtual machine started")
@@ -472,6 +456,8 @@ class QemuSUT(SUT):
     async def run_command(
             self,
             command: str,
+            cwd: str = None,
+            env: dict = None,
             iobuffer: IOBuffer = None) -> dict:
         if not command:
             raise ValueError("command is empty")
@@ -481,6 +467,20 @@ class QemuSUT(SUT):
 
         async with self._cmd_lock:
             self._logger.info("Running command: %s", command)
+
+            if cwd:
+                stdout, retcode, _ = await self._exec(f"cd {cwd}", None)
+                if retcode != 0:
+                    raise SUTError(
+                        f"Can't setup current working directory: {stdout}")
+
+            if env:
+                for key, value in env.items():
+                    stdout, retcode, _ = await self._exec(
+                        f"export {key}={value}", None)
+                    if retcode != 0:
+                        raise SUTError(
+                            f"Can't setup env {key}={value}: {stdout}")
 
             stdout, retcode, exec_time = await self._exec(
                 f"{command}",
