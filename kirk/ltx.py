@@ -704,8 +704,6 @@ class LTXSUT(SUT):
         self._stdout_fd = -1
         self._stdin_fd = -1
         self._tmpdir = None
-        self._env = None
-        self._cwd = None
         self._ltx = None
         self._slots = []
 
@@ -727,8 +725,6 @@ class LTXSUT(SUT):
         self._logger.info("Initialize SUT")
 
         self._tmpdir = kwargs.get("tmpdir", None)
-        self._env = kwargs.get("env", None)
-        self._cwd = kwargs.get("cwd", None)
         self._stdin = kwargs.get("stdin", None)
         self._stdout = kwargs.get("stdout", None)
 
@@ -816,22 +812,13 @@ class LTXSUT(SUT):
             self._stdout_fd)
 
         await self._ltx.connect()
-
-        requests = []
-        requests.append(version())
-
-        if self._cwd:
-            requests.append(cwd(Request.ALL_SLOTS, self._cwd))
-
-        if self._env:
-            for key, value in self._env.items():
-                requests.append(env(Request.ALL_SLOTS, key, value))
-
-        await self._ltx.gather(requests, timeout=10)
+        await self._ltx.gather([version()], timeout=10)
 
     async def run_command(
             self,
             command: str,
+            cwd: str = None,
+            env: dict = None,
             iobuffer: IOBuffer = None) -> dict:
         if not command:
             raise ValueError("command is empty")
@@ -851,13 +838,22 @@ class LTXSUT(SUT):
         try:
             start_t = time.monotonic()
 
-            req = execute(
+            requests = []
+            if cwd:
+                requests.append(cwd(slot_id, cwd))
+
+            if env:
+                for key, value in env.items():
+                    requests.append(env(slot_id, key, value))
+
+            exec_req = execute(
                 slot_id,
                 command,
                 stdout_callback=_stdout_callback)
 
-            replies = await self._ltx.gather([req], timeout=3600)
-            reply = replies[req]
+            requests.append(exec_req)
+            replies = await self._ltx.gather(requests, timeout=3600)
+            reply = replies[exec_req]
 
             ret = {
                 "command": command,

@@ -307,25 +307,5 @@ class TestLTXSUT(_TestSUT):
 
         proc.kill()
 
-    async def test_cwd(self, sut, tmpdir):
-        """
-        Test CWD constructor argument.
-        """
-        await sut.communicate()
-
-        ret = await sut.run_command("echo -n $PWD")
-        assert ret["returncode"] == 0
-        assert ret["stdout"] == str(tmpdir)
-
-    async def test_env(self, sut):
-        """
-        Test ENV constructor argument.
-        """
-        await sut.communicate()
-
-        ret = await sut.run_command("echo -n $HELLO")
-        assert ret["returncode"] == 0
-        assert ret["stdout"] == "WORLD"
-
     async def test_fetch_file_stop(self):
         pytest.skip(reason="LTX doesn't support stop for GET_FILE")
