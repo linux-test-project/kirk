@@ -39,9 +39,9 @@ class TestJSONExporter:
         """
         # create suite/test metadata objects
         tests = [
-            Test("ls0", "ls", ""),
-            Test("ls1", "ls", "-l"),
-            Test("ls2", "ls", "--error")
+            Test(name="ls0", cmd="ls"),
+            Test(name="ls1", cmd="ls", args=["-l"]),
+            Test(name="ls2", cmd="ls", args=["--error"])
         ]
         suite0 = Suite("ls_suite0", tests)
 
@@ -116,7 +116,7 @@ class TestJSONExporter:
             assert data["results"][0] == {
                 "test": {
                     "command": "ls",
-                    "arguments": "",
+                    "arguments": [],
                     "failed": 0,
                     "passed": 1,
                     "broken": 0,
@@ -135,7 +135,7 @@ class TestJSONExporter:
             assert data["results"][1] == {
                 "test": {
                     "command": "ls",
-                    "arguments": "-l",
+                    "arguments": ["-l"],
                     "failed": 0,
                     "passed": 1,
                     "broken": 0,
@@ -154,7 +154,7 @@ class TestJSONExporter:
             assert data["results"][2] == {
                 "test": {
                     "command": "ls",
-                    "arguments": "--error",
+                    "arguments": ["--error"],
                     "failed": 1,
                     "passed": 0,
                     "broken": 0,
