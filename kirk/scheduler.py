@@ -313,6 +313,8 @@ class TestScheduler(Scheduler):
 
                 test_data = await asyncio.wait_for(self._sut.run_command(
                     cmd,
+                    cwd=test.cwd,
+                    env=test.env,
                     iobuffer=iobuffer),
                     timeout=self._timeout
                 )

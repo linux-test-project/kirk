@@ -236,7 +236,7 @@ class TestTestScheduler:
         """
         Test the schedule method on kernel timeout.
         """
-        async def kernel_timeout(command, iobuffer=None) -> dict:
+        async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
         sut.run_command = kernel_timeout
@@ -413,7 +413,7 @@ class TestSuiteScheduler:
         """
         Test the schedule method on kernel timeout.
         """
-        async def kernel_timeout(command, iobuffer=None) -> dict:
+        async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
         sut.run_command = kernel_timeout
