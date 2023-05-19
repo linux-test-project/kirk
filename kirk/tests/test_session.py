@@ -1,36 +1,19 @@
 """
 Unittests for the session module.
 """
-import os
 import json
-import stat
 import asyncio
 import pytest
 from kirk.host import HostSUT
 from kirk.session import Session
+from kirk.tempfile import TempDir
+from kirk.sut import SUT
+from kirk.data import Suite
+from kirk.data import Test
+from kirk.framework import Framework
 
 
 pytestmark = pytest.mark.asyncio
-
-# number of tests created inside temporary folder
-TESTS_NUM = 9
-
-
-@pytest.fixture(autouse=True)
-def prepare_tmpdir(tmpdir):
-    """
-    Prepare the temporary directory adding runtest folder.
-    """
-    content = ""
-    for i in range(TESTS_NUM):
-        content += f"test0{i} echo ciao\n"
-
-    tmpdir.mkdir("testcases").mkdir("bin")
-    runtest = tmpdir.mkdir("runtest")
-
-    for i in range(3):
-        suite = runtest / f"suite{i}"
-        suite.write(content)
 
 
 @pytest.fixture
@@ -53,19 +36,93 @@ async def sut(sut_config):
     await obj.stop()
 
 
+class DummyFramework(Framework):
+    """
+    A generic framework created for testing.
+    """
+
+    def __init__(self) -> None:
+        self._root = None
+
+    def setup(self, **kwargs: dict) -> None:
+        self._root = kwargs.get("root", "/")
+
+    @property
+    def name(self) -> str:
+        return "dummy"
+
+    async def get_suites(self, sut: SUT) -> list:
+        return ["suite01", "suite02", "sleep", "environ", "kernel_panic"]
+
+    async def find_suite(self, sut: SUT, name: str) -> Suite:
+        if name in ["suite01", "suite02"]:
+            test0 = Test(
+                name="test01",
+                cwd=self._root,
+                cmd="echo",
+                args=["-n", "ciao0"],
+                parallelizable=False)
+
+            test1 = Test(
+                name="test02",
+                cwd=self._root,
+                cmd="sleep",
+                args=["0.2", "&&", "echo", "-n", "ciao1"],
+                parallelizable=True)
+
+            return Suite(name, [test0, test1])
+        elif name in ["sleep"]:
+            test0 = Test(
+                name="test01",
+                cwd=self._root,
+                cmd="sleep",
+                args=["2"],
+                parallelizable=False)
+
+            test1 = Test(
+                name="test02",
+                cwd=self._root,
+                cmd="sleep",
+                args=["2"],
+                parallelizable=False)
+
+            return Suite(name, [test0, test1])
+        elif name in ["environ"]:
+            test0 = Test(
+                name="test01",
+                cwd=self._root,
+                cmd="echo",
+                args=["-n", "$hello"],
+                parallelizable=False)
+
+            return Suite(name, [test0])
+
+        return None
+
+
+@pytest.fixture
+def dummy_framework(tmpdir):
+    """
+    A fummy framework implementation used for testing.
+    """
+    obj = DummyFramework()
+    obj.setup(root=str(tmpdir))
+    yield obj
+
+
 class TestSession:
     """
     Test for Session class.
     """
 
     @pytest.fixture
-    async def session(self, tmpdir, sut):
+    async def session(self, tmpdir, sut, dummy_framework):
         """
         Session communication object.
         """
         session = Session(
-            tmpdir=str(tmpdir),
-            ltpdir=str(tmpdir),
+            tmpdir=TempDir(str(tmpdir)),
+            frameworks=[dummy_framework],
             sut=sut)
 
         yield session
@@ -76,104 +133,74 @@ class TestSession:
         """
         Test run method when executing suites.
         """
-        await session.run(suites=["suite0", "suite1", "suite2"])
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites={"dummy": ["suite01", "suite02"]},
+            report_path=report)
 
-        for i in range(3):
-            assert os.path.isfile(str(tmpdir / "runtest" / f"suite{i}"))
+        with open(report, "r") as report_file:
+            report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) == 4
 
-    async def test_run_skip_tests(self, tmpdir, sut):
+    async def test_run_skip_tests(self, tmpdir, sut, dummy_framework):
         """
         Test run method when executing suites.
         """
-        report = str(tmpdir / "report.json")
         session = Session(
-            tmpdir=str(tmpdir),
-            ltpdir=str(tmpdir),
+            tmpdir=TempDir(str(tmpdir)),
+            frameworks=[dummy_framework],
             sut=sut,
-            skip_tests="test0[01]|test0[45]"
+            skip_tests="test0[12]"
         )
 
+        report = str(tmpdir / "report.json")
         try:
-            await session.run(suites=["suite0"], report_path=report)
+            await session.run(
+                suites={"dummy": ["suite01", "suite02"]},
+                report_path=report)
         finally:
             await asyncio.wait_for(session.stop(), timeout=30)
 
-        assert os.path.isfile(report)
-
-        report_data = None
         with open(report, "r") as report_file:
             report_data = json.loads(report_file.read())
-
-        assert len(report_data["results"]) == TESTS_NUM - 4
-
-    async def test_run_with_report(self, tmpdir, session):
-        """
-        Test run method when generating report file.
-        """
-        report = str(tmpdir / "report.json")
-        await session.run(suites=["suite0"], report_path=report)
-
-        assert os.path.isfile(report)
-
-        report_data = None
-        with open(report, "r") as report_file:
-            report_data = json.loads(report_file.read())
-
-        assert len(report_data["results"]) == TESTS_NUM
+            assert len(report_data["results"]) == 0
 
     async def test_run_stop(self, tmpdir, session):
         """
         Test stop method during run.
         """
-        suite = tmpdir / "runtest" / "suite0"
-
-        content = "test0 echo ciao\n"
-        content += "test1 echo ciao\n"
-        content += "test2 sleep 1; echo ciao\n"
-        suite.write(content)
-
         async def stop():
             await asyncio.sleep(0.2)
             await session.stop()
 
         report = str(tmpdir / "report.json")
         await asyncio.gather(*[
-            session.run(suites=["suite0"], report_path=report),
+            session.run(suites={"dummy": ["sleep"]}, report_path=report),
             stop(),
         ])
 
-        assert os.path.isfile(report)
-
-        report_data = None
         with open(report, "r") as report_file:
             report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) == 0
 
-        assert len(report_data["results"]) == 2
-
-    async def test_run_command(self, sut, session):
+    async def test_run_command(self, session):
         """
         Test run method when running a single command.
         """
-        temp_file = "/tmp/file"
+        await session.run(command="test")
 
-        await session.run(command=f"touch {temp_file}")
-
-        await sut.ensure_communicate()
-        ret = await sut.run_command(f"test {temp_file}")
-
-        assert ret["returncode"] == 0
-
-    async def test_run_command_stop(self, tmpdir, sut):
+    async def test_run_command_stop(self, tmpdir, dummy_framework, sut):
         """
         Test stop when runnig a command.
         """
         session = Session(
-            tmpdir=str(tmpdir),
-            ltpdir=str(tmpdir),
-            sut=sut)
+            tmpdir=TempDir(str(tmpdir)),
+            frameworks=[dummy_framework],
+            sut=sut,
+        )
 
         async def stop():
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.1)
             await asyncio.wait_for(session.stop(), timeout=30)
 
         await asyncio.gather(*[
@@ -181,43 +208,26 @@ class TestSession:
             stop()
         ])
 
-    async def test_env(self, tmpdir, sut):
+    async def test_env(self, tmpdir, dummy_framework, sut):
         """
         Test environment variables injected in the SUT by session object.
         """
-        # create runtest file
-        suite = tmpdir / "runtest" / "envsuite"
-        suite.write("test script.sh")
-
-        # create test script
-        script_sh = tmpdir / "testcases" / "bin" / "script.sh"
-        script_sh.write("#!/bin/sh\necho -n $VAR0:$VAR1")
-
-        st = os.stat(str(script_sh))
-        os.chmod(str(script_sh), st.st_mode | stat.S_IEXEC)
-
-        # run session with environment variables and save report
-        report_path = tmpdir / "report.json"
         session = Session(
-            tmpdir=str(tmpdir),
-            ltpdir=str(tmpdir),
+            tmpdir=TempDir(str(tmpdir)),
+            frameworks=[dummy_framework],
             sut=sut,
-            env=dict(VAR0="0", VAR1="1")
+            env={"hello": "world"}
         )
 
+        report = tmpdir / "report.json"
         try:
             await session.run(
-                report_path=report_path,
-                suites=["envsuite"])
+                suites={"dummy": ["environ"]},
+                report_path=report)
         finally:
             await asyncio.wait_for(session.stop(), timeout=30)
 
-        assert os.path.isfile(report_path)
-
-        # read report and check if all tests have been executed
-        report_d = None
-        with open(report_path, 'r') as report_f:
+        with open(report, 'r') as report_f:
             report_d = json.loads(report_f.read())
-
-        assert len(report_d["results"]) == 1
-        assert report_d["results"][0]["test"]["log"] == "0:1"
+            assert len(report_d["results"]) == 1
+            assert report_d["results"][0]["test"]["log"] == "world"

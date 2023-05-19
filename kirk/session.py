@@ -171,7 +171,10 @@ class Session:
                 for suite in suites:
                     coros.append(fwork.find_suite(self._sut, suite))
 
-        suites_obj = await asyncio.gather(*coros)
+        suites_obj = await asyncio.gather(*coros, return_exceptions=True)
+        for suite in suites_obj:
+            if not suite:
+                raise KirkException("Couldn't find suite objects")
 
         return suites_obj
 
