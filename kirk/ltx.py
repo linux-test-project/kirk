@@ -663,7 +663,7 @@ class Session:
         if not self.connected:
             raise LTXError("Client is not connected to LTX")
 
-        with await self._lock:
+        async with self._lock:
             self._logger.info("Sending requests")
             self._requests.extend(requests)
 
@@ -890,7 +890,7 @@ class LTXSUT(SUT):
         if not os.path.isfile(target_path):
             raise SUTError("target path doesn't exist")
 
-        with await self._fetch_lock:
+        async with self._fetch_lock:
             req = Requests.get_file(target_path)
             replies = await self._ltx.gather([req], timeout=3600)
             reply = replies[req]
