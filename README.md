@@ -160,4 +160,4 @@ To run unittests:
 
 To run linting checks:
 
-    pylint --rcfile=pylint.ini ./ltp
+    pylint --rcfile=pylint.ini ./kirk
