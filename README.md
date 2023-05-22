@@ -52,6 +52,23 @@ support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
 Quickstart
 ==========
 
+To install `kirk`, please consider the following procedure:
+
+    # clone repository
+    git clone git@github.com:acerv/kirk.git
+
+    # create virtualenv (python-3.6+)
+    virtualenv venv
+
+    # activate virtualenv
+    source venv/bin/activate
+
+    # install kirk
+    pip install ./kirk
+
+    # execute kirk
+    kirk --help
+
 Some basic commands are the following:
 
     # run LTP syscalls testing suite on host
