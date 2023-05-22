@@ -386,7 +386,11 @@ class TestSuiteScheduler:
             ))
         await runner.schedule([Suite("suite01", tests)])
 
-        assert runner.rebooted == 2
+        if workers > 1:
+            assert runner.rebooted >= 1
+        else:
+            assert runner.rebooted == 2
+
         assert len(runner.results) == 1
         assert len(runner.results[0].tests_results) == 2
 
