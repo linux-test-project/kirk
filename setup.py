@@ -27,7 +27,8 @@ setup(
         'Topic :: Software Development :: Testing',
     ],
     install_requires=[
-        'paramiko <= 3.1.0',
+        'asyncssh <= 2.13.1',
+        'msgpack <= 1.0.5',
     ],
     packages=['kirk'],
     include_package_data=True,
