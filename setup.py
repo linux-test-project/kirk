@@ -26,10 +26,10 @@ setup(
         'Programming Language :: Python :: 3.11',
         'Topic :: Software Development :: Testing',
     ],
-    install_requires=[
-        'asyncssh <= 2.13.1',
-        'msgpack <= 1.0.5',
-    ],
+    extras_require={
+        'ssh':  ['asyncssh <= 2.13.1'],
+        'ltx':  ['msgpack <= 1.0.5'],
+    },
     packages=['kirk'],
     include_package_data=True,
     entry_points={

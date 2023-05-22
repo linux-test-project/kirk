@@ -52,7 +52,13 @@ support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
 Quickstart
 ==========
 
-To install `kirk`, please consider the following procedure:
+The tool works out of the box by running `runkirk` script.
+Minimum python requirement is 3.6+ and *optional* dependences are the following:
+
+- `asyncssh <= 2.13.1` for SSH support
+- `msgpack <= 1.0.5` for LTX support
+
+To install `kirk` via pip, please consider the following procedure:
 
     # clone repository
     git clone git@github.com:acerv/kirk.git
@@ -63,21 +69,17 @@ To install `kirk`, please consider the following procedure:
     # activate virtualenv
     source venv/bin/activate
 
-    # install kirk
+    # install kirk (add -e for development mode)
     pip install ./kirk
+
+    # install SSH support if needed
+    pip install ./kirk[ssh]
+
+    # install LTX support if needed
+    pip install ./kirk[ltx]
 
     # execute kirk
     kirk --help
-
-Alternatively, it's possible to use the `runkirk` script that simplifies
-installation. In this case, dependences must be handled by hand, by installing
-them inside the running system:
-
-- `asyncssh <= 2.13.1` for SSH support
-- `msgpack <= 1.0.5` for LTX support
-
-**NOTE** all dependences are *optional* and it's possible to execute `kirk`
-even without installing them.
 
 Some basic commands are the following:
 
