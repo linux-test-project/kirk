@@ -3,6 +3,7 @@ Unittests for runner module.
 """
 import asyncio
 import pytest
+from kirk.sut import TAINED_MSG
 from kirk.data import Test
 from kirk.data import Suite
 from kirk.host import HostSUT
@@ -361,14 +362,16 @@ class TestSuiteScheduler:
         Test the schedule method when kernel is tainted.
         """
         tainted = []
+        index = 0
+        value = 0
+
+        for msg in TAINED_MSG:
+            tainted.append((value, [msg]))
+            value = pow(2, index)
+            index += 1
 
         async def mock_tainted():
-            if tainted:
-                tainted.clear()
-                return 1, ["proprietary module was loaded"]
-
-            tainted.append(1)
-            return 0, []
+            return tainted.pop()
 
         sut.get_tainted_info = mock_tainted
         runner = create_runner(max_workers=workers)

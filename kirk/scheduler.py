@@ -232,7 +232,7 @@ class TestScheduler(Scheduler):
 
         for msg in messages:
             if msg:
-                self._logger.debug("Kernel tainted: %s", msg)
+                self._logger.debug("Kernel tainted (%d): %s", code, msg)
                 await kirk.events.fire("kernel_tainted", msg)
 
         return code, messages
