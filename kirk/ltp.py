@@ -127,11 +127,7 @@ class LTPFramework(Framework):
                 cmd=test_cmd,
                 args=test_args,
                 cwd=tc_path,
-                env={
-                    "LTPROOT": self._root,
-                    "TMPDIR": "/tmp",
-                    "LTP_COLORIZE_OUTPUT": "1",
-                },
+                env=self._env,
                 parallelizable=parallelizable)
 
             tests.append(test)
