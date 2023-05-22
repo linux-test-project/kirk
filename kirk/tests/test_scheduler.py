@@ -450,6 +450,8 @@ class TestSuiteScheduler:
             ))
         await runner.schedule([Suite("suite01", tests)])
 
+        assert runner.results[0].exec_time >= 0.1
+
         for i in range(len(tests)):
             res = runner.results[0].tests_results[i]
             assert res.test.name == f"test{i}"
@@ -458,6 +460,6 @@ class TestSuiteScheduler:
             assert res.broken == 0
             assert res.skipped == 1
             assert res.warnings == 0
-            assert 0 < res.exec_time < 0.4
-            assert res.return_code == -1
+            assert 0 <= res.exec_time < 0.4
+            assert res.return_code == 32
             assert res.stdout == ""

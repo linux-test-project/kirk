@@ -636,6 +636,10 @@ class SuiteScheduler(Scheduler):
 
         info = await self._sut.get_info()
 
+        suite_exec_time = sum(exec_times)
+        if not exec_times:
+            suite_exec_time = self._suite_timeout
+
         suite_results = SuiteResults(
             suite=suite,
             tests=tests_results,
@@ -646,7 +650,7 @@ class SuiteScheduler(Scheduler):
             cpu=info["cpu"],
             swap=info["swap"],
             ram=info["ram"],
-            exec_time=sum(exec_times))
+            exec_time=suite_exec_time)
 
         await kirk.events.fire("suite_completed", suite_results)
 
