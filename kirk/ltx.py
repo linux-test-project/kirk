@@ -122,363 +122,373 @@ class Request:
         raise NotImplementedError()
 
 
-def version() -> Request:
+class Requests:
     """
-    Create VERSION request.
-    :returns: Request
+    Class container for LTX requests.
     """
-    class _VersionRequest(Request):
+
+    @staticmethod
+    def version() -> Request:
         """
-        VERSION request.
+        Create VERSION request.
+        :returns: Request
         """
+        class _VersionRequest(Request):
+            """
+            VERSION request.
+            """
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-            self._request_id = self.VERSION
+                self._request_id = self.VERSION
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-            if message[0] == self._request_id:
-                ver = message[1]
-                self._logger.debug("version=%s", ver)
+                if message[0] == self._request_id:
+                    ver = message[1]
+                    self._logger.debug("version=%s", ver)
 
-                self._raise_complete(ver)
-                self._completed = True
+                    self._raise_complete(ver)
+                    self._completed = True
 
-    return _VersionRequest()
+        return _VersionRequest()
 
-
-def ping() -> Request:
-    """
-    Create PING request.
-    :returns: Request
-    """
-    class _PingRequest(Request):
+    @staticmethod
+    def ping() -> Request:
         """
-        PING request.
+        Create PING request.
+        :returns: Request
         """
+        class _PingRequest(Request):
+            """
+            PING request.
+            """
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-            self._echoed = False
-            self._request_id = self.PING
+                self._echoed = False
+                self._request_id = self.PING
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-            if message[0] == self.PING:
-                self._logger.info("PING echoed back")
-                self._logger.info("Waiting for PONG")
-                self._echoed = True
-            elif message[0] == self.PONG:
-                if not self._echoed:
-                    raise LTXError("PONG received without PING echo")
+                if message[0] == self.PING:
+                    self._logger.info("PING echoed back")
+                    self._logger.info("Waiting for PONG")
+                    self._echoed = True
+                elif message[0] == self.PONG:
+                    if not self._echoed:
+                        raise LTXError("PONG received without PING echo")
 
-                end_t = message[1]
+                    end_t = message[1]
 
-                self._logger.debug("end_t=%s", end_t)
+                    self._logger.debug("end_t=%s", end_t)
 
-                self._raise_complete(end_t)
-                self._completed = True
+                    self._raise_complete(end_t)
+                    self._completed = True
 
-    return _PingRequest()
+        return _PingRequest()
 
-
-def env(slot_id: int, key: str, value: str) -> Request:
-    """
-    Create ENV request.
-    :param slot_id: command table ID. Can be None if we want to apply the
-        same environment variables to all commands
-    :type slot_id: int
-    :param key: key of the environment variable
-    :type key: str
-    :param value: value of the environment variable
-    :type value: str
-    :returns: Request
-    """
-    if not key:
-        raise ValueError("key is empty")
-
-    if not value:
-        raise ValueError("value is empty")
-
-    class _EnvRequest(Request):
+    @staticmethod
+    def env(slot_id: int, key: str, value: str) -> Request:
         """
-        ENV request.
+        Create ENV request.
+        :param slot_id: command table ID. Can be None if we want to apply the
+            same environment variables to all commands
+        :type slot_id: int
+        :param key: key of the environment variable
+        :type key: str
+        :param value: value of the environment variable
+        :type value: str
+        :returns: Request
         """
+        if not key:
+            raise ValueError("key is empty")
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+        if not value:
+            raise ValueError("value is empty")
 
-            self._request_id = self.ENV
-            self._slot_id = self._args[0]
+        class _EnvRequest(Request):
+            """
+            ENV request.
+            """
 
-            if self._slot_id and \
-                    (self._slot_id < 0 or self._slot_id > self.ALL_SLOTS):
-                raise ValueError(f"Out of bounds slot ID [0-{self.ALL_SLOTS}]")
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+                self._request_id = self.ENV
+                self._slot_id = self._args[0]
 
-            if len(message) > 1 and message[1] != self._slot_id:
-                return
+                if self._slot_id and \
+                        (self._slot_id < 0 or self._slot_id > self.ALL_SLOTS):
+                    raise ValueError(
+                        f"Out of bounds slot ID [0-{self.ALL_SLOTS}]")
 
-            if message[0] == self.ENV:
-                self._logger.info("ENV echoed back")
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-                self._raise_complete()
-                self._completed = True
+                if len(message) > 1 and message[1] != self._slot_id:
+                    return
 
-    return _EnvRequest(args=[slot_id, key, value])
+                if message[0] == self.ENV:
+                    self._logger.info("ENV echoed back")
 
+                    self._raise_complete()
+                    self._completed = True
 
-def cwd(slot_id: int, path: str) -> Request:
-    """
-    Create CWD request.
-    :param slot_id: command table ID. Can be None if we want to apply the
-        same environment variables to all commands
-    :type slot_id: int
-    :param path: current working path
-    :type path: str
-    :returns: Request
-    """
-    if not path:
-        raise ValueError("path is empty")
+        return _EnvRequest(args=[slot_id, key, value])
 
-    class _CwdRequest(Request):
+    @staticmethod
+    def cwd(slot_id: int, path: str) -> Request:
         """
-        CWD request.
+        Create CWD request.
+        :param slot_id: command table ID. Can be None if we want to apply the
+            same environment variables to all commands
+        :type slot_id: int
+        :param path: current working path
+        :type path: str
+        :returns: Request
         """
+        if not path:
+            raise ValueError("path is empty")
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+        class _CwdRequest(Request):
+            """
+            CWD request.
+            """
 
-            self._request_id = self.CWD
-            self._slot_id = self._args[0]
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-            if self._slot_id and \
-                    (self._slot_id < 0 or self._slot_id > self.ALL_SLOTS):
-                raise ValueError(f"Out of bounds slot ID [0-{self.ALL_SLOTS}]")
+                self._request_id = self.CWD
+                self._slot_id = self._args[0]
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+                if self._slot_id and \
+                        (self._slot_id < 0 or self._slot_id > self.ALL_SLOTS):
+                    raise ValueError(
+                        f"Out of bounds slot ID [0-{self.ALL_SLOTS}]")
 
-            if len(message) > 1 and message[1] != self._slot_id:
-                return
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-            if message[0] == self.CWD:
-                self._logger.info("CWD echoed back")
+                if len(message) > 1 and message[1] != self._slot_id:
+                    return
 
-                self._raise_complete()
-                self._completed = True
+                if message[0] == self.CWD:
+                    self._logger.info("CWD echoed back")
 
-    return _CwdRequest(args=[slot_id, path])
+                    self._raise_complete()
+                    self._completed = True
 
+        return _CwdRequest(args=[slot_id, path])
 
-def get_file(path: str) -> Request:
-    """
-    Create GET_FILE request.
-    :param path: path of the file
-    :type path: str
-    :returns: Request
-    """
-    if not path:
-        raise ValueError("path is empty")
-
-    class _GetFileRequest(Request):
+    @staticmethod
+    def get_file(path: str) -> Request:
         """
-        GET_FILE request.
+        Create GET_FILE request.
+        :param path: path of the file
+        :type path: str
+        :returns: Request
         """
+        if not path:
+            raise ValueError("path is empty")
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+        class _GetFileRequest(Request):
+            """
+            GET_FILE request.
+            """
 
-            self._request_id = self.GET_FILE
-            self._data = []
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+                self._request_id = self.GET_FILE
+                self._data = []
 
-            if message[0] == self.GET_FILE:
-                self._logger.info("GET_FILE echoed back")
-                self._completed = True
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-                self._raise_complete(b''.join(self._data))
-                self._completed = True
-            elif message[0] == self.DATA:
-                self._logger.info("Data received")
-                self._data.append(message[1])
+                if message[0] == self.GET_FILE:
+                    self._logger.info("GET_FILE echoed back")
+                    self._completed = True
 
-    return _GetFileRequest(args=[path])
+                    self._raise_complete(b''.join(self._data))
+                    self._completed = True
+                elif message[0] == self.DATA:
+                    self._logger.info("Data received")
+                    self._data.append(message[1])
 
+        return _GetFileRequest(args=[path])
 
-def set_file(path: str, data: bytes) -> Request:
-    """
-    Create SET_FILE request.
-    :param path: path of the file to write
-    :type path: str
-    :param data: data to write on file
-    :type data: bytes
-    :returns: Request
-    """
-    if not path:
-        raise ValueError("path is empty")
-
-    if not data:
-        raise ValueError("data is empty")
-
-    class _SetFileRequest(Request):
+    @staticmethod
+    def set_file(path: str, data: bytes) -> Request:
         """
-        SET_FILE request.
+        Create SET_FILE request.
+        :param path: path of the file to write
+        :type path: str
+        :param data: data to write on file
+        :type data: bytes
+        :returns: Request
         """
+        if not path:
+            raise ValueError("path is empty")
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+        if not data:
+            raise ValueError("data is empty")
 
-            self._request_id = self.SET_FILE
+        class _SetFileRequest(Request):
+            """
+            SET_FILE request.
+            """
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-            if message[0] == self.SET_FILE and message[1] == self._args[0]:
-                self._logger.info("SETFILE echoed back")
+                self._request_id = self.SET_FILE
 
-                self._raise_complete()
-                self._completed = True
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-    return _SetFileRequest(args=[path, data])
+                if message[0] == self.SET_FILE and message[1] == self._args[0]:
+                    self._logger.info("SETFILE echoed back")
 
+                    self._raise_complete()
+                    self._completed = True
 
-def execute(slot_id: int,
-            command: str,
-            stdout_callback: callable = None) -> Request:
-    """
-    Create EXEC request.
-    :param slot_id: command table ID
-    :type slot_id: int
-    :param command: command to run
-    :type command: str
-    :param stdout_callback: called when new data arrives inside stdout
-    :type stdout_callback: callable
-    :returns: Request
-    """
-    if not command:
-        raise ValueError("Command is empty")
+        return _SetFileRequest(args=[path, data])
 
-    class _ExecRequest(Request):
+    @staticmethod
+    def execute(slot_id: int,
+                command: str,
+                stdout_callback: callable = None) -> Request:
         """
-        EXEC request.
+        Create EXEC request.
+        :param slot_id: command table ID
+        :type slot_id: int
+        :param command: command to run
+        :type command: str
+        :param stdout_callback: called when new data arrives inside stdout
+        :type stdout_callback: callable
+        :returns: Request
         """
+        if not command:
+            raise ValueError("Command is empty")
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+        class _ExecRequest(Request):
+            """
+            EXEC request.
+            """
 
-            self._stdout_callback = kwargs.get("stdout_callback", None)
-            self._stdout = []
-            self._echoed = False
-            self._request_id = self.EXEC
-            self._slot_id = self._args[0]
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-            if self._slot_id and \
-                    (self._slot_id < 0 or self._slot_id >= self.MAX_SLOTS):
-                raise ValueError(f"Out of bounds slot ID [0-{self.MAX_SLOTS}]")
+                self._stdout_callback = kwargs.get("stdout_callback", None)
+                self._stdout = []
+                self._echoed = False
+                self._request_id = self.EXEC
+                self._slot_id = self._args[0]
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+                if self._slot_id and \
+                        (self._slot_id < 0 or self._slot_id >= self.MAX_SLOTS):
+                    raise ValueError(
+                        f"Out of bounds slot ID [0-{self.MAX_SLOTS}]")
 
-            if len(message) > 1 and message[1] != self._slot_id:
-                return
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-            if message[0] == self.EXEC:
-                self._logger.info("EXEC echoed back")
-                self._echoed = True
-            elif message[0] == self.LOG:
-                if not self._echoed:
-                    raise LTXError("LOG received without EXEC echo")
+                if len(message) > 1 and message[1] != self._slot_id:
+                    return
 
-                log = message[3]
+                if message[0] == self.EXEC:
+                    self._logger.info("EXEC echoed back")
+                    self._echoed = True
+                elif message[0] == self.LOG:
+                    if not self._echoed:
+                        raise LTXError("LOG received without EXEC echo")
 
-                self._logger.info("LOG replied with data: %s", repr(log))
-                self._stdout.append(log)
+                    log = message[3]
 
-                if self._stdout_callback:
-                    self._stdout_callback(log)
-            elif message[0] == self.RESULT:
-                if not self._echoed:
-                    raise LTXError("RESULT received without EXEC echo")
+                    self._logger.info("LOG replied with data: %s", repr(log))
+                    self._stdout.append(log)
 
-                self._logger.info("RESULT received")
+                    if self._stdout_callback:
+                        self._stdout_callback(log)
+                elif message[0] == self.RESULT:
+                    if not self._echoed:
+                        raise LTXError("RESULT received without EXEC echo")
 
-                stdout = "".join(self._stdout)
-                time_ns = message[2]
-                si_code = message[3]
-                si_status = message[4]
+                    self._logger.info("RESULT received")
 
-                self._logger.debug(
-                    "time_ns=%s, si_code=%s, si_status=%s",
-                    time_ns,
-                    si_code,
-                    si_status)
+                    stdout = "".join(self._stdout)
+                    time_ns = message[2]
+                    si_code = message[3]
+                    si_status = message[4]
 
-                self._raise_complete(
-                    stdout,
-                    time_ns,
-                    si_code,
-                    si_status)
+                    self._logger.debug(
+                        "time_ns=%s, si_code=%s, si_status=%s",
+                        time_ns,
+                        si_code,
+                        si_status)
 
-                self._completed = True
+                    self._raise_complete(
+                        stdout,
+                        time_ns,
+                        si_code,
+                        si_status)
 
-    args = [slot_id, command]
+                    self._completed = True
 
-    return _ExecRequest(stdout_callback=stdout_callback, args=args)
+        args = [slot_id, command]
 
+        return _ExecRequest(stdout_callback=stdout_callback, args=args)
 
-def kill(slot_id: int) -> Request:
-    """
-    Create KILL request.
-    :param slot_id: command table ID
-    :type slot_id: int
-    :returns: Request
-    """
-    class _KillRequest(Request):
+    @staticmethod
+    def kill(slot_id: int) -> Request:
         """
-        KILL request.
+        Create KILL request.
+        :param slot_id: command table ID
+        :type slot_id: int
+        :returns: Request
         """
+        class _KillRequest(Request):
+            """
+            KILL request.
+            """
 
-        def __init__(self, **kwargs: dict) -> None:
-            super().__init__(**kwargs)
+            def __init__(self, **kwargs: dict) -> None:
+                super().__init__(**kwargs)
 
-            self._request_id = self.KILL
-            self._slot_id = self._args[0]
+                self._request_id = self.KILL
+                self._slot_id = self._args[0]
 
-            if self._slot_id and \
-                    (self._slot_id < 0 or self._slot_id >= self.MAX_SLOTS):
-                raise ValueError(f"Out of bounds slot ID [0-{self.MAX_SLOTS}]")
+                if self._slot_id and \
+                        (self._slot_id < 0 or self._slot_id >= self.MAX_SLOTS):
+                    raise ValueError(
+                        f"Out of bounds slot ID [0-{self.MAX_SLOTS}]")
 
-        def feed(self, message: list) -> None:
-            if self.completed:
-                return
+            def feed(self, message: list) -> None:
+                if self.completed:
+                    return
 
-            if len(message) > 1 and message[1] != self._slot_id:
-                return
+                if len(message) > 1 and message[1] != self._slot_id:
+                    return
 
-            if message[0] == self.KILL:
-                self._logger.info("KILL echoed back")
+                if message[0] == self.KILL:
+                    self._logger.info("KILL echoed back")
 
-                self._raise_complete()
-                self._completed = True
+                    self._raise_complete()
+                    self._completed = True
 
-    return _KillRequest(args=[slot_id])
+        return _KillRequest(args=[slot_id])
 
 
 class Session:
@@ -746,7 +756,7 @@ class LTXSUT(SUT):
         if self._slots:
             requests = []
             for slot_id in self._slots:
-                requests.append(kill(slot_id))
+                requests.append(Requests.kill(slot_id))
 
             if requests:
                 await self._ltx.gather(requests, timeout=360)
@@ -794,7 +804,7 @@ class LTXSUT(SUT):
         if not await self.is_running:
             raise SUTError("SUT is not running")
 
-        req = ping()
+        req = Requests.ping()
         start_t = time.monotonic()
         replies = await self._ltx.gather([req], timeout=1)
 
@@ -812,7 +822,7 @@ class LTXSUT(SUT):
             self._stdout_fd)
 
         await self._ltx.connect()
-        await self._ltx.gather([version()], timeout=10)
+        await self._ltx.gather([Requests.version()], timeout=10)
 
     async def run_command(
             self,
@@ -840,13 +850,13 @@ class LTXSUT(SUT):
 
             requests = []
             if cwd:
-                requests.append(cwd(slot_id, cwd))
+                requests.append(Requests.cwd(slot_id, cwd))
 
             if env:
                 for key, value in env.items():
-                    requests.append(env(slot_id, key, value))
+                    requests.append(Requests.env(slot_id, key, value))
 
-            exec_req = execute(
+            exec_req = Requests.execute(
                 slot_id,
                 command,
                 stdout_callback=_stdout_callback)
@@ -881,7 +891,7 @@ class LTXSUT(SUT):
             raise SUTError("target path doesn't exist")
 
         with await self._fetch_lock:
-            req = get_file(target_path)
+            req = Requests.get_file(target_path)
             replies = await self._ltx.gather([req], timeout=3600)
             reply = replies[req]
 

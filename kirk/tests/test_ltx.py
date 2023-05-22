@@ -7,6 +7,7 @@ import signal
 import subprocess
 import pytest
 import kirk.ltx as ltx
+from kirk.ltx import Requests
 from kirk.ltx import LTXSUT
 from kirk.tests.sut import _TestSUT
 
@@ -43,7 +44,7 @@ class TestLTX:
         """
         Test version request.
         """
-        req = ltx.version()
+        req = Requests.version()
         replies = await handle.gather([req], timeout=1)
         assert replies[req][0] == "0.1"
 
@@ -52,7 +53,7 @@ class TestLTX:
         Test ping request.
         """
         start_t = time.monotonic()
-        req = ltx.ping()
+        req = Requests.ping()
         replies = await handle.gather([req], timeout=1)
         assert start_t < replies[req][0] * 1e-9 < time.monotonic()
 
@@ -63,7 +64,7 @@ class TestLTX:
         times = 100
         requests = []
         for _ in range(times):
-            requests.append(ltx.ping())
+            requests.append(Requests.ping())
 
         start_t = time.monotonic()
         replies = await handle.gather(requests, timeout=10)
@@ -82,7 +83,7 @@ class TestLTX:
             stdout.append(data)
 
         start_t = time.monotonic()
-        req = ltx.execute(0, "uname", stdout_callback=_stdout_callback)
+        req = Requests.execute(0, "uname", stdout_callback=_stdout_callback)
         replies = await handle.gather([req], timeout=3)
         reply = replies[req]
 
@@ -102,7 +103,8 @@ class TestLTX:
             stdout.append(data)
 
         start_t = time.monotonic()
-        req = ltx.execute(0, "echo -n ciao", stdout_callback=_stdout_callback)
+        req = Requests.execute(
+            0, "echo -n ciao", stdout_callback=_stdout_callback)
         replies = await handle.gather([req], timeout=3)
         reply = replies[req]
 
@@ -125,7 +127,7 @@ class TestLTX:
         start_t = time.monotonic()
         req = []
         for slot in range(times):
-            req.append(ltx.execute(slot, "echo -n ciao",
+            req.append(Requests.execute(slot, "echo -n ciao",
                        stdout_callback=_stdout_callback))
 
         replies = await handle.gather(req, timeout=3)
@@ -147,7 +149,7 @@ class TestLTX:
         data = b'AaXa\x00\x01\x02Zz' * 1024
         pfile = tmp_path / 'file.bin'
 
-        req = ltx.set_file(str(pfile), data)
+        req = Requests.set_file(str(pfile), data)
         await handle.gather([req], timeout=5)
 
         assert pfile.read_bytes() == data
@@ -159,7 +161,7 @@ class TestLTX:
         pfile = tmp_path / 'file.bin'
         pfile.write_bytes(b'AaXa\x00\x01\x02Zz' * 1024)
 
-        req = ltx.get_file(str(pfile))
+        req = Requests.get_file(str(pfile))
         replies = await handle.gather([req], timeout=5)
 
         assert pfile.read_bytes() == replies[req][0]
@@ -169,8 +171,8 @@ class TestLTX:
         Test kill method.
         """
         start_t = time.monotonic()
-        exec_req = ltx.execute(0, "sleep 1")
-        kill_req = ltx.kill(0)
+        exec_req = Requests.execute(0, "sleep 1")
+        kill_req = Requests.kill(0)
         replies = await handle.gather([exec_req, kill_req], timeout=3)
         reply = replies[exec_req]
 
@@ -184,12 +186,12 @@ class TestLTX:
         Test env request.
         """
         start_t = time.monotonic()
-        env_req = ltx.env(0, "LTPROOT", "/opt/ltp")
-        exec_req = ltx.execute(0, "echo -n $LTPROOT")
+        env_req = Requests.env(0, "HELLO", "CIAO")
+        exec_req = Requests.execute(0, "echo -n $HELLO")
         replies = await handle.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == "/opt/ltp"
+        assert reply[0] == "CIAO"
         assert start_t < reply[1] * 1e-9 < time.monotonic()
         assert reply[2] == 1
         assert reply[3] == 0
@@ -199,12 +201,12 @@ class TestLTX:
         Test env request.
         """
         start_t = time.monotonic()
-        env_req = ltx.env(128, "LTPROOT", "/opt/ltp")
-        exec_req = ltx.execute(0, "echo -n $LTPROOT")
+        env_req = Requests.env(128, "HELLO", "CIAO")
+        exec_req = Requests.execute(0, "echo -n $HELLO")
         replies = await handle.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == "/opt/ltp"
+        assert reply[0] == "CIAO"
         assert start_t < reply[1] * 1e-9 < time.monotonic()
         assert reply[2] == 1
         assert reply[3] == 0
@@ -216,8 +218,8 @@ class TestLTX:
         path = str(tmpdir)
 
         start_t = time.monotonic()
-        env_req = ltx.cwd(0, path)
-        exec_req = ltx.execute(0, "echo -n $PWD")
+        env_req = Requests.cwd(0, path)
+        exec_req = Requests.execute(0, "echo -n $PWD")
         replies = await handle.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
@@ -233,8 +235,8 @@ class TestLTX:
         path = str(tmpdir)
 
         start_t = time.monotonic()
-        env_req = ltx.cwd(128, path)
-        exec_req = ltx.execute(0, "echo -n $PWD")
+        env_req = Requests.cwd(128, path)
+        exec_req = Requests.execute(0, "echo -n $PWD")
         replies = await handle.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
@@ -251,13 +253,13 @@ class TestLTX:
         pfile = tmp_path / 'file.bin'
 
         requests = []
-        requests.append(ltx.version())
-        requests.append(ltx.set_file(str(pfile), data))
-        requests.append(ltx.ping())
-        requests.append(ltx.env(0, "LTPROOT", "/opt/ltp"))
-        requests.append(ltx.execute(0, "sleep 5"))
-        requests.append(ltx.kill(0))
-        requests.append(ltx.get_file(str(pfile)))
+        requests.append(Requests.version())
+        requests.append(Requests.set_file(str(pfile), data))
+        requests.append(Requests.ping())
+        requests.append(Requests.env(0, "HELLO", "CIAO"))
+        requests.append(Requests.execute(0, "sleep 5"))
+        requests.append(Requests.kill(0))
+        requests.append(Requests.get_file(str(pfile)))
 
         await handle.gather(requests, timeout=10)
 
