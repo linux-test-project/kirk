@@ -129,27 +129,3 @@ class TestSession:
             session.run(command="sleep 1"),
             stop()
         ])
-
-    async def test_env(self, tmpdir, dummy_framework, sut):
-        """
-        Test environment variables injected in the SUT by session object.
-        """
-        session = Session(
-            tmpdir=TempDir(str(tmpdir)),
-            frameworks=[dummy_framework],
-            sut=sut,
-            env={"hello": "world"}
-        )
-
-        report = tmpdir / "report.json"
-        try:
-            await session.run(
-                suites={"dummy": ["environ"]},
-                report_path=report)
-        finally:
-            await asyncio.wait_for(session.stop(), timeout=30)
-
-        with open(report, 'r') as report_f:
-            report_d = json.loads(report_f.read())
-            assert len(report_d["results"]) == 1
-            assert report_d["results"][0]["test"]["log"] == "world"

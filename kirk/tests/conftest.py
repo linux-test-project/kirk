@@ -34,6 +34,7 @@ class DummyFramework(Framework):
 
     def setup(self, **kwargs: dict) -> None:
         self._root = kwargs.get("root", "/")
+        self._env = kwargs.get("env", None)
 
     @property
     def name(self) -> str:
@@ -47,6 +48,7 @@ class DummyFramework(Framework):
             test0 = Test(
                 name="test01",
                 cwd=self._root,
+                env=self._env,
                 cmd="echo",
                 args=["-n", "ciao0"],
                 parallelizable=False)
@@ -54,6 +56,7 @@ class DummyFramework(Framework):
             test1 = Test(
                 name="test02",
                 cwd=self._root,
+                env=self._env,
                 cmd="echo",
                 args=["-n", "ciao0"],
                 parallelizable=False)
@@ -63,6 +66,7 @@ class DummyFramework(Framework):
             test0 = Test(
                 name="test01",
                 cwd=self._root,
+                env=self._env,
                 cmd="echo",
                 args=["-n", "ciao0"],
                 parallelizable=False)
@@ -70,6 +74,7 @@ class DummyFramework(Framework):
             test1 = Test(
                 name="test02",
                 cwd=self._root,
+                env=self._env,
                 cmd="sleep",
                 args=["0.2", "&&", "echo", "-n", "ciao1"],
                 parallelizable=True)
@@ -79,6 +84,7 @@ class DummyFramework(Framework):
             test0 = Test(
                 name="test01",
                 cwd=self._root,
+                env=self._env,
                 cmd="sleep",
                 args=["2"],
                 parallelizable=False)
@@ -86,6 +92,7 @@ class DummyFramework(Framework):
             test1 = Test(
                 name="test02",
                 cwd=self._root,
+                env=self._env,
                 cmd="sleep",
                 args=["2"],
                 parallelizable=False)
@@ -95,6 +102,7 @@ class DummyFramework(Framework):
             test0 = Test(
                 name="test01",
                 cwd=self._root,
+                env=self._env,
                 cmd="echo",
                 args=["-n", "$hello"],
                 parallelizable=False)
@@ -104,6 +112,7 @@ class DummyFramework(Framework):
             test0 = Test(
                 name="test01",
                 cwd=self._root,
+                env=self._env,
                 cmd="echo",
                 args=["Kernel", "panic"],
                 parallelizable=False)
@@ -111,6 +120,7 @@ class DummyFramework(Framework):
             test1 = Test(
                 name="test01",
                 cwd=self._root,
+                env=self._env,
                 cmd="sleep",
                 args=["0.2"],
                 parallelizable=False)

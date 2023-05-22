@@ -59,8 +59,6 @@ class Session:
         :type skip_tests: str
         :param workers: number of workers for testing suite scheduler
         :type workers: int
-        :param env: SUT environment vairables to inject before execution
-        :type env: dict
         :param force_parallel: Force parallel execution of all tests
         :type force_parallel: bool
         """
@@ -70,7 +68,6 @@ class Session:
         self._sut = kwargs.get("sut", None)
         self._no_colors = kwargs.get("no_colors", False)
         self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
-        self._env = kwargs.get("env", None)
 
         if not self._tmpdir:
             raise ValueError("tmpdir is empty")
@@ -130,7 +127,6 @@ class Session:
         running tests.
         """
         config = sut_config.copy()
-        config['env'] = self._env
         config['tmpdir'] = self._tmpdir.abspath
 
         return config
