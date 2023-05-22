@@ -1,9 +1,9 @@
 What is Kirk?
 =============
 
-Kirk is a framework that aims to merge multiple Linux testing frameworks in one
-tool, providing support for remote testing via Qemu, SSH, LTX, parallel
-execution and much more.
+Kirk application is a fork of [runltp-ng](https://github.com/linux-test-project/runltp-ng)
+and it aims to merge multiple Linux testing frameworks in one tool, providing
+support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
 
     Host information
 
