@@ -131,8 +131,6 @@ def _discover_sut(path: str) -> None:
     """
     Discover new SUT implementations.
     """
-    global LOADED_SUT
-
     objs = kirk.discover_objects(SUT, path)
     LOADED_SUT.extend(objs)
 
@@ -141,8 +139,6 @@ def _discover_frameworks(path: str) -> None:
     """
     Discover new Framework implementations.
     """
-    global LOADED_FRAMEWORK
-
     objs = kirk.discover_objects(Framework, path)
     LOADED_FRAMEWORK.extend(objs)
 
