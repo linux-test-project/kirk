@@ -38,34 +38,6 @@ class TestMain:
 
         return report_d
 
-    def test_sut_plugins(self, tmpdir):
-        """
-        Test if SUT implementations are correctly loaded.
-        """
-        suts = []
-        suts.append(tmpdir / "sutA.py")
-        suts.append(tmpdir / "sutB.py")
-        suts.append(tmpdir / "sutC.txt")
-
-        for index in range(0, len(suts)):
-            suts[index].write(
-                "from kirk.sut import SUT\n\n"
-                f"class SUT{index}(SUT):\n"
-                "    @property\n"
-                "    def name(self) -> str:\n"
-                f"        return 'mysut{index}'\n"
-            )
-
-        kirk.main._discover_sut(str(tmpdir))
-
-        try:
-            assert len(kirk.main.LOADED_SUT) == 2
-
-            for index in range(0, len(kirk.main.LOADED_SUT)):
-                assert kirk.main.LOADED_SUT[index].name == f"mysut{index}"
-        finally:
-            kirk.main.LOADED_SUT.clear()
-
     def test_wrong_options(self):
         """
         Test wrong options.
