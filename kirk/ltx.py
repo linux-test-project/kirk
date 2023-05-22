@@ -838,7 +838,7 @@ class LTXSUT(SUT):
 
         def _stdout_callback(data):
             if iobuffer:
-                kirk.to_thread(iobuffer.write(data))
+                kirk.to_thread(iobuffer.write, data)
 
         self._logger.info("Running command: %s", repr(command))
 
