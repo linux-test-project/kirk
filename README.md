@@ -69,6 +69,16 @@ To install `kirk`, please consider the following procedure:
     # execute kirk
     kirk --help
 
+Alternatively, it's possible to use the `runkirk` script that simplifies
+installation. In this case, dependences must be handled by hand, by installing
+them inside the running system:
+
+- `asyncssh <= 2.13.1` for SSH support
+- `msgpack <= 1.0.5` for LTX support
+
+**NOTE** all dependences are *optional* and it's possible to execute `kirk`
+even without installing them.
+
 Some basic commands are the following:
 
     # run LTP syscalls testing suite on host

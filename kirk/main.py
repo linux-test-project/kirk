@@ -283,7 +283,7 @@ def run(cmd_args: list = None) -> None:
     _discover_sut(currdir)
 
     parser = argparse.ArgumentParser(
-        description='Kirk - A generic Linux Testing Framework')
+        description='Kirk - All-in-one Linux Testing Framework')
 
     # user interface arguments
     parser.add_argument(

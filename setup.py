@@ -9,7 +9,7 @@ from setuptools import setup
 setup(
     name='kirk',
     version='1.0',
-    description='Generic Linux Testing Framework',
+    description='All-in-one Linux Testing Framework',
     author='Andrea Cervesato',
     author_email='andrea.cervesato@mailbox.org',
     license='LGPLv2',
