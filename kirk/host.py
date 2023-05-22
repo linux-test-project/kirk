@@ -115,7 +115,7 @@ class HostSUT(SUT):
             if self._fetch_lock.locked():
                 self._logging.info("Terminating data fetch")
 
-                with await self._fetch_lock:
+                async with self._fetch_lock:
                     pass
         finally:
             self._stop = False
