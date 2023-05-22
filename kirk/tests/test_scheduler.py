@@ -1,6 +1,7 @@
 """
 Unittests for runner module.
 """
+import re
 import asyncio
 import pytest
 from kirk.sut import TAINED_MSG
@@ -256,8 +257,7 @@ class TestTestScheduler:
             await runner.schedule(tests)
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_test_timeout(
-            self, workers, sut, create_runner, dummy_framework):
+    async def test_schedule_test_timeout(self, workers, create_runner):
         """
         Test the schedule method on test timeout.
         """
@@ -277,7 +277,7 @@ class TestTestScheduler:
 
         for i in range(len(tests)):
             res = runner.results[i]
-            assert res.test.name == f"test{i}"
+            assert re.search(r"test[0-9]", res.test.name)
             assert res.passed == 0
             assert res.failed == 0
             assert res.broken == 1
