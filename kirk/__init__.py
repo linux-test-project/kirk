@@ -139,7 +139,7 @@ def discover_objects(mytype: object, folder: str) -> list:
     if not folder or not os.path.isdir(folder):
         raise ValueError("Discover folder doesn't exist")
 
-    loaded_sut = []
+    loaded_obj = []
 
     for myfile in os.listdir(folder):
         if not myfile.endswith('.py'):
@@ -149,7 +149,7 @@ def discover_objects(mytype: object, folder: str) -> list:
         if not os.path.isfile(path):
             continue
 
-        spec = importlib.util.spec_from_file_location('sut', path)
+        spec = importlib.util.spec_from_file_location('obj', path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
@@ -157,16 +157,16 @@ def discover_objects(mytype: object, folder: str) -> list:
         for _, klass in members:
             if klass.__module__ != module.__name__ or \
                     klass is mytype or \
-                    klass in loaded_sut:
+                    klass in loaded_obj:
                 continue
 
             if issubclass(klass, mytype):
-                loaded_sut.append(klass())
+                loaded_obj.append(klass())
 
-    if len(loaded_sut) > 0:
-        loaded_sut.sort(key=lambda x: x.name)
+    if len(loaded_obj) > 0:
+        loaded_obj.sort(key=lambda x: x.name)
 
-    return loaded_sut
+    return loaded_obj
 
 
 __all__ = [
