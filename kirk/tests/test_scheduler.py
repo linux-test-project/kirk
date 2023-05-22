@@ -398,16 +398,22 @@ class TestSuiteScheduler:
         runner = create_runner(max_workers=workers)
 
         tests = []
-        for i in range(10):
+        for i in range(0, 9):
             tests.append(Test(
                 name=f"test{i}",
                 cmd="echo",
-                args=["-n", "Kernel", "panic"],
+                args=["-n", "ciao"],
                 parallelizable=True,
             ))
+        tests.append(Test(
+            name=f"test9",
+            cmd="echo",
+            args=["-n", "Kernel", "panic"],
+            parallelizable=True,
+        ))
         await runner.schedule([Suite("suite01", tests)])
 
-        assert runner.rebooted == 10
+        assert runner.rebooted == 1
         assert len(runner.results) == 1
         assert len(runner.results[0].tests_results) == 10
 
