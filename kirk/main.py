@@ -196,12 +196,6 @@ def _start_session(
         except re.error:
             parser.error(f"'{skip_tests}' is not a valid regular expression")
 
-    # get the current SUT communication object
-    sut_name = args.sut["name"]
-    sut = _get_sut(sut_name)
-    if not sut:
-        parser.error(f"'{sut_name}' is not an available SUT")
-
     # initialize frameworks
     for fwork in LOADED_FRAMEWORK:
         fwork.setup(env=args.env)
@@ -215,9 +209,20 @@ def _start_session(
     else:
         tmpdir = TempDir("/tmp")
 
+    # get the current SUT communication object
+    sut_name = args.sut["name"]
+    sut = _get_sut(sut_name)
+    if not sut:
+        parser.error(f"'{sut_name}' is not an available SUT")
+
+    # initialize SUT object
+    sut_config = args.sut.copy()
+    sut_config["tmpdir"] = tmpdir.abspath
+    sut.setup(**sut_config)
+
+    # start session
     session = Session(
         sut=sut,
-        sut_config=args.sut,
         frameworks=LOADED_FRAMEWORK,
         tmpdir=tmpdir,
         no_colors=args.no_colors,

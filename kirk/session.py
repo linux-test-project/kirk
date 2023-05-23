@@ -47,8 +47,6 @@ class Session:
         :type frameworks: list(Framework)
         :param sut: SUT communication object
         :type sut: SUT
-        :param sut_config: SUT object configuration
-        :type sut_config: dict
         :param no_colors: if True, it disables LTP tests colors
         :type no_colors: bool
         :param exec_timeout: test timeout
@@ -91,7 +89,6 @@ class Session:
             skip_tests=skip_tests,
             force_parallel=force_parallel)
 
-        self._sut_config = self._get_sut_config(kwargs.get("sut_config", {}))
         self._setup_debug_log()
 
         if not self._sut.parallel_execution:
@@ -120,23 +117,10 @@ class Session:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    def _get_sut_config(self, sut_config: dict) -> dict:
-        """
-        Create the SUT configuration. The dictionary is usually passed to the
-        `setup` method of the SUT, in order to setup the environment before
-        running tests.
-        """
-        config = sut_config.copy()
-        config['tmpdir'] = self._tmpdir.abspath
-
-        return config
-
     async def _start_sut(self) -> None:
         """
         Start communicating with SUT.
         """
-        self._sut.setup(**self._sut_config)
-
         await kirk.events.fire("sut_start", self._sut.name)
         await self._sut.ensure_communicate(
             iobuffer=RedirectSUTStdout(self._sut, False))
