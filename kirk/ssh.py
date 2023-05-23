@@ -17,6 +17,7 @@ from kirk.sut import KernelPanicError
 
 try:
     import asyncssh
+    import asyncssh.misc
 except ModuleNotFoundError:
     pass
 
@@ -98,11 +99,11 @@ class SSHSUT(SUT):
         args = []
 
         if cwd:
-            args.append(f"cd {cwd};")
+            args.append(f"cd {cwd} && ")
 
         if env:
             for key, value in env.items():
-                args.append(f"export {key}={value};")
+                args.append(f"export {key}={value} && ")
 
         args.append(cmd)
 
@@ -151,32 +152,36 @@ class SSHSUT(SUT):
         if await self.is_running:
             raise SUTError("SUT is already running")
 
-        self._conn = None
-        if self._key_file:
-            priv_key = asyncssh.read_private_key(self._key_file)
+        try:
+            self._conn = None
+            if self._key_file:
+                priv_key = asyncssh.read_private_key(self._key_file)
 
-            self._conn = await asyncssh.connect(
-                host=self._host,
-                port=self._port,
-                username=self._user,
-                client_keys=[priv_key])
-        else:
-            self._conn = await asyncssh.connect(
-                host=self._host,
-                port=self._port,
-                username=self._user,
-                password=self._password)
+                self._conn = await asyncssh.connect(
+                    host=self._host,
+                    port=self._port,
+                    username=self._user,
+                    client_keys=[priv_key])
+            else:
+                self._conn = await asyncssh.connect(
+                    host=self._host,
+                    port=self._port,
+                    username=self._user,
+                    password=self._password)
 
-        # read maximum number of sessions and limit `run_command`
-        # concurrent calls to that by using a semaphore
-        ret = await self._conn.run(
-            r'sed -n "s/^MaxSessions\s*\([[:digit:]]*\)/\1/p" '
-            '/etc/ssh/sshd_config')
+            # read maximum number of sessions and limit `run_command`
+            # concurrent calls to that by using a semaphore
+            ret = await self._conn.run(
+                r'sed -n "s/^MaxSessions\s*\([[:digit:]]*\)/\1/p" '
+                '/etc/ssh/sshd_config')
 
-        max_sessions = ret.stdout or 10
+            max_sessions = ret.stdout or 10
 
-        self._logger.info("Maximum SSH sessions: %d", max_sessions)
-        self._session_sem = asyncio.Semaphore(max_sessions)
+            self._logger.info("Maximum SSH sessions: %d", max_sessions)
+            self._session_sem = asyncio.Semaphore(max_sessions)
+        except asyncssh.misc.ChannelOpenError as err:
+            if not self._stop:
+                raise SUTError(err)
 
     async def stop(self, iobuffer: IOBuffer = None) -> None:
         if not await self.is_running:
@@ -198,6 +203,7 @@ class SSHSUT(SUT):
 
             self._logger.info("Closing connection")
             self._conn.close()
+            await self._conn.wait_closed()
             self._logger.info("Connection closed")
 
             await self._reset(iobuffer=iobuffer)
