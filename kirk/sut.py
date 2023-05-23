@@ -222,8 +222,8 @@ class SUT:
             arch, \
             cpu, \
             meminfo = await asyncio.gather(*[
-                _run_cmd(". /etc/os-release; echo \"$ID\""),
-                _run_cmd(". /etc/os-release; echo \"$VERSION_ID\""),
+                _run_cmd(". /etc/os-release && echo \"$ID\""),
+                _run_cmd(". /etc/os-release && echo \"$VERSION_ID\""),
                 _run_cmd("uname -s -r -v"),
                 _run_cmd("uname -m"),
                 _run_cmd("uname -p"),

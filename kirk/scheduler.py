@@ -461,7 +461,8 @@ class TestScheduler(Scheduler):
                 self._logger.info("Wait for tasks to be done")
                 await asyncio.gather(*self._tasks, return_exceptions=True)
 
-                raise err
+                if not self._stop:
+                    raise err
             except asyncio.CancelledError as err:
                 if not self._stop:
                     raise err

@@ -66,6 +66,9 @@ class Session:
         self._sut = kwargs.get("sut", None)
         self._no_colors = kwargs.get("no_colors", False)
         self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
+        self._stop = False
+        self._exec_lock = asyncio.Lock()
+        self._run_lock = asyncio.Lock()
 
         if not self._tmpdir:
             raise ValueError("tmpdir is empty")
@@ -166,30 +169,51 @@ class Session:
         """
         Execute a single command on SUT.
         """
-        try:
-            await kirk.events.fire("run_cmd_start", command)
+        async with self._exec_lock:
+            try:
+                await kirk.events.fire("run_cmd_start", command)
 
-            ret = await asyncio.wait_for(
-                self._sut.run_command(
+                ret = await asyncio.wait_for(
+                    self._sut.run_command(
+                        command,
+                        iobuffer=RedirectSUTStdout(self._sut, True)),
+                    timeout=self._exec_timeout
+                )
+
+                await kirk.events.fire(
+                    "run_cmd_stop",
                     command,
-                    iobuffer=RedirectSUTStdout(self._sut, True)),
-                timeout=self._exec_timeout
-            )
+                    ret["stdout"],
+                    ret["returncode"])
+            except asyncio.TimeoutError:
+                raise KirkException(f"Command timeout: {repr(command)}")
+            except KirkException as err:
+                if not self._stop:
+                    raise err
 
-            await kirk.events.fire(
-                "run_cmd_stop",
-                command,
-                ret["stdout"],
-                ret["returncode"])
-        except asyncio.TimeoutError:
-            raise KirkException(f"Command timeout: {repr(command)}")
+    async def _inner_stop(self) -> None:
+        """
+        Stop scheduler and SUT.
+        """
+        await self._scheduler.stop()
+        await self._stop_sut()
 
     async def stop(self) -> None:
         """
         Stop the current session.
         """
-        await self._scheduler.stop()
-        await self._stop_sut()
+        self._stop = True
+        try:
+            await self._inner_stop()
+
+            async with self._run_lock:
+                pass
+
+            async with self._exec_lock:
+                pass
+        finally:
+            await kirk.events.fire("session_stopped")
+            self._stop = False
 
     async def run(
             self,
@@ -205,48 +229,54 @@ class Session:
         :param report_path: JSON report path
         :type report_path: str
         """
-        await kirk.events.fire(
-            "session_started",
-            self._tmpdir.abspath)
+        async with self._run_lock:
+            await kirk.events.fire("session_started", self._tmpdir.abspath)
 
-        try:
-            await self._start_sut()
+            try:
+                await self._start_sut()
 
-            if command:
-                await self._exec_command(command)
+                if command:
+                    await self._exec_command(command)
 
-            if suites:
-                suites_obj = await self._read_suites(suites)
-                await self._scheduler.schedule(suites_obj)
+                if suites:
+                    suites_obj = await self._read_suites(suites)
+                    await self._scheduler.schedule(suites_obj)
+            except asyncio.CancelledError:
+                await kirk.events.fire("session_stopped")
+            except KirkException as err:
+                if not self._stop:
+                    self._logger.exception(err)
+                    await kirk.events.fire("session_error", str(err))
+                    raise err
+            finally:
+                try:
+                    if self._scheduler.results:
+                        exporter = JSONExporter()
 
-                exporter = JSONExporter()
+                        tasks = []
+                        tasks.append(
+                            exporter.save_file(
+                                self._scheduler.results,
+                                os.path.join(
+                                    self._tmpdir.abspath,
+                                    "results.json")
+                            ))
 
-                tasks = []
-                tasks.append(
-                    exporter.save_file(
-                        self._scheduler.results,
-                        os.path.join(
-                            self._tmpdir.abspath,
-                            "results.json")
-                    ))
+                        if report_path:
+                            tasks.append(
+                                exporter.save_file(
+                                    self._scheduler.results,
+                                    report_path
+                                ))
 
-                if report_path:
-                    tasks.append(
-                        exporter.save_file(
-                            self._scheduler.results,
-                            report_path
-                        ))
+                        await asyncio.gather(*tasks)
 
-                await asyncio.gather(*tasks)
-
-                await kirk.events.fire(
-                    "session_completed",
-                    self._scheduler.results)
-        except asyncio.CancelledError:
-            await kirk.events.fire("session_stopped")
-        except KirkException as err:
-            self._logger.exception(err)
-            await kirk.events.fire("session_error", str(err))
-            raise err
-        finally:
-            await self.stop()
+                        await kirk.events.fire(
+                            "session_completed",
+                            self._scheduler.results)
+                except KirkException as err:
+                    self._logger.exception(err)
+                    await kirk.events.fire("session_error", str(err))
+                    raise err
+                finally:
+                    await self._inner_stop()
