@@ -6,9 +6,9 @@ import time
 import asyncio
 import logging
 import pytest
-import kirk
-from kirk.sut import IOBuffer
-from kirk.sut import SUTError
+import libkirk
+from libkirk.sut import IOBuffer
+from libkirk.sut import SUTError
 
 
 pytestmark = pytest.mark.asyncio
@@ -247,7 +247,7 @@ class _TestSUT:
             await asyncio.sleep(2)
             await sut.stop(iobuffer=Printer())
 
-        kirk.create_task(fetch())
+        libkirk.create_task(fetch())
 
         await stop()
 

@@ -4,8 +4,8 @@ Unittests for the session module.
 import json
 import asyncio
 import pytest
-from kirk.session import Session
-from kirk.tempfile import TempDir
+from libkirk.session import Session
+from libkirk.tempfile import TempDir
 
 
 pytestmark = pytest.mark.asyncio

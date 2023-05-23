@@ -8,14 +8,14 @@
 import os
 import logging
 import asyncio
-import kirk
-import kirk.data
-import kirk.events
-from kirk import KirkException
-from kirk.sut import SUT
-from kirk.sut import IOBuffer
-from kirk.export import JSONExporter
-from kirk.scheduler import SuiteScheduler
+import libkirk
+import libkirk.data
+import libkirk.events
+from libkirk import KirkException
+from libkirk.sut import SUT
+from libkirk.sut import IOBuffer
+from libkirk.export import JSONExporter
+from libkirk.scheduler import SuiteScheduler
 
 
 class RedirectSUTStdout(IOBuffer):
@@ -29,9 +29,9 @@ class RedirectSUTStdout(IOBuffer):
 
     async def write(self, data: str) -> None:
         if self._is_cmd:
-            await kirk.events.fire("run_cmd_stdout", data)
+            await libkirk.events.fire("run_cmd_stdout", data)
         else:
-            await kirk.events.fire("sut_stdout", self._sut.name, data)
+            await libkirk.events.fire("sut_stdout", self._sut.name, data)
 
 
 class Session:
@@ -111,7 +111,7 @@ class Session:
         """
         Start communicating with SUT.
         """
-        await kirk.events.fire("sut_start", self._sut.name)
+        await libkirk.events.fire("sut_start", self._sut.name)
         await self._sut.ensure_communicate(
             iobuffer=RedirectSUTStdout(self._sut, False))
 
@@ -122,7 +122,7 @@ class Session:
         if not await self._sut.is_running:
             return
 
-        await kirk.events.fire("sut_stop", self._sut.name)
+        await libkirk.events.fire("sut_stop", self._sut.name)
         await self._sut.stop(iobuffer=RedirectSUTStdout(self._sut, False))
 
     async def _read_suites(self, request: dict) -> list:
@@ -158,7 +158,7 @@ class Session:
         """
         async with self._exec_lock:
             try:
-                await kirk.events.fire("run_cmd_start", command)
+                await libkirk.events.fire("run_cmd_start", command)
 
                 ret = await asyncio.wait_for(
                     self._sut.run_command(
@@ -167,7 +167,7 @@ class Session:
                     timeout=self._exec_timeout
                 )
 
-                await kirk.events.fire(
+                await libkirk.events.fire(
                     "run_cmd_stop",
                     command,
                     ret["stdout"],
@@ -201,7 +201,7 @@ class Session:
             async with self._exec_lock:
                 pass
         finally:
-            await kirk.events.fire("session_stopped")
+            await libkirk.events.fire("session_stopped")
             self._stop = False
 
     async def run(
@@ -222,7 +222,7 @@ class Session:
         :type report_path: str
         """
         async with self._run_lock:
-            await kirk.events.fire("session_started", self._tmpdir.abspath)
+            await libkirk.events.fire("session_started", self._tmpdir.abspath)
 
             self._scheduler = SuiteScheduler(
                 sut=self._sut,
@@ -242,11 +242,11 @@ class Session:
                     suites_obj = await self._read_suites(suites)
                     await self._scheduler.schedule(suites_obj)
             except asyncio.CancelledError:
-                await kirk.events.fire("session_stopped")
+                await libkirk.events.fire("session_stopped")
             except KirkException as err:
                 if not self._stop:
                     self._logger.exception(err)
-                    await kirk.events.fire("session_error", str(err))
+                    await libkirk.events.fire("session_error", str(err))
                     raise err
             finally:
                 try:
@@ -271,12 +271,12 @@ class Session:
 
                         await asyncio.gather(*tasks)
 
-                        await kirk.events.fire(
+                        await libkirk.events.fire(
                             "session_completed",
                             self._scheduler.results)
                 except KirkException as err:
                     self._logger.exception(err)
-                    await kirk.events.fire("session_error", str(err))
+                    await libkirk.events.fire("session_error", str(err))
                     raise err
                 finally:
                     await self._inner_stop()

@@ -4,8 +4,8 @@ Test Framework implementations.
 import os
 import json
 import pytest
-from kirk.ltp import LTPFramework
-from kirk.host import HostSUT
+from libkirk.ltp import LTPFramework
+from libkirk.host import HostSUT
 
 pytestmark = pytest.mark.asyncio
 

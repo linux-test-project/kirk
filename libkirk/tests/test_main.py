@@ -6,7 +6,7 @@ import pwd
 import time
 import json
 import pytest
-import kirk.main
+import libkirk.main
 
 
 class TestMain:
@@ -19,7 +19,7 @@ class TestMain:
         """
         Setup main before running tests.
         """
-        kirk.main.LOADED_FRAMEWORK.append(dummy_framework)
+        libkirk.main.LOADED_FRAMEWORK.append(dummy_framework)
 
     def read_report(self, temp, tests_num) -> dict:
         """
@@ -47,7 +47,7 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
         assert excinfo.value.code == 2
 
@@ -62,9 +62,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
     def test_run_command_timeout(self, tmpdir):
         """
@@ -78,9 +78,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_ERROR
+        assert excinfo.value.code == libkirk.main.RC_ERROR
 
     def test_run_suite(self, tmpdir):
         """
@@ -93,9 +93,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         self.read_report(temp, 2)
 
@@ -111,9 +111,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         report_d = self.read_report(temp, 2)
         for param in report_d["results"]:
@@ -135,9 +135,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         captured = capsys.readouterr()
         assert "ciao0\n" in captured.out
@@ -155,9 +155,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         out, _ = capsys.readouterr()
         assert "test00: pass" in out
@@ -175,9 +175,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
         assert os.path.isfile(report)
 
         report_a = self.read_report(temp, 2)
@@ -199,9 +199,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         self.read_report(temp, 0)
 
@@ -220,9 +220,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         self.read_report(temp, 0)
 
@@ -242,9 +242,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         self.read_report(temp, 0)
 
@@ -264,10 +264,10 @@ class TestMain:
         first_t = 0
         start_t = time.time()
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
         first_t = time.time() - start_t
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
         self.read_report(temp, 2)
 
         # run on multiple workers
@@ -280,10 +280,10 @@ class TestMain:
         second_t = 0
         start_t = time.time()
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
         second_t = time.time() - start_t
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
         self.read_report(temp, 2)
 
         assert second_t < first_t
@@ -297,10 +297,10 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
-        assert len(kirk.main.LOADED_SUT) > 0
+        assert excinfo.value.code == libkirk.main.RC_OK
+        assert len(libkirk.main.LOADED_SUT) > 0
 
     def test_env(self, tmpdir):
         """
@@ -314,9 +314,9 @@ class TestMain:
         ]
 
         with pytest.raises(SystemExit) as excinfo:
-            kirk.main.run(cmd_args=cmd_args)
+            libkirk.main.run(cmd_args=cmd_args)
 
-        assert excinfo.value.code == kirk.main.RC_OK
+        assert excinfo.value.code == libkirk.main.RC_OK
 
         report_d = self.read_report(temp, 1)
         assert report_d["results"][0]["test"]["log"] == "ciao"

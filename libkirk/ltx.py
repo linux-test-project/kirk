@@ -11,10 +11,10 @@ import select
 import asyncio
 import logging
 import importlib
-import kirk
-from kirk.sut import SUT
-from kirk.sut import SUTError
-from kirk.sut import IOBuffer
+import libkirk
+from libkirk.sut import SUT
+from libkirk.sut import SUTError
+from libkirk.sut import IOBuffer
 
 try:
     import msgpack
@@ -22,7 +22,7 @@ except ModuleNotFoundError:
     pass
 
 
-class LTXError(kirk.KirkException):
+class LTXError(libkirk.KirkException):
     """
     Raised when an error occurs during LTX execution.
     """
@@ -550,7 +550,7 @@ class Session:
         wrote = os.write(self._stdin_fd, data)
 
         if towrite != wrote:
-            raise kirk.KirkException(
+            raise libkirk.KirkException(
                 f"Wrote {wrote} bytes but expected {towrite}")
 
     def _feed_requests(self, data: list) -> None:
@@ -628,7 +628,7 @@ class Session:
 
         self._logger.info("Connecting to LTX")
 
-        kirk.to_thread(self._blocking_producer)
+        libkirk.to_thread(self._blocking_producer)
 
         while not self.connected:
             await asyncio.sleep(0.01)
@@ -838,7 +838,7 @@ class LTXSUT(SUT):
 
         def _stdout_callback(data):
             if iobuffer:
-                kirk.to_thread(iobuffer.write, data)
+                libkirk.to_thread(iobuffer.write, data)
 
         self._logger.info("Running command: %s", repr(command))
 

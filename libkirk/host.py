@@ -12,10 +12,10 @@ import asyncio
 import logging
 import contextlib
 from asyncio.subprocess import Process
-from kirk.sut import SUT
-from kirk.sut import IOBuffer
-from kirk.sut import SUTError
-from kirk.sut import KernelPanicError
+from libkirk.sut import SUT
+from libkirk.sut import IOBuffer
+from libkirk.sut import SUTError
+from libkirk.sut import KernelPanicError
 
 
 class HostSUT(SUT):

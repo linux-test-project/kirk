@@ -15,10 +15,10 @@ import secrets
 import logging
 import asyncio
 import contextlib
-from kirk.sut import SUT
-from kirk.sut import IOBuffer
-from kirk.sut import SUTError
-from kirk.sut import KernelPanicError
+from libkirk.sut import SUT
+from libkirk.sut import IOBuffer
+from libkirk.sut import SUTError
+from libkirk.sut import KernelPanicError
 
 
 # pylint: disable=too-many-instance-attributes

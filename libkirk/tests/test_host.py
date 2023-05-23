@@ -2,9 +2,9 @@
 Unittests for host SUT implementations.
 """
 import pytest
-from kirk.host import HostSUT
-from kirk.tests.test_sut import _TestSUT
-from kirk.tests.test_session import _TestSession
+from libkirk.host import HostSUT
+from libkirk.tests.test_sut import _TestSUT
+from libkirk.tests.test_session import _TestSession
 
 
 pytestmark = pytest.mark.asyncio

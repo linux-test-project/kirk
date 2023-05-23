@@ -1,9 +1,9 @@
 """
 Unittests for framework module.
 """
-import kirk
-from kirk.sut import SUT
-from kirk.framework import Framework
+import libkirk
+from libkirk.sut import SUT
+from libkirk.framework import Framework
 
 
 def test_sut(tmpdir):
@@ -17,14 +17,14 @@ def test_sut(tmpdir):
 
     for index in range(0, len(suts)):
         suts[index].write(
-            "from kirk.sut import SUT\n\n"
+            "from libkirk.sut import SUT\n\n"
             f"class SUT{index}(SUT):\n"
             "    @property\n"
             "    def name(self) -> str:\n"
             f"        return 'mysut{index}'\n"
         )
 
-    suts = kirk.discover_objects(SUT, str(tmpdir))
+    suts = libkirk.discover_objects(SUT, str(tmpdir))
 
     assert len(suts) == 2
 
@@ -40,13 +40,13 @@ def test_framework(tmpdir):
 
     for index in range(0, len(suts)):
         suts[index].write(
-            "from kirk.framework import Framework\n\n"
+            "from libkirk.framework import Framework\n\n"
             f"class Framework{index}(Framework):\n"
             "    @property\n"
             "    def name(self) -> str:\n"
             f"        return 'fw{index}'\n"
         )
 
-    suts = kirk.discover_objects(Framework, str(tmpdir))
+    suts = libkirk.discover_objects(Framework, str(tmpdir))
 
     assert len(suts) == 2

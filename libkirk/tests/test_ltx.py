@@ -6,11 +6,11 @@ import time
 import signal
 import subprocess
 import pytest
-import kirk.ltx as ltx
-from kirk.ltx import Requests
-from kirk.ltx import LTXSUT
-from kirk.tests.test_sut import _TestSUT
-from kirk.tests.test_session import _TestSession
+import libkirk.ltx as ltx
+from libkirk.ltx import Requests
+from libkirk.ltx import LTXSUT
+from libkirk.tests.test_sut import _TestSUT
+from libkirk.tests.test_session import _TestSession
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
 

@@ -9,18 +9,18 @@ import os
 import re
 import asyncio
 import argparse
-import kirk
-import kirk.sut
-import kirk.data
-import kirk.events
-from kirk import KirkException
-from kirk.sut import SUT
-from kirk.framework import Framework
-from kirk.ui import SimpleUserInterface
-from kirk.ui import VerboseUserInterface
-from kirk.ui import ParallelUserInterface
-from kirk.session import Session
-from kirk.tempfile import TempDir
+import libkirk
+import libkirk.sut
+import libkirk.data
+import libkirk.events
+from libkirk import KirkException
+from libkirk.sut import SUT
+from libkirk.framework import Framework
+from libkirk.ui import SimpleUserInterface
+from libkirk.ui import VerboseUserInterface
+from libkirk.ui import ParallelUserInterface
+from libkirk.session import Session
+from libkirk.tempfile import TempDir
 
 # runtime loaded SUT(s)
 LOADED_SUT = []
@@ -131,7 +131,7 @@ def _discover_sut(path: str) -> None:
     """
     Discover new SUT implementations.
     """
-    objs = kirk.discover_objects(SUT, path)
+    objs = libkirk.discover_objects(SUT, path)
     LOADED_SUT.extend(objs)
 
 
@@ -139,7 +139,7 @@ def _discover_frameworks(path: str) -> None:
     """
     Discover new Framework implementations.
     """
-    objs = kirk.discover_objects(Framework, path)
+    objs = libkirk.discover_objects(Framework, path)
     LOADED_FRAMEWORK.extend(objs)
 
 
@@ -264,11 +264,11 @@ def _start_session(
             skip_tests=skip_tests,
             report_path=args.json_report
         )
-        await kirk.events.stop()
+        await libkirk.events.stop()
 
     try:
-        kirk.run(asyncio.gather(*[
-            kirk.create_task(kirk.events.start()),
+        libkirk.run(asyncio.gather(*[
+            libkirk.create_task(libkirk.events.start()),
             session_run()
         ]))
     except KeyboardInterrupt:

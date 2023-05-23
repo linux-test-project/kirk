@@ -8,11 +8,11 @@
 import os
 import json
 import logging
-from kirk import KirkException
-from kirk.sut import SUT
-from kirk.data import Suite
-from kirk.data import Test
-from kirk.framework import Framework
+from libkirk import KirkException
+from libkirk.sut import SUT
+from libkirk.data import Suite
+from libkirk.data import Test
+from libkirk.framework import Framework
 
 
 class LTPFramework(Framework):

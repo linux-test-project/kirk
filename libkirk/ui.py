@@ -7,12 +7,12 @@
 """
 import platform
 import traceback
-import kirk
-import kirk.events
-from kirk.data import Test
-from kirk.data import Suite
-from kirk.results import TestResults
-from kirk.results import SuiteResults
+import libkirk
+import libkirk.events
+from libkirk.data import Test
+from libkirk.data import Suite
+from libkirk.results import TestResults
+from libkirk.results import SuiteResults
 
 # pylint: disable=missing-function-docstring
 # pylint: disable=unused-argument
@@ -34,18 +34,18 @@ class ConsoleUserInterface:
         self._no_colors = no_colors
         self._line = ""
 
-        kirk.events.register("session_started", self.session_started)
-        kirk.events.register("session_stopped", self.session_stopped)
-        kirk.events.register("sut_start", self.sut_start)
-        kirk.events.register("sut_stop", self.sut_stop)
-        kirk.events.register("sut_restart", self.sut_restart)
-        kirk.events.register("run_cmd_start", self.run_cmd_start)
-        kirk.events.register("run_cmd_stdout", self.run_cmd_stdout)
-        kirk.events.register("run_cmd_stop", self.run_cmd_stop)
-        kirk.events.register("suite_started", self.suite_started)
-        kirk.events.register("suite_completed", self.suite_completed)
-        kirk.events.register("session_error", self.session_error)
-        kirk.events.register("internal_error", self.internal_error)
+        libkirk.events.register("session_started", self.session_started)
+        libkirk.events.register("session_stopped", self.session_stopped)
+        libkirk.events.register("sut_start", self.sut_start)
+        libkirk.events.register("sut_stop", self.sut_stop)
+        libkirk.events.register("sut_restart", self.sut_restart)
+        libkirk.events.register("run_cmd_start", self.run_cmd_start)
+        libkirk.events.register("run_cmd_stdout", self.run_cmd_stdout)
+        libkirk.events.register("run_cmd_stop", self.run_cmd_stop)
+        libkirk.events.register("suite_started", self.suite_started)
+        libkirk.events.register("suite_completed", self.suite_completed)
+        libkirk.events.register("session_error", self.session_error)
+        libkirk.events.register("internal_error", self.internal_error)
 
     def _print(self, msg: str, color: str = None, end: str = "\n"):
         """
@@ -170,12 +170,12 @@ class SimpleUserInterface(ConsoleUserInterface):
         self._kernel_tainted = None
         self._timed_out = False
 
-        kirk.events.register("sut_not_responding", self.sut_not_responding)
-        kirk.events.register("kernel_panic", self.kernel_panic)
-        kirk.events.register("kernel_tainted", self.kernel_tainted)
-        kirk.events.register("test_timed_out", self.test_timed_out)
-        kirk.events.register("test_started", self.test_started)
-        kirk.events.register("test_completed", self.test_completed)
+        libkirk.events.register("sut_not_responding", self.sut_not_responding)
+        libkirk.events.register("kernel_panic", self.kernel_panic)
+        libkirk.events.register("kernel_tainted", self.kernel_tainted)
+        libkirk.events.register("test_timed_out", self.test_timed_out)
+        libkirk.events.register("test_started", self.test_started)
+        libkirk.events.register("test_completed", self.test_completed)
 
     async def sut_not_responding(self) -> None:
         self._sut_not_responding = True
@@ -239,12 +239,12 @@ class VerboseUserInterface(ConsoleUserInterface):
 
         self._timed_out = False
 
-        kirk.events.register("sut_stdout", self.sut_stdout)
-        kirk.events.register("kernel_tainted", self.kernel_tainted)
-        kirk.events.register("test_timed_out", self.test_timed_out)
-        kirk.events.register("test_started", self.test_started)
-        kirk.events.register("test_completed", self.test_completed)
-        kirk.events.register("test_stdout", self.test_stdout)
+        libkirk.events.register("sut_stdout", self.sut_stdout)
+        libkirk.events.register("kernel_tainted", self.kernel_tainted)
+        libkirk.events.register("test_timed_out", self.test_timed_out)
+        libkirk.events.register("test_started", self.test_started)
+        libkirk.events.register("test_completed", self.test_completed)
+        libkirk.events.register("test_stdout", self.test_stdout)
 
     async def sut_stdout(self, _: str, data: str) -> None:
         self._print(data, end='')
@@ -298,12 +298,12 @@ class ParallelUserInterface(ConsoleUserInterface):
         self._timed_out = False
         self._running = []
 
-        kirk.events.register("sut_not_responding", self.sut_not_responding)
-        kirk.events.register("kernel_panic", self.kernel_panic)
-        kirk.events.register("kernel_tainted", self.kernel_tainted)
-        kirk.events.register("test_timed_out", self.test_timed_out)
-        kirk.events.register("test_started", self.test_started)
-        kirk.events.register("test_completed", self.test_completed)
+        libkirk.events.register("sut_not_responding", self.sut_not_responding)
+        libkirk.events.register("kernel_panic", self.kernel_panic)
+        libkirk.events.register("kernel_tainted", self.kernel_tainted)
+        libkirk.events.register("test_timed_out", self.test_timed_out)
+        libkirk.events.register("test_started", self.test_started)
+        libkirk.events.register("test_completed", self.test_completed)
 
     def _refresh_running_tests(self) -> None:
         tests_num = len(self._running)

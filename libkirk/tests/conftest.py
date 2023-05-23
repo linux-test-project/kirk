@@ -1,12 +1,12 @@
 """
 Generic stuff for pytest.
 """
-import kirk
+import libkirk
 import pytest
-from kirk.sut import SUT
-from kirk.framework import Framework
-from kirk.data import Suite
-from kirk.data import Test
+from libkirk.sut import SUT
+from libkirk.framework import Framework
+from libkirk.data import Suite
+from libkirk.data import Test
 
 
 @pytest.fixture(scope="session")
@@ -16,7 +16,7 @@ def event_loop():
     will use same coroutines will be associated to different event_loop.
     In this way, pytest-asyncio plugin will work properly.
     """
-    loop = kirk.get_event_loop()
+    loop = libkirk.get_event_loop()
 
     yield loop
 

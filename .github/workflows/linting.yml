@@ -28,9 +28,7 @@ jobs:
       run: python3 -m pip install pylint
 
     - name: Test kirk
-      run: |
-        pip install -e .
-        kirk --help
+      run: ./kirk --help
 
     - name: Lint with pylint
-      run: pylint --rcfile=pylint.ini kirk
+      run: pylint --rcfile=pylint.ini libkirk

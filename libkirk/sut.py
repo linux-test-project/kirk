@@ -7,7 +7,7 @@
 """
 import re
 import asyncio
-from kirk import KirkException
+from libkirk import KirkException
 
 
 class SUTError(KirkException):

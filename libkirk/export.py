@@ -8,7 +8,7 @@
 import os
 import json
 import logging
-from kirk import KirkException
+from libkirk import KirkException
 
 
 class ExporterError(KirkException):

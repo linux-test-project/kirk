@@ -5,8 +5,8 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-from kirk.data import Test
-from kirk.data import Suite
+from libkirk.data import Test
+from libkirk.data import Suite
 
 
 class Results:

@@ -11,16 +11,16 @@ import sys
 import time
 import asyncio
 import logging
-import kirk
-import kirk.data
-from kirk import KirkException
-from kirk.sut import SUT
-from kirk.sut import IOBuffer
-from kirk.sut import KernelPanicError
-from kirk.data import Test
-from kirk.data import Suite
-from kirk.results import TestResults
-from kirk.results import SuiteResults
+import libkirk
+import libkirk.data
+from libkirk import KirkException
+from libkirk.sut import SUT
+from libkirk.sut import IOBuffer
+from libkirk.sut import KernelPanicError
+from libkirk.data import Test
+from libkirk.data import Suite
+from libkirk.results import TestResults
+from libkirk.results import SuiteResults
 
 
 class KernelTainedError(KirkException):
@@ -74,7 +74,7 @@ class RedirectTestStdout(IOBuffer):
         self._test = test
 
     async def write(self, data: str) -> None:
-        await kirk.events.fire("test_stdout", self._test, data)
+        await libkirk.events.fire("test_stdout", self._test, data)
         self.stdout += data
 
 
@@ -87,7 +87,7 @@ class RedirectSUTStdout(IOBuffer):
         self._sut = sut
 
     async def write(self, data: str) -> None:
-        await kirk.events.fire("sut_stdout", self._sut.name, data)
+        await libkirk.events.fire("sut_stdout", self._sut.name, data)
 
 
 class TestScheduler(Scheduler):
@@ -233,7 +233,7 @@ class TestScheduler(Scheduler):
         for msg in messages:
             if msg:
                 self._logger.debug("Kernel tainted (%d): %s", code, msg)
-                await kirk.events.fire("kernel_tainted", msg)
+                await libkirk.events.fire("kernel_tainted", msg)
 
         return code, messages
 
@@ -297,7 +297,7 @@ class TestScheduler(Scheduler):
             self._logger.info("Running test %s", test.name)
             self._logger.debug(test)
 
-            await kirk.events.fire("test_started", test)
+            await libkirk.events.fire("test_started", test)
             await self._write_kmsg(test)
 
             iobuffer = RedirectTestStdout(test)
@@ -327,7 +327,7 @@ class TestScheduler(Scheduler):
 
                     tainted_msg = tainted_msg2
                     status = self.KERNEL_TAINED
-            except kirk.sut.KernelPanicError:
+            except libkirk.sut.KernelPanicError:
                 exec_time = time.time() - start_t
 
                 self._logger.info("Recognised Kernel panic")
@@ -370,18 +370,18 @@ class TestScheduler(Scheduler):
 
             # raise kernel errors at the end so we can collect test results
             if status == self.KERNEL_TAINED:
-                await kirk.events.fire("kernel_tainted", tainted_msg)
+                await libkirk.events.fire("kernel_tainted", tainted_msg)
                 raise KernelTainedError()
 
             if status == self.KERNEL_PANIC:
-                await kirk.events.fire("kernel_panic")
+                await libkirk.events.fire("kernel_panic")
                 raise KernelPanicError()
 
             if status == self.KERNEL_TIMEOUT:
-                await kirk.events.fire("sut_not_responding")
+                await libkirk.events.fire("sut_not_responding")
                 raise KernelTimeoutError()
 
-            await kirk.events.fire("test_completed", results)
+            await libkirk.events.fire("test_completed", results)
 
             self._logger.info("Test completed: %s", test.name)
             self._logger.debug(results)
@@ -398,7 +398,7 @@ class TestScheduler(Scheduler):
         self._logger.info("Scheduling %d tests on single worker", len(tests))
 
         for test in tests:
-            task = kirk.create_task(self._run_test(test, sem))
+            task = libkirk.create_task(self._run_test(test, sem))
             self._tasks.append(task)
 
             await task
@@ -540,7 +540,7 @@ class SuiteScheduler(Scheduler):
         """
         self._logger.info("Rebooting SUT")
 
-        await kirk.events.fire("sut_restart", self._sut.name)
+        await libkirk.events.fire("sut_restart", self._sut.name)
 
         iobuffer = RedirectSUTStdout(self._sut)
 
@@ -557,7 +557,7 @@ class SuiteScheduler(Scheduler):
         self._logger.info("Running suite %s", suite.name)
         self._logger.debug(suite)
 
-        await kirk.events.fire("suite_started", suite)
+        await libkirk.events.fire("suite_started", suite)
 
         tests_results = []
         tests = []
@@ -587,7 +587,7 @@ class SuiteScheduler(Scheduler):
             except asyncio.TimeoutError:
                 self._logger.info("Testing suite timed out: %s", suite.name)
 
-                await kirk.events.fire(
+                await libkirk.events.fire(
                     "suite_timeout",
                     suite,
                     self._suite_timeout)
@@ -653,7 +653,7 @@ class SuiteScheduler(Scheduler):
             ram=info["ram"],
             exec_time=suite_exec_time)
 
-        await kirk.events.fire("suite_completed", suite_results)
+        await libkirk.events.fire("suite_completed", suite_results)
 
         self._logger.info("Suite completed")
         self._logger.debug(suite_results)
@@ -672,4 +672,4 @@ class SuiteScheduler(Scheduler):
             self._results.clear()
 
             for suite in jobs:
-                await kirk.create_task(self._run_suite(suite))
+                await libkirk.create_task(self._run_suite(suite))

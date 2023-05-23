@@ -13,7 +13,7 @@ import asyncio
 import inspect
 import importlib
 import importlib.util
-from kirk.events import EventsHandler
+from libkirk.events import EventsHandler
 
 
 class KirkException(Exception):

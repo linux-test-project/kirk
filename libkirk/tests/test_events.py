@@ -3,7 +3,7 @@ Unittest for events module.
 """
 import asyncio
 import pytest
-import kirk
+import libkirk
 
 
 pytestmark = pytest.mark.asyncio
@@ -16,11 +16,11 @@ def test_reset():
     async def funct():
         pass
 
-    kirk.events.register("myevent", funct)
-    assert kirk.events.is_registered("myevent")
+    libkirk.events.register("myevent", funct)
+    assert libkirk.events.is_registered("myevent")
 
-    kirk.events.reset()
-    assert not kirk.events.is_registered("myevent")
+    libkirk.events.reset()
+    assert not libkirk.events.is_registered("myevent")
 
 
 def test_register_errors():
@@ -31,10 +31,10 @@ def test_register_errors():
         pass
 
     with pytest.raises(ValueError):
-        kirk.events.register(None, funct)
+        libkirk.events.register(None, funct)
 
     with pytest.raises(ValueError):
-        kirk.events.register("myevent", None)
+        libkirk.events.register("myevent", None)
 
 
 def test_register():
@@ -44,8 +44,8 @@ def test_register():
     async def funct():
         pass
 
-    kirk.events.register("myevent", funct)
-    assert kirk.events.is_registered("myevent")
+    libkirk.events.register("myevent", funct)
+    assert libkirk.events.is_registered("myevent")
 
 
 def test_unregister_errors():
@@ -53,7 +53,7 @@ def test_unregister_errors():
     Test unregister method during errors.
     """
     with pytest.raises(ValueError):
-        kirk.events.unregister(None)
+        libkirk.events.unregister(None)
 
 
 def test_unregister():
@@ -63,11 +63,11 @@ def test_unregister():
     async def funct():
         pass
 
-    kirk.events.register("myevent", funct)
-    assert kirk.events.is_registered("myevent")
+    libkirk.events.register("myevent", funct)
+    assert libkirk.events.is_registered("myevent")
 
-    kirk.events.unregister("myevent")
-    assert not kirk.events.is_registered("myevent")
+    libkirk.events.unregister("myevent")
+    assert not libkirk.events.is_registered("myevent")
 
 
 async def test_fire_errors():
@@ -75,7 +75,7 @@ async def test_fire_errors():
     Test fire method during errors.
     """
     with pytest.raises(ValueError):
-        await kirk.events.fire(None, "prova")
+        await libkirk.events.fire(None, "prova")
 
 
 async def test_fire():
@@ -93,24 +93,24 @@ async def test_fire():
         called.append(param)
 
     async def start():
-        await kirk.events.start()
+        await libkirk.events.start()
 
     async def run():
         for i in range(times):
-            await kirk.events.fire("myevent", i)
+            await libkirk.events.fire("myevent", i)
 
         while len(called) < times:
             await asyncio.sleep(1e-3)
 
-        await kirk.events.stop()
+        await libkirk.events.stop()
 
-    kirk.events.register("myevent", tofire)
-    assert kirk.events.is_registered("myevent")
+    libkirk.events.register("myevent", tofire)
+    assert libkirk.events.is_registered("myevent")
 
-    kirk.events.register("internal_error", diehard)
-    assert kirk.events.is_registered("internal_error")
+    libkirk.events.register("internal_error", diehard)
+    assert libkirk.events.is_registered("internal_error")
 
-    kirk.create_task(start())
+    libkirk.create_task(start())
     await run()
 
     while len(called) < times:

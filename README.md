@@ -52,60 +52,36 @@ support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
 Quickstart
 ==========
 
-The tool works out of the box by running `runkirk` script.
+The tool works out of the box by running `kirk` script.
 Minimum python requirement is 3.6+ and *optional* dependences are the following:
 
 - `asyncssh <= 2.13.1` for SSH support
 - `msgpack <= 1.0.5` for LTX support
 
-To install `kirk` via pip, please consider the following procedure:
-
-    # clone repository
-    git clone git@github.com:acerv/kirk.git
-    cd kirk
-
-    # create virtualenv (python-3.6+)
-    virtualenv .venv
-
-    # activate virtualenv
-    source .venv/bin/activate
-
-    # install kirk (add -e for development mode)
-    pip install .
-
-    # install SSH support if needed
-    pip install .[ssh]
-
-    # install LTX support if needed
-    pip install .[ltx]
-
-    # execute kirk
-    kirk --help
-
 Some basic commands are the following:
 
     # run LTP syscalls testing suite on host
-    kirk --run-suite ltp:syscalls
+    ./kirk --run-suite ltp:syscalls
 
     # run LTP syscalls testing suite on qemu VM
-    kirk --sut qemu:image=folder/image.qcow2 \
+    ./kirk --sut qemu:image=folder/image.qcow2 \
         --run-suite ltp:syscalls
 
     # run LTP syscalls testing suite via SSH
-    kirk --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
+    ./kirk --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite ltp:syscalls
 
     # run LTP syscalls testing suite in parallel on host using 16 workers
-    kirk --run-suite ltp:syscalls --workers 16
+    ./kirk --run-suite ltp:syscalls --workers 16
 
     # run LTP syscalls testing suite in parallel via SSH using 16 workers
-    kirk --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
+    ./kirk --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite ltp:syscalls --workers 16
 
 It's possible to run a single command before running testing suites using
 `--run-command` option as following:
 
-    kirk --run-command /mnt/setup.sh \
+    ./kirk --run-command /mnt/setup.sh \
         --sut qemu:image=folder/image.qcow2:virtfs=/home/user/tests \
         --run-suite ltp:syscalls
 
@@ -133,10 +109,10 @@ particular protocols and infrastructures, in order to communicate with our
 host machine and to execute tests binaries.
 
 For this reason, `kirk` provides a plugin system to recognize custom SUT
-class implementations inside the `kirk` package folder. Please check `host.py`
+class implementations inside the `libkirk` folder. Please check `host.py`
 or `ssh.py` implementations for more details.
 
-Once a new SUT class is implemented and placed inside the `kirk` package folder,
+Once a new SUT class is implemented and placed inside the `libkirk` folder,
 `kirk -s help` command can be used to see if application correctly
 recognise it.
 
@@ -146,7 +122,7 @@ Implementing Framework
 Every testing framework has it's own setup, defining tests folders, data and
 variables. For this reason, `Framework` class provides a generic API that, once
 implemented, permits to define a specific testing framework. The class 
-implementation must be included inside the `kirk` library folder and it will be
+implementation must be included inside the `libkirk` folder and it will be
 used as an abstraction layer between `kirk` scheduler and the specific testing
 framework.
 
@@ -160,4 +136,4 @@ To run unittests:
 
 To run linting checks:
 
-    pylint --rcfile=pylint.ini ./kirk
+    pylint --rcfile=pylint.ini ./libkirk

@@ -5,8 +5,8 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-from kirk.sut import SUT
-from kirk.data import Suite
+from libkirk.sut import SUT
+from libkirk.data import Suite
 
 
 class Framework:
