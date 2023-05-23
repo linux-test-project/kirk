@@ -47,8 +47,6 @@ class Session:
         :type frameworks: list(Framework)
         :param sut: SUT communication object
         :type sut: SUT
-        :param no_colors: if True, it disables LTP tests colors
-        :type no_colors: bool
         :param exec_timeout: test timeout
         :type exec_timeout: float
         :param suite_timeout: testing suite timeout
@@ -62,7 +60,6 @@ class Session:
         self._tmpdir = kwargs.get("tmpdir", None)
         self._frameworks = kwargs.get("frameworks", None)
         self._sut = kwargs.get("sut", None)
-        self._no_colors = kwargs.get("no_colors", False)
         self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
         self._stop = False
         self._exec_lock = asyncio.Lock()

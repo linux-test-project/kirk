@@ -225,7 +225,6 @@ def _start_session(
         sut=sut,
         frameworks=LOADED_FRAMEWORK,
         tmpdir=tmpdir,
-        no_colors=args.no_colors,
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
