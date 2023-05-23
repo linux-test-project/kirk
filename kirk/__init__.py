@@ -12,6 +12,7 @@ import typing
 import asyncio
 import inspect
 import importlib
+import importlib.util
 from kirk.events import EventsHandler
 
 
