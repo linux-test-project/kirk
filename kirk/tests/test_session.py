@@ -4,7 +4,6 @@ Unittests for the session module.
 import json
 import asyncio
 import pytest
-from kirk.host import HostSUT
 from kirk.session import Session
 from kirk.tempfile import TempDir
 
@@ -13,26 +12,14 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-async def sut_config():
-    """
-    SUT Configuration.
-    """
-    yield {}
-
-
-@pytest.fixture
-async def sut(sut_config):
+async def sut():
     """
     SUT communication object.
     """
-    obj = HostSUT()
-    obj.setup(*sut_config)
-    await obj.communicate()
-    yield obj
-    await obj.stop()
+    raise NotImplementedError()
 
 
-class TestSession:
+class _TestSession:
     """
     Test for Session class.
     """
@@ -87,23 +74,19 @@ class TestSession:
             report_data = json.loads(report_file.read())
             assert len(report_data["results"]) == 0
 
-    async def test_run_stop(self, tmpdir, session):
+    async def test_run_stop(self, session):
         """
-        Test stop method during run.
+        Test stop method during run. We are not going to generate any results
+        file, because we are not even sure some tests will be executed.
         """
         async def stop():
             await asyncio.sleep(0.2)
             await session.stop()
 
-        report = str(tmpdir / "report.json")
         await asyncio.gather(*[
-            session.run(suites={"dummy": ["sleep"]}, report_path=report),
+            session.run(suites={"dummy": ["sleep"]}),
             stop(),
         ])
-
-        with open(report, "r") as report_file:
-            report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) == 0
 
     async def test_run_command(self, session):
         """

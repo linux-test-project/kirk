@@ -3,8 +3,8 @@ Unittests for host SUT implementations.
 """
 import pytest
 from kirk.host import HostSUT
-from kirk.tests.sut import _TestSUT
-from kirk.tests.sut import Printer
+from kirk.tests.test_sut import _TestSUT
+from kirk.tests.test_session import _TestSession
 
 
 pytestmark = pytest.mark.asyncio
@@ -35,3 +35,9 @@ class TestHostSUT(_TestSUT):
 
     async def test_fetch_file_stop(self):
         pytest.skip(reason="Coroutines don't support I/O file handling")
+
+
+class TestHostSession(_TestSession):
+    """
+    Test Session implementation.
+    """

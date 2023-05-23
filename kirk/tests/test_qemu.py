@@ -5,22 +5,24 @@ import os
 import pytest
 from kirk.qemu import QemuSUT
 from kirk.sut import KernelPanicError
-from kirk.tests.sut import _TestSUT
-from kirk.tests.sut import Printer
+from kirk.tests.test_sut import _TestSUT
+from kirk.tests.test_sut import Printer
+from kirk.tests.test_session import _TestSession
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.qemu]
 
 TEST_QEMU_IMAGE = os.environ.get("TEST_QEMU_IMAGE", None)
 TEST_QEMU_PASSWORD = os.environ.get("TEST_QEMU_PASSWORD", None)
 
+if not TEST_QEMU_IMAGE:
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_QEMU_IMAGE not defined"))
 
-@pytest.mark.qemu
-@pytest.mark.skipif(
-    TEST_QEMU_IMAGE is None,
-    reason="TEST_QEMU_IMAGE is not defined")
-@pytest.mark.skipif(
-    TEST_QEMU_PASSWORD is None,
-    reason="TEST_QEMU_PASSWORD is not defined")
+if not TEST_QEMU_PASSWORD:
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_QEMU_PASSWORD not defined"))
+
+
 class _TestQemuSUT(_TestSUT):
     """
     Test Qemu SUT implementation.
@@ -46,43 +48,79 @@ class _TestQemuSUT(_TestSUT):
         pytest.skip(reason="Coroutines don't support I/O file handling")
 
 
+@pytest.fixture
+async def sut_isa(tmpdir):
+    """
+    Qemu instance using ISA.
+    """
+    iobuff = Printer()
+
+    runner = QemuSUT()
+    runner.setup(
+        tmpdir=str(tmpdir),
+        image=TEST_QEMU_IMAGE,
+        password=TEST_QEMU_PASSWORD,
+        serial="isa")
+
+    yield runner
+
+    if await runner.is_running:
+        await runner.stop(iobuffer=iobuff)
+
+
+@pytest.fixture
+async def sut_virtio(tmpdir):
+    """
+    Qemu instance using VirtIO.
+    """
+    runner = QemuSUT()
+    runner.setup(
+        tmpdir=str(tmpdir),
+        image=TEST_QEMU_IMAGE,
+        password=TEST_QEMU_PASSWORD,
+        serial="virtio")
+
+    yield runner
+
+    if await runner.is_running:
+        await runner.stop()
+
+
 class TestQemuSUTISA(_TestQemuSUT):
     """
-    Test QemuSUT implementation.
+    Test QemuSUT implementation using ISA protocol.
     """
 
     @pytest.fixture
-    async def sut(self, tmpdir):
-        iobuff = Printer()
-
-        runner = QemuSUT()
-        runner.setup(
-            tmpdir=str(tmpdir),
-            image=TEST_QEMU_IMAGE,
-            password=TEST_QEMU_PASSWORD,
-            serial="isa")
-
-        yield runner
-
-        if await runner.is_running:
-            await runner.stop(iobuffer=iobuff)
+    async def sut(self, sut_isa):
+        yield sut_isa
 
 
 class TestQemuSUTVirtIO(_TestQemuSUT):
     """
-    Test QemuSUT implementation.
+    Test QemuSUT implementation using VirtIO protocol.
     """
 
     @pytest.fixture
-    async def sut(self, tmpdir):
-        runner = QemuSUT()
-        runner.setup(
-            tmpdir=str(tmpdir),
-            image=TEST_QEMU_IMAGE,
-            password=TEST_QEMU_PASSWORD,
-            serial="virtio")
+    async def sut(self, sut_virtio):
+        yield sut_virtio
 
-        yield runner
 
-        if await runner.is_running:
-            await runner.stop()
+class TestSessionQemuISA(_TestSession):
+    """
+    Test Session using Qemu with ISA protocol.
+    """
+
+    @pytest.fixture
+    async def sut(self, sut_isa):
+        yield sut_isa
+
+
+class TestSessionQemuVirtIO(_TestSession):
+    """
+    Test Session using Qemu with ISA protocol.
+    """
+
+    @pytest.fixture
+    async def sut(self, sut_virtio):
+        yield sut_virtio

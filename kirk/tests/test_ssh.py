@@ -7,38 +7,54 @@ import pytest
 from kirk.sut import IOBuffer
 from kirk.sut import KernelPanicError
 from kirk.ssh import SSHSUT
-from kirk.tests.sut import _TestSUT
+from kirk.tests.test_sut import _TestSUT
+from kirk.tests.test_session import _TestSession
 
-pytestmark = pytest.mark.asyncio
-
+pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
 
 TEST_SSH_USERNAME = os.environ.get("TEST_SSH_USERNAME", None)
 TEST_SSH_PASSWORD = os.environ.get("TEST_SSH_PASSWORD", None)
 TEST_SSH_KEY_FILE = os.environ.get("TEST_SSH_KEY_FILE", None)
 
+if not TEST_SSH_USERNAME:
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_SSH_USERNAME not defined"))
 
-@pytest.mark.ssh
+if not TEST_SSH_PASSWORD:
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_SSH_PASSWORD not defined"))
+
+if not TEST_SSH_KEY_FILE:
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_SSH_KEY_FILE not defined"))
+
+
+@pytest.fixture
+def config():
+    """
+    Base configuration to connect to SUT.
+    """
+    raise NotImplementedError()
+
+
+@pytest.fixture
+async def sut(config):
+    """
+    SSH SUT communication object.
+    """
+    sut = SSHSUT()
+    sut.setup(**config)
+
+    yield sut
+
+    if await sut.is_running:
+        await sut.stop()
+
+
 class _TestSSHSUT(_TestSUT):
     """
     Test SSHSUT implementation using username/password.
     """
-
-    @pytest.fixture
-    def config(self):
-        """
-        Base configuration to connect to SUT.
-        """
-        raise NotImplementedError()
-
-    @pytest.fixture
-    async def sut(self, config):
-        sut = SSHSUT()
-        sut.setup(**config)
-
-        yield sut
-
-        if await sut.is_running:
-            await sut.stop()
 
     async def test_reset_command(self, config):
         """
@@ -93,43 +109,67 @@ class _TestSSHSUT(_TestSUT):
                 "echo 'Kernel panic\nThis is a generic message'")
 
 
-@pytest.mark.skipif(
-    TEST_SSH_USERNAME is None,
-    reason="TEST_SSH_USERNAME is not defined")
-@pytest.mark.skipif(
-    TEST_SSH_PASSWORD is None,
-    reason="TEST_SSH_PASSWORD is not defined")
+@pytest.fixture
+def config_password(tmpdir):
+    """
+    SSH configuration to use user/password.
+    """
+    return dict(
+        tmpdir=str(tmpdir),
+        host="localhost",
+        port=22,
+        user=TEST_SSH_USERNAME,
+        password=TEST_SSH_PASSWORD)
+
+
+@pytest.fixture
+def config_keyfile(tmpdir):
+    """
+    SSH configuration to use keyfile.
+    """
+    return dict(
+        tmpdir=str(tmpdir),
+        host="localhost",
+        port=22,
+        user=TEST_SSH_USERNAME,
+        key_file=TEST_SSH_KEY_FILE)
+
+
 class TestSSHSUTPassword(_TestSSHSUT):
     """
     Test SSHSUT implementation using username/password.
     """
 
     @pytest.fixture
-    def config(self, tmpdir):
-        return dict(
-            tmpdir=str(tmpdir),
-            host="localhost",
-            port=22,
-            user=TEST_SSH_USERNAME,
-            password=TEST_SSH_PASSWORD)
+    def config(self, config_password):
+        yield config_password
 
 
-@pytest.mark.skipif(
-    TEST_SSH_USERNAME is None,
-    reason="TEST_SSH_USERNAME is not defined")
-@pytest.mark.skipif(
-    TEST_SSH_KEY_FILE is None,
-    reason="TEST_SSH_KEY_FILE is not defined")
 class TestSSHSUTKeyfile(_TestSSHSUT):
     """
     Test SSHSUT implementation using username/password.
     """
 
     @pytest.fixture
-    def config(self, tmpdir):
-        return dict(
-            tmpdir=str(tmpdir),
-            host="localhost",
-            port=22,
-            user=TEST_SSH_USERNAME,
-            key_file=TEST_SSH_KEY_FILE)
+    def config(self, config_keyfile):
+        yield config_keyfile
+
+
+class TestSessionSSHPassword(_TestSession):
+    """
+    Test Session implementation using SSH SUT in password mode.
+    """
+
+    @pytest.fixture
+    def config(self, config_password):
+        yield config_password
+
+
+class TestSessionSSHKeyfile(_TestSession):
+    """
+    Test Session implementation using SSH SUT in keyfile mode.
+    """
+
+    @pytest.fixture
+    def config(self, config_keyfile):
+        yield config_keyfile

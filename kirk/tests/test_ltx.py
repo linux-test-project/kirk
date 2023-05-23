@@ -9,17 +9,18 @@ import pytest
 import kirk.ltx as ltx
 from kirk.ltx import Requests
 from kirk.ltx import LTXSUT
-from kirk.tests.sut import _TestSUT
+from kirk.tests.test_sut import _TestSUT
+from kirk.tests.test_session import _TestSession
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
 
 TEST_LTX_BINARY = os.environ.get("TEST_LTX_BINARY", None)
 
+if not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY):
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_LTX_BINARY doesn't exist"))
 
-@pytest.mark.ltx
-@pytest.mark.skipif(
-    not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY),
-    reason="TEST_LTX_BINARY doesn't exist")
+
 class TestLTX:
     """
     Unittest for LTX class.
@@ -264,50 +265,53 @@ class TestLTX:
         await handle.gather(requests, timeout=10)
 
 
-@pytest.mark.ltx
-@pytest.mark.skipif(
-    not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY),
-    reason="TEST_LTX_BINARY doesn't exist")
+@pytest.fixture
+async def sut(tmpdir):
+    """
+    LTXSUT instance object.
+    """
+    stdin_path = str(tmpdir / 'transport.in')
+    stdout_path = str(tmpdir / 'transport.out')
+
+    os.mkfifo(stdin_path)
+    os.mkfifo(stdout_path)
+
+    stdin = os.open(stdin_path, os.O_RDONLY | os.O_NONBLOCK)
+    stdout = os.open(stdout_path, os.O_RDWR)
+
+    proc = subprocess.Popen(
+        TEST_LTX_BINARY,
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stdout,
+        bufsize=0,
+        shell=True)
+
+    sut = LTXSUT()
+    sut.setup(
+        cwd=str(tmpdir),
+        env=dict(HELLO="WORLD"),
+        stdin=stdin_path,
+        stdout=stdout_path)
+
+    yield sut
+
+    if await sut.is_running:
+        await sut.stop()
+
+    proc.kill()
+
+
 class TestLTXSUT(_TestSUT):
     """
     Test HostSUT implementation.
     """
 
-    @pytest.fixture
-    async def sut(self, tmpdir):
-        """
-        LTXSUT instance object.
-        """
-        stdin_path = str(tmpdir / 'transport.in')
-        stdout_path = str(tmpdir / 'transport.out')
-
-        os.mkfifo(stdin_path)
-        os.mkfifo(stdout_path)
-
-        stdin = os.open(stdin_path, os.O_RDONLY | os.O_NONBLOCK)
-        stdout = os.open(stdout_path, os.O_RDWR)
-
-        proc = subprocess.Popen(
-            TEST_LTX_BINARY,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stdout,
-            bufsize=0,
-            shell=True)
-
-        sut = LTXSUT()
-        sut.setup(
-            cwd=str(tmpdir),
-            env=dict(HELLO="WORLD"),
-            stdin=stdin_path,
-            stdout=stdout_path)
-
-        yield sut
-
-        if await sut.is_running:
-            await sut.stop()
-
-        proc.kill()
-
     async def test_fetch_file_stop(self):
         pytest.skip(reason="LTX doesn't support stop for GET_FILE")
+
+
+class TestLTXSession(_TestSession):
+    """
+    Test Session implementation using LTX SUT.
+    """
