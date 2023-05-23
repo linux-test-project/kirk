@@ -228,7 +228,6 @@ def _start_session(
         no_colors=args.no_colors,
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
-        skip_tests=skip_tests,
         workers=args.workers,
         force_parallel=args.force_parallel)
 
@@ -263,6 +262,7 @@ def _start_session(
         await session.run(
             command=args.run_command,
             suites=suites,
+            skip_tests=skip_tests,
             report_path=args.json_report
         )
         await kirk.events.stop()

@@ -53,8 +53,6 @@ class Session:
         :type exec_timeout: float
         :param suite_timeout: testing suite timeout
         :type suite_timeout: float
-        :param skip_tests: regexp excluding tests from execution
-        :type skip_tests: str
         :param workers: number of workers for testing suite scheduler
         :type workers: int
         :param force_parallel: Force parallel execution of all tests
@@ -79,18 +77,10 @@ class Session:
         if not self._sut:
             raise ValueError("sut is empty")
 
-        suite_timeout = kwargs.get("suite_timeout", 3600.0)
-        skip_tests = kwargs.get("skip_tests", "")
-        workers = kwargs.get("workers", 1)
-        force_parallel = kwargs.get("force_parallel", False)
-
-        self._scheduler = SuiteScheduler(
-            sut=self._sut,
-            suite_timeout=suite_timeout,
-            exec_timeout=self._exec_timeout,
-            max_workers=workers,
-            skip_tests=skip_tests,
-            force_parallel=force_parallel)
+        self._suite_timeout = kwargs.get("suite_timeout", 3600.0)
+        self._workers = kwargs.get("workers", 1)
+        self._force_parallel = kwargs.get("force_parallel", False)
+        self._scheduler = None
 
         self._setup_debug_log()
 
@@ -195,7 +185,9 @@ class Session:
         """
         Stop scheduler and SUT.
         """
-        await self._scheduler.stop()
+        if self._scheduler:
+            await self._scheduler.stop()
+
         await self._stop_sut()
 
     async def stop(self) -> None:
@@ -219,6 +211,7 @@ class Session:
             self,
             command: str = None,
             suites: dict = None,
+            skip_tests: str = None,
             report_path: str = None) -> None:
         """
         Run a new session and store results inside a JSON file.
@@ -226,11 +219,21 @@ class Session:
         :type command: str
         :param suites: list of suites by framework
         :type suites: dict
+        :param skip_tests: regexp that exclude tests from execution
+        :type skip_tests: str
         :param report_path: JSON report path
         :type report_path: str
         """
         async with self._run_lock:
             await kirk.events.fire("session_started", self._tmpdir.abspath)
+
+            self._scheduler = SuiteScheduler(
+                sut=self._sut,
+                suite_timeout=self._suite_timeout,
+                exec_timeout=self._exec_timeout,
+                max_workers=self._workers,
+                skip_tests=skip_tests,
+                force_parallel=self._force_parallel)
 
             try:
                 await self._start_sut()
