@@ -142,13 +142,19 @@ class HostSUT(SUT):
         stdout = ""
 
         try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
-                preexec_fn=os.setsid)
+            kwargs = {
+                "stdout": asyncio.subprocess.PIPE,
+                "stderr": asyncio.subprocess.PIPE,
+                "cwd": cwd,
+                "preexec_fn": os.setsid
+            }
+
+            if env:
+                # commands can fail when env is defined, so we just skip
+                # env usage if dictionary is empty
+                kwargs["env"] = env
+
+            proc = await asyncio.create_subprocess_shell(command, **kwargs)
 
             self._procs.append(proc)
 
