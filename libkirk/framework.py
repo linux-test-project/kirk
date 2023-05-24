@@ -7,28 +7,14 @@
 """
 from libkirk.sut import SUT
 from libkirk.data import Suite
+from libkirk.plugin import Plugin
 
 
-class Framework:
+class Framework(Plugin):
     """
     Framework definition. Implement this class if you need to support more
     testing frameworks inside the application.
     """
-
-    @property
-    def name(self) -> str:
-        """
-        Name of the framework.
-        """
-        raise NotImplementedError()
-
-    def setup(self, **kwargs: dict) -> None:
-        """
-        Setup the framework.
-        :param kwargs: framework configuration
-        :type kwargs: dict
-        """
-        raise NotImplementedError()
 
     async def get_suites(self, sut: SUT) -> list:
         """

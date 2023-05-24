@@ -5,14 +5,10 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import os
 import sys
 import signal
 import typing
 import asyncio
-import inspect
-import importlib
-import importlib.util
 from libkirk.events import EventsHandler
 
 
@@ -133,46 +129,8 @@ def run(coro: typing.Coroutine) -> typing.Any:
         cancel_tasks(loop)
 
 
-def discover_objects(mytype: object, folder: str) -> list:
-    """
-    Discover ``mytype`` implementations inside a specific folder.
-    """
-    if not folder or not os.path.isdir(folder):
-        raise ValueError("Discover folder doesn't exist")
-
-    loaded_obj = []
-
-    for myfile in os.listdir(folder):
-        if not myfile.endswith('.py'):
-            continue
-
-        path = os.path.join(folder, myfile)
-        if not os.path.isfile(path):
-            continue
-
-        spec = importlib.util.spec_from_file_location('obj', path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        members = inspect.getmembers(module, inspect.isclass)
-        for _, klass in members:
-            if klass.__module__ != module.__name__ or \
-                    klass is mytype or \
-                    klass in loaded_obj:
-                continue
-
-            if issubclass(klass, mytype):
-                loaded_obj.append(klass())
-
-    if len(loaded_obj) > 0:
-        loaded_obj.sort(key=lambda x: x.name)
-
-    return loaded_obj
-
-
 __all__ = [
     "KirkException",
     "events",
     "get_event_loop",
-    "discover_objects",
 ]

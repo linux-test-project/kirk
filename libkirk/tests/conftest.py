@@ -40,6 +40,10 @@ class DummyFramework(Framework):
     def name(self) -> str:
         return "dummy"
 
+    @property
+    def config_help(self) -> dict:
+        return {}
+
     async def get_suites(self, sut: SUT) -> list:
         return ["suite01", "suite02", "sleep", "environ", "kernel_panic"]
 

@@ -40,6 +40,12 @@ class LTPFramework(Framework):
             "LTP_COLORIZE_OUTPUT": "1",
         }
 
+    @property
+    def config_help(self) -> dict:
+        return {
+            "root": "LTP install folder",
+        }
+
     def setup(self, **kwargs: dict) -> None:
         env = kwargs.get("env", None)
         if env:
@@ -47,6 +53,9 @@ class LTPFramework(Framework):
 
         root = kwargs.get("root", None)
         if root:
+            if not os.path.isdir(root):
+                raise KirkException("LTP install folder doesn't exist")
+
             self._root = root
             self._env["LTPROOT"] = self._root
 

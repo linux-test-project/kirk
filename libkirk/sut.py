@@ -8,6 +8,7 @@
 import re
 import asyncio
 from libkirk import KirkException
+from libkirk.plugin import Plugin
 
 
 class SUTError(KirkException):
@@ -56,35 +57,11 @@ TAINED_MSG = [
 ]
 
 
-class SUT:
+class SUT(Plugin):
     """
     SUT abstraction class. It could be a remote host, a local host, a virtual
     machine instance, etc.
     """
-
-    def setup(self, **kwargs: dict) -> None:
-        """
-        Initialize SUT using configuration dictionary.
-        :param kwargs: SUT configuration
-        :type kwargs: dict
-        """
-        raise NotImplementedError()
-
-    @property
-    def config_help(self) -> dict:
-        """
-        Associate each configuration option with a help message.
-        This is used by the main menu application to generate --help message.
-        :returns: dict
-        """
-        raise NotImplementedError()
-
-    @property
-    def name(self) -> str:
-        """
-        Name of the SUT.
-        """
-        raise NotImplementedError()
 
     @property
     def parallel_execution(self) -> bool:

@@ -43,8 +43,8 @@ class Session:
         """
         :param tmpdir: temporary directory
         :type tmpdir: TempDir
-        :param frameworks: list of frameworks
-        :type frameworks: list(Framework)
+        :param framework: testing framework we are using
+        :type framework: Framework
         :param sut: SUT communication object
         :type sut: SUT
         :param exec_timeout: test timeout
@@ -55,10 +55,12 @@ class Session:
         :type workers: int
         :param force_parallel: Force parallel execution of all tests
         :type force_parallel: bool
+        :param skip_tests: regexp that exclude tests from execution
+        :type skip_tests: str
         """
         self._logger = logging.getLogger("kirk.session")
         self._tmpdir = kwargs.get("tmpdir", None)
-        self._frameworks = kwargs.get("frameworks", None)
+        self._framework = kwargs.get("framework", None)
         self._sut = kwargs.get("sut", None)
         self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
         self._stop = False
@@ -68,16 +70,24 @@ class Session:
         if not self._tmpdir:
             raise ValueError("tmpdir is empty")
 
-        if not self._frameworks:
-            raise ValueError("frameworks is empty")
+        if not self._framework:
+            raise ValueError("framework is empty")
 
         if not self._sut:
             raise ValueError("sut is empty")
 
-        self._suite_timeout = kwargs.get("suite_timeout", 3600.0)
-        self._workers = kwargs.get("workers", 1)
-        self._force_parallel = kwargs.get("force_parallel", False)
-        self._scheduler = None
+        suite_timeout = kwargs.get("suite_timeout", 3600.0)
+        workers = kwargs.get("workers", 1)
+        force_parallel = kwargs.get("force_parallel", False)
+        skip_tests = kwargs.get("skip_tests", None)
+
+        self._scheduler = SuiteScheduler(
+            sut=self._sut,
+            suite_timeout=suite_timeout,
+            exec_timeout=self._exec_timeout,
+            max_workers=workers,
+            skip_tests=skip_tests,
+            force_parallel=force_parallel)
 
         self._setup_debug_log()
 
@@ -125,28 +135,22 @@ class Session:
         await libkirk.events.fire("sut_stop", self._sut.name)
         await self._sut.stop(iobuffer=RedirectSUTStdout(self._sut, False))
 
-    async def _read_suites(self, request: dict) -> list:
+    async def _read_suites(self, suites: list) -> list:
         """
-        Read all testing suites and return suites objects.
+        Read suites and return a list of Suite objects.
         """
         coros = []
-        for fwname, suites in request.items():
-            fwork = None
-            for item in self._frameworks:
-                if item.name == fwname:
-                    fwork = item
-                    break
-
-            if fwork:
-                for suite in suites:
-                    coros.append(fwork.find_suite(self._sut, suite))
+        for suite in suites:
+            coros.append(self._framework.find_suite(self._sut, suite))
 
         if not coros:
-            raise KirkException(
-                f"Can't find frameworks for request: {request}")
+            raise KirkException(f"Can't find suites: {suites}")
 
         suites_obj = await asyncio.gather(*coros, return_exceptions=True)
         for suite in suites_obj:
+            if isinstance(suite, Exception):
+                raise suite
+
             if not suite:
                 raise KirkException("Can't find suite objects")
 
@@ -207,30 +211,19 @@ class Session:
     async def run(
             self,
             command: str = None,
-            suites: dict = None,
-            skip_tests: str = None,
+            suites: list = None,
             report_path: str = None) -> None:
         """
         Run a new session and store results inside a JSON file.
         :param command: single command to run before suites
         :type command: str
-        :param suites: list of suites by framework
-        :type suites: dict
-        :param skip_tests: regexp that exclude tests from execution
-        :type skip_tests: str
+        :param suites: list of suites to execute
+        :type suites: list
         :param report_path: JSON report path
         :type report_path: str
         """
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
-
-            self._scheduler = SuiteScheduler(
-                sut=self._sut,
-                suite_timeout=self._suite_timeout,
-                exec_timeout=self._exec_timeout,
-                max_workers=self._workers,
-                skip_tests=skip_tests,
-                force_parallel=self._force_parallel)
 
             try:
                 await self._start_sut()

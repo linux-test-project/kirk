@@ -31,7 +31,7 @@ class _TestSession:
         """
         session = Session(
             tmpdir=TempDir(str(tmpdir)),
-            frameworks=[dummy_framework],
+            framework=dummy_framework,
             sut=sut)
 
         yield session
@@ -42,7 +42,7 @@ class _TestSession:
         """
         Test run method when executing suites.
         """
-        await session.run(suites={"dummy": ["suite01", "suite02"]})
+        await session.run(suites=["suite01", "suite02"])
 
     async def test_run_report(self, tmpdir, session):
         """
@@ -50,7 +50,7 @@ class _TestSession:
         """
         report = str(tmpdir / "report.json")
         await session.run(
-            suites={"dummy": ["suite01", "suite02"]},
+            suites=["suite01", "suite02"],
             report_path=report)
 
         with open(report, "r") as report_file:
@@ -67,7 +67,7 @@ class _TestSession:
             await session.stop()
 
         await asyncio.gather(*[
-            session.run(suites={"dummy": ["sleep"]}),
+            session.run(suites=["sleep"]),
             stop(),
         ])
 
@@ -90,15 +90,20 @@ class _TestSession:
             stop()
         ])
 
-    async def test_run_skip_tests(self, tmpdir, session):
+    async def test_run_skip_tests(self, tmpdir, sut, dummy_framework):
         """
         Test run method when executing suites.
         """
+        session = Session(
+            tmpdir=TempDir(str(tmpdir)),
+            framework=dummy_framework,
+            skip_tests="test0[12]",
+            sut=sut)
+
         report = str(tmpdir / "report.json")
         try:
             await session.run(
-                suites={"dummy": ["suite01", "suite02"]},
-                skip_tests="test0[12]",
+                suites=["suite01", "suite02"],
                 report_path=report)
         finally:
             await asyncio.wait_for(session.stop(), timeout=5)

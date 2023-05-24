@@ -84,29 +84,33 @@ support. If no dependences are provided by the OS's package manager,
 Some basic commands are the following:
 
     # run LTP syscalls testing suite on host
-    ./kirk --run-suite ltp:syscalls
+    ./kirk --framework ltp --run-suite syscalls
 
     # run LTP syscalls testing suite on qemu VM
-    ./kirk --sut qemu:image=folder/image.qcow2 \
-        --run-suite ltp:syscalls
+    ./kirk --framework ltp \
+        --sut qemu:image=folder/image.qcow2 \
+        --run-suite syscalls
 
     # run LTP syscalls testing suite via SSH
-    ./kirk --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
-        --run-suite ltp:syscalls
+    ./kirk --framework ltp \
+        --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
+        --run-suite syscalls
 
     # run LTP syscalls testing suite in parallel on host using 16 workers
-    ./kirk --run-suite ltp:syscalls --workers 16
+    ./kirk --framework ltp --run-suite syscalls --workers 16
 
     # run LTP syscalls testing suite in parallel via SSH using 16 workers
-    ./kirk --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
-        --run-suite ltp:syscalls --workers 16
+    ./kirk --framework ltp \
+        --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
+        --run-suite syscalls --workers 16
 
 It's possible to run a single command before running testing suites using
 `--run-command` option as following:
 
-    ./kirk --run-command /mnt/setup.sh \
+    ./kirk --framework ltp \
+        --run-command /mnt/setup.sh \
         --sut qemu:image=folder/image.qcow2:virtfs=/home/user/tests \
-        --run-suite ltp:syscalls
+        --run-suite syscalls
 
 Every session has a temporary directory that can be found in
 `/<TMPDIR>/kirk-of<username>`. Inside this folder there's a symlink

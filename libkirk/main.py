@@ -13,6 +13,7 @@ import libkirk
 import libkirk.sut
 import libkirk.data
 import libkirk.events
+import libkirk.plugin
 from libkirk import KirkException
 from libkirk.sut import SUT
 from libkirk.framework import Framework
@@ -62,32 +63,32 @@ def _from_params_to_config(params: list) -> dict:
     return config
 
 
-def _sut_config(value: str) -> dict:
+def _dict_config(opt_name: str, plugins: list, value: str) -> dict:
     """
-    Return a SUT configuration according with input string.
+    Generic dictionary option configuration.
     """
     if value == "help":
-        msg = "--sut option supports the following syntax:\n"
-        msg += "\n\t<SUT>:<param1>=<value1>:<param2>=<value2>:..\n"
-        msg += "\nSupported SUT: | "
+        msg = f"--{opt_name} option supports the following syntax:\n"
+        msg += "\n\t<name>:<param1>=<value1>:<param2>=<value2>:..\n"
+        msg += "\nSupported plugins: | "
 
-        for sut in LOADED_SUT:
-            msg += f"{sut.name} | "
+        for plugin in plugins:
+            msg += f"{plugin.name} | "
 
         msg += '\n'
 
-        for sut in LOADED_SUT:
-            if not sut.config_help:
-                msg += f"\n{sut.name} has not configuration\n"
+        for plugin in plugins:
+            if not plugin.config_help:
+                msg += f"\n{plugin.name} has not configuration\n"
             else:
-                msg += f"\n{sut.name} configuration:\n"
-                for opt, desc in sut.config_help.items():
+                msg += f"\n{plugin.name} configuration:\n"
+                for opt, desc in plugin.config_help.items():
                     msg += f"\t{opt}: {desc}\n"
 
         return {"help": msg}
 
     if not value:
-        raise argparse.ArgumentTypeError("SUT parameters can't be empty")
+        raise argparse.ArgumentTypeError("Parameters list can't be empty")
 
     params = value.split(':')
     name = params[0]
@@ -96,6 +97,20 @@ def _sut_config(value: str) -> dict:
     config['name'] = name
 
     return config
+
+
+def _sut_config(value: str) -> dict:
+    """
+    Return a SUT configuration according with input string.
+    """
+    return _dict_config("sut", LOADED_SUT, value)
+
+
+def _framework_config(value: str) -> dict:
+    """
+    Return a Framework configuration according with input string.
+    """
+    return _dict_config("framework", LOADED_FRAMEWORK, value)
 
 
 def _env_config(value: str) -> dict:
@@ -112,26 +127,11 @@ def _env_config(value: str) -> dict:
     return config
 
 
-def _suites_config(value: str) -> dict:
-    """
-    Return a couple, parsing parameter in the "framework:suite" format.
-    """
-    if not value:
-        return None
-
-    parts = value.split(':')
-    if len(parts) != 2 or not parts[0] or not parts[1]:
-        raise argparse.ArgumentTypeError(
-            f"'{value}' is not in the 'framework:suite' format")
-
-    return (parts[0], parts[1])
-
-
 def _discover_sut(path: str) -> None:
     """
     Discover new SUT implementations.
     """
-    objs = libkirk.discover_objects(SUT, path)
+    objs = libkirk.plugin.discover(SUT, path)
     LOADED_SUT.extend(objs)
 
 
@@ -139,21 +139,21 @@ def _discover_frameworks(path: str) -> None:
     """
     Discover new Framework implementations.
     """
-    objs = libkirk.discover_objects(Framework, path)
+    objs = libkirk.plugin.discover(Framework, path)
     LOADED_FRAMEWORK.extend(objs)
 
 
-def _get_sut(sut_name: str) -> SUT:
+def _get_plugin(plugins: list, name: str) -> object:
     """
-    Return the SUT with name `sut_name`.
+    Return the Plugin object with given name.
     """
-    sut = None
-    for mysut in LOADED_SUT:
-        if mysut.name == sut_name:
-            sut = mysut
+    obj = None
+    for obj_comp in plugins:
+        if obj_comp.name == name:
+            obj = obj_comp
             break
 
-    return sut
+    return obj
 
 
 def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
@@ -183,6 +183,7 @@ def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     return skip
 
 
+# pylint: disable=too-many-statements
 def _start_session(
         args: argparse.Namespace,
         parser: argparse.ArgumentParser) -> None:
@@ -196,10 +197,6 @@ def _start_session(
         except re.error:
             parser.error(f"'{skip_tests}' is not a valid regular expression")
 
-    # initialize frameworks
-    for fwork in LOADED_FRAMEWORK:
-        fwork.setup(env=args.env)
-
     # create session object
     tmpdir = None
     if args.tmp_dir == '':
@@ -209,26 +206,43 @@ def _start_session(
     else:
         tmpdir = TempDir("/tmp")
 
-    # get the current SUT communication object
+    # get the current SUT
     sut_name = args.sut["name"]
-    sut = _get_sut(sut_name)
+    sut = _get_plugin(LOADED_SUT, sut_name)
     if not sut:
-        parser.error(f"'{sut_name}' is not an available SUT")
+        parser.error(f"'{sut_name}' SUT is not available")
 
-    # initialize SUT object
     sut_config = args.sut.copy()
     sut_config["tmpdir"] = tmpdir.abspath
-    sut.setup(**sut_config)
+    try:
+        sut.setup(**sut_config)
+    except KirkException as err:
+        parser.error(str(err))
+
+    # get the current Framework
+    fw_name = args.framework["name"]
+    framework = _get_plugin(LOADED_FRAMEWORK, fw_name)
+    if not framework:
+        parser.error(f"'{fw_name}' framework is not available")
+
+    fw_config = args.framework.copy()
+    if args.env:
+        fw_config['env'] = args.env.copy()
+    try:
+        framework.setup(**fw_config)
+    except KirkException as err:
+        parser.error(str(err))
 
     # start session
     session = Session(
         sut=sut,
-        frameworks=LOADED_FRAMEWORK,
+        framework=framework,
         tmpdir=tmpdir,
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
-        force_parallel=args.force_parallel)
+        force_parallel=args.force_parallel,
+        skip_tests=skip_tests)
 
     # initialize user interface
     if args.workers > 1:
@@ -242,26 +256,13 @@ def _start_session(
     # start event loop
     exit_code = RC_OK
 
-    # merge suites into a compatible session dict
-    suites = {}
-    if args.run_suite:
-        for item in args.run_suite:
-            fwork = item[0]
-            suite = item[1]
-
-            if fwork not in suites:
-                suites[fwork] = []
-
-            suites[fwork].append(suite)
-
     async def session_run() -> None:
         """
         Run session then stop events handler.
         """
         await session.run(
             command=args.run_command,
-            suites=suites,
-            skip_tests=skip_tests,
+            suites=args.run_suite,
             report_path=args.json_report
         )
         await libkirk.events.stop()
@@ -285,6 +286,7 @@ def run(cmd_args: list = None) -> None:
     """
     currdir = os.path.dirname(os.path.realpath(__file__))
     _discover_sut(currdir)
+    _discover_frameworks(currdir)
 
     parser = argparse.ArgumentParser(
         description='Kirk - All-in-one Linux Testing Framework')
@@ -343,8 +345,7 @@ def run(cmd_args: list = None) -> None:
         "--run-suite",
         "-r",
         nargs="*",
-        type=_suites_config,
-        help="List of suites to run in the format myframework:suitename")
+        help="List of suites to run")
     parser.add_argument(
         "--run-command",
         "-c",
@@ -357,17 +358,23 @@ def run(cmd_args: list = None) -> None:
         help="Number of workers to execute tests in parallel")
     parser.add_argument(
         "--force-parallel",
-        "-f",
+        "-p",
         action="store_true",
         help="Force parallelization execution of all tests")
 
-    # system under test arguments
+    # session arguments
     parser.add_argument(
         "--sut",
         "-s",
         default="host",
         type=_sut_config,
-        help="System Under Test parameters, for help see -s help")
+        help="System Under Test parameters. For help please use '-s help'")
+    parser.add_argument(
+        "--framework",
+        "-f",
+        default="ltp",
+        type=_framework_config,
+        help="Framework parameters. For help please use '-f help'")
 
     # output arguments
     parser.add_argument(
@@ -383,6 +390,10 @@ def run(cmd_args: list = None) -> None:
         print(args.sut["help"])
         parser.exit(RC_OK)
 
+    if args.framework and "help" in args.framework:
+        print(args.framework["help"])
+        parser.exit(RC_OK)
+
     if args.json_report and os.path.exists(args.json_report):
         parser.error(f"JSON report file already exists: {args.json_report}")
 
@@ -395,7 +406,6 @@ def run(cmd_args: list = None) -> None:
     if args.tmp_dir and not os.path.isdir(args.tmp_dir):
         parser.error(f"'{args.tmp_dir}' temporary folder doesn't exist")
 
-    _discover_frameworks(currdir)
     _start_session(args, parser)
 
 

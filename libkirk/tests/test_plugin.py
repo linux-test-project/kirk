@@ -2,6 +2,7 @@
 Unittests for framework module.
 """
 import libkirk
+import libkirk.plugin
 from libkirk.sut import SUT
 from libkirk.framework import Framework
 
@@ -24,7 +25,7 @@ def test_sut(tmpdir):
             f"        return 'mysut{index}'\n"
         )
 
-    suts = libkirk.discover_objects(SUT, str(tmpdir))
+    suts = libkirk.plugin.discover(SUT, str(tmpdir))
 
     assert len(suts) == 2
 
@@ -47,6 +48,6 @@ def test_framework(tmpdir):
             f"        return 'fw{index}'\n"
         )
 
-    suts = libkirk.discover_objects(Framework, str(tmpdir))
+    suts = libkirk.plugin.discover(Framework, str(tmpdir))
 
     assert len(suts) == 2
