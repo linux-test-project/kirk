@@ -55,11 +55,12 @@ class LTPFramework(Framework):
 
         root = kwargs.get("root", None)
         if root:
-            if not os.path.isdir(root):
-                raise KirkException("LTP install folder doesn't exist")
-
             self._root = root
             self._env["LTPROOT"] = self._root
+
+        if not os.path.isdir(self._root):
+            raise KirkException(
+                f"LTP install folder doesn't exist: {self._root}")
 
     # pylint: disable=too-many-locals
     def _read_runtest(
