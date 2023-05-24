@@ -105,6 +105,8 @@ class TestScheduler(Scheduler):
         """
         :param sut: object to communicate with SUT
         :type sut: SUT
+        :param framework: framework handler
+        :type framework: Framework
         :param timeout: timeout for tests execution
         :type timeout: float
         :param max_workers: maximum number of workers to schedule jobs
@@ -114,6 +116,7 @@ class TestScheduler(Scheduler):
         """
         self._logger = logging.getLogger("kirk.test_scheduler")
         self._sut = kwargs.get("sut", None)
+        self._framework = kwargs.get("framework", None)
         self._timeout = max(kwargs.get("timeout", 3600.0), 0.0)
         self._max_workers = kwargs.get("max_workers", 1)
         self._force_parallel = kwargs.get("force_parallel", False)
@@ -124,6 +127,9 @@ class TestScheduler(Scheduler):
 
         if not self._sut:
             raise ValueError("SUT object is empty")
+
+        if not self._framework:
+            raise ValueError("Framework object is empty")
 
     @ staticmethod
     def _command_from_test(test: Test) -> str:
@@ -136,93 +142,6 @@ class TestScheduler(Scheduler):
             cmd += ' '.join(test.arguments)
 
         return cmd
-
-    @ staticmethod
-    def _get_test_results(
-            test: Test,
-            test_data: dict,
-            error: bool = False) -> TestResults:
-        """
-        Return test results accoding with runner output and Test definition.
-        :param test: Test definition object
-        :type test: Test
-        :param test_data: output data from a runner execution
-        :type test_data: dict
-        :param error: if True, test will be considered broken by default
-        :type error: bool
-        :returns: TestResults
-        """
-        stdout = test_data["stdout"]
-
-        # get rid of colors from stdout
-        stdout = re.sub(r'\u001b\[[0-9;]+[a-zA-Z]', '', stdout)
-
-        match = re.search(
-            r"Summary:\n"
-            r"passed\s*(?P<passed>\d+)\n"
-            r"failed\s*(?P<failed>\d+)\n"
-            r"broken\s*(?P<broken>\d+)\n"
-            r"skipped\s*(?P<skipped>\d+)\n"
-            r"warnings\s*(?P<warnings>\d+)\n",
-            stdout
-        )
-
-        passed = 0
-        failed = 0
-        skipped = 0
-        broken = 0
-        skipped = 0
-        warnings = 0
-        retcode = test_data["returncode"]
-        exec_time = test_data["exec_time"]
-
-        if match:
-            passed = int(match.group("passed"))
-            failed = int(match.group("failed"))
-            skipped = int(match.group("skipped"))
-            broken = int(match.group("broken"))
-            skipped = int(match.group("skipped"))
-            warnings = int(match.group("warnings"))
-        else:
-            passed = stdout.count("TPASS")
-            failed = stdout.count("TFAIL")
-            skipped = stdout.count("TSKIP")
-            broken = stdout.count("TBROK")
-            warnings = stdout.count("TWARN")
-
-            if passed == 0 and \
-                    failed == 0 and \
-                    skipped == 0 and \
-                    broken == 0 and \
-                    warnings == 0:
-                # if no results are given, this is probably an
-                # old test implementation that fails when return
-                # code is != 0
-                if retcode == 0:
-                    passed = 1
-                elif retcode == 4:
-                    warnings = 1
-                elif retcode == 32:
-                    skipped = 1
-                elif not error:
-                    failed = 1
-
-        if error:
-            broken = 1
-
-        result = TestResults(
-            test=test,
-            failed=failed,
-            passed=passed,
-            broken=broken,
-            skipped=skipped,
-            warnings=warnings,
-            exec_time=exec_time,
-            retcode=retcode,
-            stdout=stdout,
-        )
-
-        return result
 
     async def _get_tainted_status(self) -> tuple:
         """
@@ -360,10 +279,11 @@ class TestScheduler(Scheduler):
                     "exec_time": exec_time,
                 }
 
-            results = self._get_test_results(
+            results = await self._framework.read_result(
                 test,
-                test_data,
-                error=test_data["returncode"] == -1)
+                test_data["stdout"],
+                test_data["returncode"],
+                test_data["exec_time"])
 
             self._logger.debug("results=%s", results)
             self._results.append(results)
@@ -482,6 +402,8 @@ class SuiteScheduler(Scheduler):
         """
         :param sut: object used to communicate with SUT
         :type sut: SUT
+        :param framework: framework handler
+        :type framework: Framework
         :param suite_timeout: timeout before stopping testing suite
         :type suite_timeout: float
         :param exec_timeout: timeout before stopping single execution
@@ -495,23 +417,28 @@ class SuiteScheduler(Scheduler):
         """
         self._logger = logging.getLogger("kirk.suite_scheduler")
         self._sut = kwargs.get("sut", None)
+        self._framework = kwargs.get("framework", None)
         self._suite_timeout = max(kwargs.get("suite_timeout", 3600.0), 0.0)
         self._skip_tests = kwargs.get("skip_tests", None)
         self._results = []
         self._stop = False
         self._lock = asyncio.Lock()
 
+        if not self._sut:
+            raise ValueError("SUT is an empty object")
+
+        if not self._framework:
+            raise ValueError("Framework object is empty")
+
         force_parallel = kwargs.get("force_parallel", False)
         exec_timeout = max(kwargs.get("exec_timeout", 3600.0), 0.0)
 
         self._scheduler = TestScheduler(
             sut=self._sut,
+            framework=self._framework,
             timeout=exec_timeout,
             max_workers=kwargs.get("max_workers", 1),
             force_parallel=force_parallel)
-
-        if not self._sut:
-            raise ValueError("SUT is an empty object")
 
     @ property
     def results(self) -> list:

@@ -83,6 +83,7 @@ class Session:
 
         self._scheduler = SuiteScheduler(
             sut=self._sut,
+            framework=self._framework,
             suite_timeout=suite_timeout,
             exec_timeout=self._exec_timeout,
             max_workers=workers,

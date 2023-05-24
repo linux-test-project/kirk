@@ -3,6 +3,7 @@ Generic stuff for pytest.
 """
 import libkirk
 import pytest
+from libkirk.results import TestResults
 from libkirk.sut import SUT
 from libkirk.framework import Framework
 from libkirk.data import Suite
@@ -132,6 +133,46 @@ class DummyFramework(Framework):
             return Suite(name, [test0, test1])
 
         return None
+
+    async def read_result(
+            self,
+            test: Test,
+            stdout: str,
+            retcode: int,
+            exec_t: float) -> TestResults:
+        passed = 0
+        failed = 0
+        skipped = 0
+        broken = 0
+        skipped = 0
+        warnings = 0
+        error = retcode == -1
+
+        if retcode == 0:
+            passed = 1
+        elif retcode == 4:
+            warnings = 1
+        elif retcode == 32:
+            skipped = 1
+        elif not error:
+            failed = 1
+
+        if error:
+            broken = 1
+
+        result = TestResults(
+            test=test,
+            passed=passed,
+            failed=failed,
+            broken=broken,
+            skipped=skipped,
+            warnings=warnings,
+            exec_time=exec_t,
+            retcode=retcode,
+            stdout=stdout,
+        )
+
+        return result
 
 
 @pytest.fixture

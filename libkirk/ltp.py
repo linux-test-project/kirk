@@ -6,9 +6,11 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 import os
+import re
 import json
 import logging
 from libkirk import KirkException
+from libkirk.results import TestResults
 from libkirk.sut import SUT
 from libkirk.data import Suite
 from libkirk.data import Test
@@ -32,7 +34,7 @@ class LTPFramework(Framework):
     ]
 
     def __init__(self) -> None:
-        self._logger = logging.getLogger("ltp")
+        self._logger = logging.getLogger("libkirk.ltp")
         self._root = "/opt/ltp"
         self._env = {
             "LTPROOT": self._root,
@@ -200,3 +202,78 @@ class LTPFramework(Framework):
         suite = self._read_runtest(name, content, metadata)
 
         return suite
+
+    async def read_result(
+            self,
+            test: Test,
+            stdout: str,
+            retcode: int,
+            exec_t: float) -> TestResults:
+        # get rid of colors from stdout
+        stdout = re.sub(r'\u001b\[[0-9;]+[a-zA-Z]', '', stdout)
+
+        match = re.search(
+            r"Summary:\n"
+            r"passed\s*(?P<passed>\d+)\n"
+            r"failed\s*(?P<failed>\d+)\n"
+            r"broken\s*(?P<broken>\d+)\n"
+            r"skipped\s*(?P<skipped>\d+)\n"
+            r"warnings\s*(?P<warnings>\d+)\n",
+            stdout
+        )
+
+        passed = 0
+        failed = 0
+        skipped = 0
+        broken = 0
+        skipped = 0
+        warnings = 0
+        error = retcode == -1
+
+        if match:
+            passed = int(match.group("passed"))
+            failed = int(match.group("failed"))
+            skipped = int(match.group("skipped"))
+            broken = int(match.group("broken"))
+            skipped = int(match.group("skipped"))
+            warnings = int(match.group("warnings"))
+        else:
+            passed = stdout.count("TPASS")
+            failed = stdout.count("TFAIL")
+            skipped = stdout.count("TSKIP")
+            broken = stdout.count("TBROK")
+            warnings = stdout.count("TWARN")
+
+            if passed == 0 and \
+                    failed == 0 and \
+                    skipped == 0 and \
+                    broken == 0 and \
+                    warnings == 0:
+                # if no results are given, this is probably an
+                # old test implementation that fails when return
+                # code is != 0
+                if retcode == 0:
+                    passed = 1
+                elif retcode == 4:
+                    warnings = 1
+                elif retcode == 32:
+                    skipped = 1
+                elif not error:
+                    failed = 1
+
+        if error:
+            broken = 1
+
+        result = TestResults(
+            test=test,
+            failed=failed,
+            passed=passed,
+            broken=broken,
+            skipped=skipped,
+            warnings=warnings,
+            exec_time=exec_t,
+            retcode=retcode,
+            stdout=stdout,
+        )
+
+        return result

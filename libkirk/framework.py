@@ -6,8 +6,10 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 from libkirk.sut import SUT
+from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.plugin import Plugin
+from libkirk.results import TestResults
 
 
 class Framework(Plugin):
@@ -33,5 +35,25 @@ class Framework(Plugin):
         :param suite: name of the suite
         :type suite: str
         :returns: Suite
+        """
+        raise NotImplementedError()
+
+    async def read_result(
+            self,
+            test: Test,
+            stdout: str,
+            retcode: int,
+            exec_t: float) -> TestResults:
+        """
+        Return test results accoding with runner output and Test definition.
+        :param test: Test definition object
+        :type test: Test
+        :param stdout: test stdout
+        :type stdout: str
+        :param retcode: test return code
+        :type retcode: int
+        :param exec_t: test execution time in seconds
+        :type exec_t: float
+        :returns: TestResults
         """
         raise NotImplementedError()

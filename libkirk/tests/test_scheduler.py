@@ -56,6 +56,7 @@ class MockSuiteScheduler(SuiteScheduler):
         super().__init__(**kwargs)
         self._scheduler = MockTestScheduler(
             sut=kwargs.get("sut", None),
+            framework=kwargs.get("framework", None),
             timeout=kwargs.get("exec_timeout", 3600),
             max_workers=kwargs.get("max_workers", 1)
         )
@@ -93,12 +94,13 @@ class TestTestScheduler:
     """
 
     @pytest.fixture
-    async def create_runner(self, sut):
+    async def create_runner(self, sut, dummy_framework):
         def _callback(
                 timeout: float = 3600.0,
                 max_workers: int = 1) -> TestScheduler:
             obj = MockTestScheduler(
                 sut=sut,
+                framework=dummy_framework,
                 timeout=timeout,
                 max_workers=max_workers)
 
@@ -294,13 +296,14 @@ class TestSuiteScheduler:
     """
 
     @pytest.fixture
-    async def create_runner(self, sut):
+    async def create_runner(self, sut, dummy_framework):
         def _callback(
                 suite_timeout: float = 3600.0,
                 exec_timeout: float = 3600.0,
                 max_workers: int = 1) -> SuiteScheduler:
             obj = MockSuiteScheduler(
                 sut=sut,
+                framework=dummy_framework,
                 suite_timeout=suite_timeout,
                 exec_timeout=exec_timeout,
                 max_workers=max_workers)
