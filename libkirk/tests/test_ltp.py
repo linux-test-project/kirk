@@ -4,6 +4,7 @@ Test Framework implementations.
 import os
 import json
 import pytest
+from libkirk.data import Test
 from libkirk.ltp import LTPFramework
 from libkirk.host import HostSUT
 
@@ -30,7 +31,7 @@ class TestLTPFramework:
         await obj.stop()
 
     @pytest.fixture
-    def ltp(self, tmpdir):
+    def framework(self, tmpdir):
         """
         LTP framework object.
         """
@@ -74,28 +75,28 @@ class TestLTPFramework:
         metadata = tmpdir.mkdir("metadata") / "ltp.json"
         metadata.write(json.dumps(metadata_d))
 
-    def test_name(self, ltp):
+    def test_name(self, framework):
         """
         Test that name property is not empty.
         """
-        assert ltp.name == "ltp"
+        assert framework.name == "ltp"
 
-    async def test_get_suites(self, ltp, sut, tmpdir):
+    async def test_get_suites(self, framework, sut, tmpdir):
         """
         Test get_suites method.
         """
-        suites = await ltp.get_suites(sut)
+        suites = await framework.get_suites(sut)
         assert "suite0" in suites
         assert "suite1" in suites
         assert "suite2" in suites
         assert "slow_suite" in suites
 
-    async def test_find_suite(self, ltp, sut, tmpdir):
+    async def test_find_suite(self, framework, sut, tmpdir):
         """
         Test find_suite method.
         """
         for i in range(self.SUITES_NUM):
-            suite = await ltp.find_suite(sut, f"suite{i}")
+            suite = await framework.find_suite(sut, f"suite{i}")
             assert len(suite.tests) == self.TESTS_NUM
 
             for j in range(self.TESTS_NUM):
@@ -112,7 +113,7 @@ class TestLTPFramework:
                 assert "TMPDIR" in test.env
                 assert "LTP_COLORIZE_OUTPUT" in test.env
 
-        suite = await ltp.find_suite(sut, "slow_suite")
+        suite = await framework.find_suite(sut, "slow_suite")
         assert len(suite.tests) == self.TESTS_NUM
 
         for test in suite.tests:
@@ -126,3 +127,68 @@ class TestLTPFramework:
             assert "LTPROOT" in test.env
             assert "TMPDIR" in test.env
             assert "LTP_COLORIZE_OUTPUT" in test.env
+
+    async def test_read_result_passed(self, framework):
+        """
+        Test read_result method when test passes.
+        """
+        test = Test(name="test", cmd="echo", args="ciao")
+        result = await framework.read_result(test, 'ciao\n', 0, 0.1)
+        assert result.passed == 1
+        assert result.failed == 0
+        assert result.broken == 0
+        assert result.skipped == 0
+        assert result.warnings == 0
+        assert result.exec_time == 0.1
+        assert result.test == test
+        assert result.return_code == 0
+        assert result.stdout == "ciao\n"
+
+    async def test_read_result_failure(self, framework):
+        """
+        Test read_result method when test fails.
+        """
+        test = Test(name="test", cmd="echo")
+        result = await framework.read_result(test, '', 1, 0.1)
+        assert result.passed == 0
+        assert result.failed == 1
+        assert result.broken == 0
+        assert result.skipped == 0
+        assert result.warnings == 0
+        assert result.exec_time == 0.1
+        assert result.test == test
+        assert result.return_code == 1
+        assert result.stdout == ""
+
+    async def test_read_result_broken(self, framework):
+        """
+        Test read_result method when test is broken.
+        """
+        test = Test(name="test", cmd="echo")
+        result = await framework.read_result(test, '', -1, 0.1)
+        assert result.passed == 0
+        assert result.failed == 0
+        assert result.broken == 1
+        assert result.skipped == 0
+        assert result.warnings == 0
+        assert result.exec_time == 0.1
+        assert result.test == test
+        assert result.return_code == -1
+        assert result.stdout == ""
+
+    async def test_read_result_skipped(self, framework):
+        """
+        Test read_result method when test has skip.
+        """
+        test = Test(name="test", cmd="echo")
+        result = await framework.read_result(
+            test, "mydata", 32, 0.1)
+        assert result.passed == 0
+        assert result.failed == 0
+        assert result.broken == 0
+        assert result.skipped == 1
+        assert result.warnings == 0
+        assert result.exec_time == 0.1
+        assert result.test == test
+        assert result.return_code == 32
+        assert result.stdout == "mydata"
