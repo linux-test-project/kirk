@@ -159,9 +159,9 @@ class LTPFramework(Framework):
         if not sut:
             raise ValueError("SUT is None")
 
-        if not os.path.isdir(self._root):
-            raise KirkException(
-                f"LTP install folder doesn't exist: {self._root}")
+        ret = await sut.run_command(f"test -d {self._root}")
+        if ret["returncode"] != 0:
+            raise KirkException(f"LTP folder doesn't exist: {self._root}")
 
         runtest_dir = os.path.join(self._root, "runtest")
         ret = await sut.run_command(f"test -d {runtest_dir}")
@@ -183,12 +183,14 @@ class LTPFramework(Framework):
         if not name:
             raise ValueError("name is empty")
 
-        if not os.path.isdir(self._root):
-            raise KirkException(
-                f"LTP install folder doesn't exist: {self._root}")
+        ret = await sut.run_command(f"test -d {self._root}")
+        if ret["returncode"] != 0:
+            raise KirkException(f"LTP folder doesn't exist: {self._root}")
 
         suite_path = os.path.join(self._root, "runtest", name)
-        if not os.path.isfile(suite_path):
+
+        ret = await sut.run_command(f"test -f {suite_path}")
+        if ret["returncode"] != 0:
             raise KirkException(f"'{name}' suite doesn't exist")
 
         metadata_path = os.path.join(
@@ -198,12 +200,14 @@ class LTPFramework(Framework):
         )
 
         metadata = None
-        if os.path.isfile(metadata_path):
-            with open(metadata_path, 'r', encoding='utf-8') as metdata_f:
-                metadata = json.loads(metdata_f.read())
+        ret = await sut.run_command(f"cat {metadata_path}")
+        if ret["returncode"] != 0:
+            raise KirkException(f"Can't read metadata file: {metadata_path}")
 
         data = await sut.fetch_file(suite_path)
         content = data.decode(encoding="utf-8", errors="ignore")
+
+        metadata = json.loads(ret['stdout'])
         suite = self._read_runtest(name, content, metadata)
 
         return suite

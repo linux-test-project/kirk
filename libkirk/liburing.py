@@ -50,7 +50,8 @@ class Liburing(Framework):
         """
         Read from Makefile which tests can be executed.
         """
-        if not os.path.isdir(self._root):
+        ret = await sut.run_command(f"test -d {self._root}")
+        if ret["returncode"] != 0:
             raise KirkException(
                 f"liburing test folder doesn't exist: {self._root}")
 
@@ -106,7 +107,8 @@ class Liburing(Framework):
         if not name:
             raise ValueError("name is empty")
 
-        if not os.path.isdir(self._root):
+        ret = await sut.run_command(f"test -d {self._root}")
+        if ret["returncode"] != 0:
             raise KirkException(
                 f"liburing test folder doesn't exist: {self._root}")
 
@@ -118,7 +120,9 @@ class Liburing(Framework):
                 continue
 
             cmd = os.path.join(self._root, test)
-            if not os.path.isfile(cmd):
+
+            ret = await sut.run_command(f"test -f {cmd}")
+            if ret["returncode"] != 0:
                 continue
 
             parallelizable = await self._is_parallelizable(sut, cmd)
