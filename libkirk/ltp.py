@@ -58,10 +58,6 @@ class LTPFramework(Framework):
             self._root = root
             self._env["LTPROOT"] = self._root
 
-        if not os.path.isdir(self._root):
-            raise KirkException(
-                f"LTP install folder doesn't exist: {self._root}")
-
     # pylint: disable=too-many-locals
     def _read_runtest(
             self,
@@ -163,6 +159,10 @@ class LTPFramework(Framework):
         if not sut:
             raise ValueError("SUT is None")
 
+        if not os.path.isdir(self._root):
+            raise KirkException(
+                f"LTP install folder doesn't exist: {self._root}")
+
         runtest_dir = os.path.join(self._root, "runtest")
         ret = await sut.run_command(f"test -d {runtest_dir}")
         if ret["returncode"] != 0:
@@ -182,6 +182,10 @@ class LTPFramework(Framework):
 
         if not name:
             raise ValueError("name is empty")
+
+        if not os.path.isdir(self._root):
+            raise KirkException(
+                f"LTP install folder doesn't exist: {self._root}")
 
         suite_path = os.path.join(self._root, "runtest", name)
         if not os.path.isfile(suite_path):
