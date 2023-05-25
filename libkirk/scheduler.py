@@ -503,89 +503,91 @@ class SuiteScheduler(Scheduler):
         # start the tests execution
         tests_left.extend(tests)
 
-        while not self._stop and tests_left:
-            try:
-                start_t = time.time()
-                await asyncio.wait_for(
-                    self._scheduler.schedule(tests_left),
-                    timeout=self._suite_timeout
-                )
-                exec_times.append(time.time() - start_t)
-            except asyncio.TimeoutError:
-                self._logger.info("Testing suite timed out: %s", suite.name)
-
-                await libkirk.events.fire(
-                    "suite_timeout",
-                    suite,
-                    self._suite_timeout)
-
-                timed_out = True
-            except (KernelPanicError,
-                    KernelTainedError,
-                    KernelTimeoutError):
-                # once we catch a kernel error, restart the SUT
-                await self._restart_sut()
-            finally:
-                tests_results.extend(self._scheduler.results)
-
-            # tests_left array will be populated when SUT is
-            # rebooted after a kernel error
-            tests_left.clear()
-
-            for test in tests:
-                found = False
-                for test_res in tests_results:
-                    if test.name == test_res.test.name:
-                        found = True
-                        break
-
-                if not found:
-                    tests_left.append(test)
-
-            if timed_out:
-                for test in tests_left:
-                    tests_results.append(
-                        TestResults(
-                            test=test,
-                            failed=0,
-                            passed=0,
-                            broken=0,
-                            skipped=1,
-                            warnings=0,
-                            exec_time=0.0,
-                            retcode=32,
-                            stdout=""
-                        )
+        try:
+            while not self._stop and tests_left:
+                try:
+                    start_t = time.time()
+                    await asyncio.wait_for(
+                        self._scheduler.schedule(tests_left),
+                        timeout=self._suite_timeout
                     )
+                    exec_times.append(time.time() - start_t)
+                except asyncio.TimeoutError:
+                    self._logger.info(
+                        "Testing suite timed out: %s", suite.name)
 
-                # no more tests need to be run
+                    await libkirk.events.fire(
+                        "suite_timeout",
+                        suite,
+                        self._suite_timeout)
+
+                    timed_out = True
+                except (KernelPanicError,
+                        KernelTainedError,
+                        KernelTimeoutError):
+                    # once we catch a kernel error, restart the SUT
+                    await self._restart_sut()
+                finally:
+                    tests_results.extend(self._scheduler.results)
+
+                # tests_left array will be populated when SUT is
+                # rebooted after a kernel error
                 tests_left.clear()
-                break
 
-        info = await self._sut.get_info()
+                for test in tests:
+                    found = False
+                    for test_res in tests_results:
+                        if test.name == test_res.test.name:
+                            found = True
+                            break
 
-        suite_exec_time = sum(exec_times)
-        if not exec_times:
-            suite_exec_time = self._suite_timeout
+                    if not found:
+                        tests_left.append(test)
 
-        suite_results = SuiteResults(
-            suite=suite,
-            tests=tests_results,
-            distro=info["distro"],
-            distro_ver=info["distro_ver"],
-            kernel=info["kernel"],
-            arch=info["arch"],
-            cpu=info["cpu"],
-            swap=info["swap"],
-            ram=info["ram"],
-            exec_time=suite_exec_time)
+                if timed_out:
+                    for test in tests_left:
+                        tests_results.append(
+                            TestResults(
+                                test=test,
+                                failed=0,
+                                passed=0,
+                                broken=0,
+                                skipped=1,
+                                warnings=0,
+                                exec_time=0.0,
+                                retcode=32,
+                                stdout=""
+                            )
+                        )
 
-        await libkirk.events.fire("suite_completed", suite_results)
+                    # no more tests need to be run
+                    tests_left.clear()
+                    break
+        finally:
+            info = await self._sut.get_info()
 
-        self._logger.info("Suite completed")
-        self._logger.debug(suite_results)
+            suite_exec_time = sum(exec_times)
+            if not exec_times:
+                suite_exec_time = self._suite_timeout
 
-        self._results.append(suite_results)
+            suite_results = SuiteResults(
+                suite=suite,
+                tests=tests_results,
+                distro=info["distro"],
+                distro_ver=info["distro_ver"],
+                kernel=info["kernel"],
+                arch=info["arch"],
+                cpu=info["cpu"],
+                swap=info["swap"],
+                ram=info["ram"],
+                exec_time=suite_exec_time)
+
+            await libkirk.events.fire("suite_completed", suite_results)
+
+            self._logger.info("Suite completed")
+            self._logger.debug(suite_results)
+
+            self._results.append(suite_results)
 
     async def schedule(self, jobs: list) -> None:
         if not jobs:
