@@ -73,30 +73,29 @@ class Liburing(Framework):
         return tests
 
     @staticmethod
-    def _is_parallelizable(cmd: str) -> bool:
+    async def _is_parallelizable(sut: SUT, cmd: str) -> bool:
         """
         Return true if test can run in parallel.
         """
         parallel = True
 
         test_src = f"{cmd}.c"
-        if not os.path.isfile(test_src):
+        ret = await sut.run_command(f"test -f {test_src}")
+        if ret["returncode"] != 0:
             test_src = f"{cmd}.cc"
 
-        if not os.path.isfile(test_src):
+        ret = await sut.run_command(f"test -f {test_src}")
+        if ret["returncode"] != 0:
             return False
 
         # we try to be as more defensive as possible, so we exclude tests that:
         # - open sockets. We don't want to connect to the same socket
         # - open threads. We don't want to saturate the CPUs
         # - open files. We don't want to open the same file
-        with open(test_src, 'r', encoding='utf-8') as cmd_file:
-            for line in cmd_file.readlines():
-                if 'socket.h' in line or \
-                    'pthread.h' in line or \
-                        'open(' in line:
-                    parallel = False
-                    break
+        ret = await sut.run_command(
+            f"grep -E 'socket.h|pthread.h|open\\(' {test_src}")
+        if ret["returncode"] == 0:
+            parallel = False
 
         return parallel
 
@@ -122,7 +121,7 @@ class Liburing(Framework):
             if not os.path.isfile(cmd):
                 continue
 
-            parallelizable = self._is_parallelizable(cmd)
+            parallelizable = await self._is_parallelizable(sut, cmd)
 
             # we really want to use binaries in the liburing/test folder
             # so we use the '<cwd>/test' notation. The reason is that some
