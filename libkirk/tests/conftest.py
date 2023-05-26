@@ -176,10 +176,10 @@ class DummyFramework(Framework):
 
 
 @pytest.fixture
-def dummy_framework(tmpdir):
+def dummy_framework():
     """
     A fummy framework implementation used for testing.
     """
     obj = DummyFramework()
-    obj.setup(root=str(tmpdir))
+    obj.setup(root="/tmp")
     yield obj
