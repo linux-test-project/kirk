@@ -9,12 +9,12 @@ import os
 import re
 import json
 import logging
-from libkirk import KirkException
 from libkirk.results import TestResults
 from libkirk.sut import SUT
 from libkirk.data import Suite
 from libkirk.data import Test
 from libkirk.framework import Framework
+from libkirk.framework import FrameworkError
 
 
 class LTPFramework(Framework):
@@ -73,7 +73,7 @@ class LTPFramework(Framework):
         else:
             ret = await sut.run_command("printenv PATH")
             if ret["returncode"] != 0:
-                raise KirkException("Can't read PATH variable")
+                raise FrameworkError("Can't read PATH variable")
 
             tcases = os.path.join(self._root, "testcases", "bin")
             env["PATH"] = ret["stdout"].strip() + f":{tcases}"
@@ -111,7 +111,7 @@ class LTPFramework(Framework):
 
             parts = line.split()
             if len(parts) < 2:
-                raise KirkException(
+                raise FrameworkError(
                     "runtest file is not defining test command")
 
             test_name = parts[0]
@@ -181,17 +181,17 @@ class LTPFramework(Framework):
 
         ret = await sut.run_command(f"test -d {self._root}")
         if ret["returncode"] != 0:
-            raise KirkException(f"LTP folder doesn't exist: {self._root}")
+            raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         runtest_dir = os.path.join(self._root, "runtest")
         ret = await sut.run_command(f"test -d {runtest_dir}")
         if ret["returncode"] != 0:
-            raise KirkException(f"'{runtest_dir}' doesn't exist inside SUT")
+            raise FrameworkError(f"'{runtest_dir}' doesn't exist inside SUT")
 
         ret = await sut.run_command(f"ls --format=single-column {runtest_dir}")
         stdout = ret["stdout"]
         if ret["returncode"] != 0:
-            raise KirkException(f"command failed with: {stdout}")
+            raise FrameworkError(f"command failed with: {stdout}")
 
         suites = [line for line in stdout.split('\n') if line]
         return suites
@@ -205,13 +205,13 @@ class LTPFramework(Framework):
 
         ret = await sut.run_command(f"test -d {self._root}")
         if ret["returncode"] != 0:
-            raise KirkException(f"LTP folder doesn't exist: {self._root}")
+            raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         suite_path = os.path.join(self._root, "runtest", name)
 
         ret = await sut.run_command(f"test -f {suite_path}")
         if ret["returncode"] != 0:
-            raise KirkException(f"'{name}' suite doesn't exist")
+            raise FrameworkError(f"'{name}' suite doesn't exist")
 
         runtest_data = await sut.fetch_file(suite_path)
         runtest_str = runtest_data.decode(encoding="utf-8", errors="ignore")

@@ -16,7 +16,9 @@ import libkirk.events
 import libkirk.plugin
 from libkirk import KirkException
 from libkirk.sut import SUT
+from libkirk.sut import SUTError
 from libkirk.framework import Framework
+from libkirk.framework import FrameworkError
 from libkirk.ui import SimpleUserInterface
 from libkirk.ui import VerboseUserInterface
 from libkirk.ui import ParallelUserInterface
@@ -216,7 +218,7 @@ def _start_session(
     sut_config["tmpdir"] = tmpdir.abspath
     try:
         sut.setup(**sut_config)
-    except KirkException as err:
+    except SUTError as err:
         parser.error(str(err))
 
     # get the current Framework
@@ -230,7 +232,7 @@ def _start_session(
         fw_config['env'] = args.env.copy()
     try:
         framework.setup(**fw_config)
-    except KirkException as err:
+    except FrameworkError as err:
         parser.error(str(err))
 
     # start session

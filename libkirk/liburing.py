@@ -8,12 +8,12 @@
 import os
 import re
 import logging
-from libkirk import KirkException
 from libkirk.sut import SUT
 from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.results import TestResults
 from libkirk.framework import Framework
+from libkirk.framework import FrameworkError
 
 
 class Liburing(Framework):
@@ -52,7 +52,7 @@ class Liburing(Framework):
         """
         ret = await sut.run_command(f"test -d {self._root}")
         if ret["returncode"] != 0:
-            raise KirkException(
+            raise FrameworkError(
                 f"liburing test folder doesn't exist: {self._root}")
 
         self._logger.info("Reading available tests")
@@ -62,11 +62,11 @@ class Liburing(Framework):
 
         stdout = ret["stdout"]
         if ret["returncode"] != 0:
-            raise KirkException(f"Can't read liburing tests list: {stdout}")
+            raise FrameworkError(f"Can't read liburing tests list: {stdout}")
 
         match = re.search(r'test_targets\s:?=\s(?P<tests>.*)', stdout)
         if not match:
-            raise KirkException(f"Can't read liburing tests list: {stdout}")
+            raise FrameworkError(f"Can't read liburing tests list: {stdout}")
 
         tests = match.group('tests').strip().split(' ')
         self._logger.debug("tests=%s", tests)
@@ -109,7 +109,7 @@ class Liburing(Framework):
 
         ret = await sut.run_command(f"test -d {self._root}")
         if ret["returncode"] != 0:
-            raise KirkException(
+            raise FrameworkError(
                 f"liburing test folder doesn't exist: {self._root}")
 
         tests = await self._read_tests(sut)

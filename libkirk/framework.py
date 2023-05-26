@@ -5,11 +5,18 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+from libkirk import KirkException
 from libkirk.sut import SUT
 from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.plugin import Plugin
 from libkirk.results import TestResults
+
+
+class FrameworkError(KirkException):
+    """
+    A generic framework exception.
+    """
 
 
 class Framework(Plugin):
