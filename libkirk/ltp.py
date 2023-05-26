@@ -35,6 +35,16 @@ class LTPFramework(Framework):
 
     def __init__(self) -> None:
         self._logger = logging.getLogger("libkirk.ltp")
+        self._root = None
+        self._env = None
+
+    @ property
+    def config_help(self) -> dict:
+        return {
+            "root": "LTP install folder",
+        }
+
+    def setup(self, **kwargs: dict) -> None:
         self._root = "/opt/ltp"
         self._env = {
             "LTPROOT": self._root,
@@ -42,13 +52,6 @@ class LTPFramework(Framework):
             "LTP_COLORIZE_OUTPUT": "1",
         }
 
-    @property
-    def config_help(self) -> dict:
-        return {
-            "root": "LTP install folder",
-        }
-
-    def setup(self, **kwargs: dict) -> None:
         env = kwargs.get("env", None)
         if env:
             self._env.update(env)
@@ -58,21 +61,36 @@ class LTPFramework(Framework):
             self._root = root
             self._env["LTPROOT"] = self._root
 
+    async def _read_path(self, sut: SUT) -> dict:
+        """
+        Read PATH and initialize it with testcases folder as well.
+        """
+        tc_path = os.path.join(self._root, "testcases", "bin")
+
+        env = self._env.copy()
+        if 'PATH' in env:
+            env["PATH"] = env["PATH"] + f":{tc_path}"
+        else:
+            ret = await sut.run_command("printenv PATH")
+            if ret["returncode"] != 0:
+                raise KirkException("Can't read PATH variable")
+
+            tcases = os.path.join(self._root, "testcases", "bin")
+            env["PATH"] = ret["stdout"].strip() + f":{tcases}"
+
+        self._logger.debug("PATH=%s", env["PATH"])
+
+        return env
+
     # pylint: disable=too-many-locals
-    def _read_runtest(
+    async def _read_runtest(
             self,
+            sut: SUT,
             suite_name: str,
             content: str,
             metadata: dict = None) -> Suite:
         """
         It reads a runtest file content and it returns a Suite object.
-        :param suite_name: name of the test suite
-        :type suite_name: str
-        :param content: content of the runtest file
-        :type content: str
-        :param metadata: metadata JSON file content
-        :type metadata: dict
-        :returns: Suite
         """
         self._logger.info("collecting testing suite: %s", suite_name)
 
@@ -130,12 +148,14 @@ class LTPFramework(Framework):
             else:
                 self._logger.info("Test '%s' is parallelizable", test_name)
 
+            env = await self._read_path(sut)
+
             test = Test(
                 name=test_name,
                 cmd=test_cmd,
                 args=test_args,
                 cwd=tc_path,
-                env=self._env,
+                env=env,
                 parallelizable=parallelizable)
 
             tests.append(test)
@@ -193,22 +213,21 @@ class LTPFramework(Framework):
         if ret["returncode"] != 0:
             raise KirkException(f"'{name}' suite doesn't exist")
 
+        runtest_data = await sut.fetch_file(suite_path)
+        runtest_str = runtest_data.decode(encoding="utf-8", errors="ignore")
+
         metadata_path = os.path.join(
             self._root,
             "metadata",
             "ltp.json"
         )
+        metadata_dict = None
+        ret = await sut.run_command(f"test -f {metadata_path}")
+        if ret["returncode"] == 0:
+            metadata_data = await sut.fetch_file(metadata_path)
+            metadata_dict = json.loads(metadata_data)
 
-        metadata = None
-        ret = await sut.run_command(f"cat {metadata_path}")
-        if ret["returncode"] != 0:
-            raise KirkException(f"Can't read metadata file: {metadata_path}")
-
-        data = await sut.fetch_file(suite_path)
-        content = data.decode(encoding="utf-8", errors="ignore")
-
-        metadata = json.loads(ret['stdout'])
-        suite = self._read_runtest(name, content, metadata)
+        suite = await self._read_runtest(sut, name, runtest_str, metadata_dict)
 
         return suite
 
