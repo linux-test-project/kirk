@@ -185,11 +185,13 @@ class SUT(Plugin):
             """
             Run command, check for returncode and return command's stdout.
             """
-            ret = await self.run_command(cmd)
-            if ret["returncode"] != 0:
-                raise SUTError(f"Can't read information from SUT: {cmd}")
-
-            stdout = ret["stdout"].rstrip()
+            stdout = "unknown"
+            try:
+                ret = await asyncio.wait_for(self.run_command(cmd), 1.5)
+                if ret["returncode"] == 0:
+                    stdout = ret["stdout"].rstrip()
+            except asyncio.TimeoutError:
+                pass
 
             return stdout
 
@@ -207,13 +209,17 @@ class SUT(Plugin):
                 _run_cmd("cat /proc/meminfo")
             ])
 
-        swap_m = re.search(r'SwapTotal:\s+(?P<swap>\d+\s+kB)', meminfo)
-        if not swap_m:
-            raise SUTError("Can't read swap information from /proc/meminfo")
+        memory = "unknown"
+        swap = "unkown"
 
-        mem_m = re.search(r'MemTotal:\s+(?P<memory>\d+\s+kB)', meminfo)
-        if not mem_m:
-            raise SUTError("Can't read memory information from /proc/meminfo")
+        if meminfo:
+            mem_m = re.search(r'MemTotal:\s+(?P<memory>\d+\s+kB)', meminfo)
+            if mem_m:
+                memory = mem_m.group('memory')
+
+            swap_m = re.search(r'SwapTotal:\s+(?P<swap>\d+\s+kB)', meminfo)
+            if swap_m:
+                swap = swap_m.group('swap')
 
         ret = {
             "distro": distro,
@@ -221,8 +227,8 @@ class SUT(Plugin):
             "kernel": kernel,
             "arch": arch,
             "cpu": cpu,
-            "swap": swap_m.group('swap'),
-            "ram": mem_m.group('memory')
+            "ram": memory,
+            "swap": swap
         }
 
         return ret
