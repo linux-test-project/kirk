@@ -29,7 +29,7 @@ support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
     fptest02: pass | tainted  (0.003s)
     nextafter01: pass | tainted  (0.002s)
 
-    Suite Name: math                                
+    Suite Name: math
     Total Run: 10
     Elapsed Time: 3.039s
     Passed Tests: 22
@@ -88,7 +88,7 @@ Some basic commands are the following:
 
     # run LTP syscalls testing suite on qemu VM
     ./kirk --framework ltp \
-        --sut qemu:image=folder/image.qcow2 \
+        --sut qemu:image=folder/image.qcow2:user=root:password=root \
         --run-suite syscalls
 
     # run LTP syscalls testing suite via SSH
@@ -109,7 +109,7 @@ It's possible to run a single command before running testing suites using
 
     ./kirk --framework ltp \
         --run-command /mnt/setup.sh \
-        --sut qemu:image=folder/image.qcow2:virtfs=/home/user/tests \
+        --sut qemu:image=folder/image.qcow2:virtfs=/home/user/tests:user=root:password=root \
         --run-suite syscalls
 
 Every session has a temporary directory that can be found in

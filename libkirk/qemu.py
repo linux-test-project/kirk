@@ -39,16 +39,18 @@ class QemuSUT(SUT):
         self._stop = False
         self._logged_in = False
         self._last_pos = 0
-        self._image = None
-        self._image_overlay = None
-        self._ro_image = None
+        self._user = None
         self._password = None
+        self._prompt = None
         self._ram = None
         self._smp = None
         self._virtfs = None
         self._serial_type = None
         self._qemu_cmd = None
         self._opts = None
+        self._image = None
+        self._kernel = None
+        self._initrd = None
         self._last_read = ""
         self._panic = False
 
@@ -84,20 +86,12 @@ class QemuSUT(SUT):
         pid = os.getpid()
         tty_log = os.path.join(self._tmpdir, f"ttyS0-{pid}.log")
 
-        image = self._image
-        if self._image_overlay:
-            shutil.copyfile(
-                self._image,
-                self._image_overlay)
-            image = self._image_overlay
-
         params = []
         params.append("-enable-kvm")
         params.append("-display none")
         params.append(f"-m {self._ram}")
         params.append(f"-smp {self._smp}")
         params.append("-device virtio-rng-pci")
-        params.append(f"-drive if=virtio,cache=unsafe,file={image}")
         params.append(f"-chardev stdio,id=tty,logfile={tty_log}")
 
         if self._serial_type == "isa":
@@ -114,13 +108,6 @@ class QemuSUT(SUT):
         _, transport_file = self._get_transport()
         params.append(f"-chardev file,id=transport,path={transport_file}")
 
-        if self._ro_image:
-            params.append(
-                "-drive read-only,"
-                "if=virtio,"
-                "cache=unsafe,"
-                f"file={self._ro_image}")
-
         if self._virtfs:
             params.append(
                 "-virtfs local,"
@@ -132,6 +119,17 @@ class QemuSUT(SUT):
         if self._opts:
             params.append(self._opts)
 
+        if self._image:
+            params.append(f"-drive if=virtio,cache=unsafe,file={self._image}")
+        else:
+            console = "ttyS0"
+            if self._serial_type == "virtio":
+                console = "hvc0"
+
+            params.append(f"-append 'console={console} ignore_loglevel'")
+            params.append(f"-initrd {self._initrd}")
+            params.append(f"-kernel {self._kernel}")
+
         cmd = f"{self._qemu_cmd} {' '.join(params)}"
 
         return cmd
@@ -140,10 +138,12 @@ class QemuSUT(SUT):
         self._logger.info("Initialize SUT")
 
         self._tmpdir = kwargs.get("tmpdir", None)
-        self._image = kwargs.get("image", None)
-        self._image_overlay = kwargs.get("image_overlay", None)
-        self._ro_image = kwargs.get("ro_image", None)
+        self._user = kwargs.get("user", None)
         self._password = kwargs.get("password", "root")
+        self._prompt = kwargs.get("prompt", "#")
+        self._image = kwargs.get("image", None)
+        self._initrd = kwargs.get("initrd", None)
+        self._kernel = kwargs.get("kernel", None)
         self._ram = kwargs.get("ram", "2G")
         self._smp = kwargs.get("smp", "2")
         self._virtfs = kwargs.get("virtfs", None)
@@ -153,17 +153,27 @@ class QemuSUT(SUT):
         system = kwargs.get("system", "x86_64")
         self._qemu_cmd = f"qemu-system-{system}"
 
+        if self._image and (self._initrd or self._kernel):
+            raise SUTError("Can't provide 'image' and 'kernel' with 'initrd'")
+
+        if not self._image and not (self._initrd and self._kernel):
+            raise SUTError("Both 'kernel' and 'initrd' must be defined")
+
         if not self._tmpdir or not os.path.isdir(self._tmpdir):
             raise SUTError(
                 f"Temporary directory doesn't exist: {self._tmpdir}")
 
-        if not self._image or not os.path.isfile(self._image):
+        if self._image and not os.path.isfile(self._image):
             raise SUTError(
                 f"Image location doesn't exist: {self._image}")
 
-        if self._ro_image and not os.path.isfile(self._ro_image):
+        if self._kernel and not os.path.isfile(self._kernel):
             raise SUTError(
-                f"Read-only image location doesn't exist: {self._ro_image}")
+                f"Kernel location doesn't exist: {self._kernel}")
+
+        if self._initrd and not os.path.isfile(self._initrd):
+            raise SUTError(
+                f"initrd location doesn't exist: {self._initrd}")
 
         if not self._ram:
             raise SUTError("RAM is not defined")
@@ -181,15 +191,17 @@ class QemuSUT(SUT):
     @property
     def config_help(self) -> dict:
         return {
-            "image": "qcow2 image location",
-            "image_overlay": "image_overlay: image copy location",
-            "password": "root password (default: root)",
+            "image": "qemu image location. Can't be used with kernel/initrd",
+            "kernel": "kernel image location. Can't be used with image",
+            "initrd": "initrd image location Can't be used with image",
+            "user": "user name (default: '')",
+            "password": "user password (default: '')",
+            "prompt": "prompt string (default: '#')",
             "system": "system architecture (default: x86_64)",
             "ram": "RAM of the VM (default: 2G)",
             "smp": "number of CPUs (default: 2)",
             "serial": "type of serial protocol. isa|virtio (default: isa)",
             "virtfs": "directory to mount inside VM",
-            "ro_image": "path of the image that will exposed as read only",
             "options": "user defined options",
         }
 
@@ -368,7 +380,7 @@ class QemuSUT(SUT):
                 if self._logged_in:
                     self._logger.info("Poweroff virtual machine")
 
-                    await self._write_stdin("poweroff\n")
+                    await self._write_stdin("poweroff; poweroff -f\n")
 
                     while await self.is_running:
                         await self._read_stdout(1024, iobuffer)
@@ -415,20 +427,21 @@ class QemuSUT(SUT):
                 stderr=asyncio.subprocess.STDOUT)
 
             try:
-                await self._wait_for("login:", iobuffer)
-                await self._write_stdin("root\n")
+                if self._user:
+                    await self._wait_for("login:", iobuffer)
+                    await self._write_stdin(f"{self._user}\n")
 
-                if self._password:
-                    await self._wait_for("Password:", iobuffer)
-                    await self._write_stdin(f"{self._password}\n")
+                    if self._password:
+                        await self._wait_for("Password:", iobuffer)
+                        await self._write_stdin(f"{self._password}\n")
 
-                await asyncio.sleep(0.2)
+                    await asyncio.sleep(0.2)
 
-                await self._wait_for("#", iobuffer)
+                await self._wait_for(self._prompt, iobuffer)
                 await asyncio.sleep(0.2)
 
                 await self._write_stdin("stty -echo; stty cols 1024\n")
-                await self._wait_for("#", None)
+                await self._wait_for(self._prompt, None)
 
                 _, retcode, _ = await self._exec("export PS1=''", None)
                 if retcode != 0:
@@ -451,7 +464,7 @@ class QemuSUT(SUT):
             # something happened during commands execution
             await self.stop(iobuffer=iobuffer)
 
-            raise SUTError(err)
+            raise SUTError(error)
 
     async def run_command(
             self,
