@@ -71,7 +71,7 @@ class LTPFramework(Framework):
         if 'PATH' in env:
             env["PATH"] = env["PATH"] + f":{tc_path}"
         else:
-            ret = await sut.run_command("printenv PATH")
+            ret = await sut.run_command("echo -n $PATH")
             if ret["returncode"] != 0:
                 raise FrameworkError("Can't read PATH variable")
 
@@ -98,6 +98,8 @@ class LTPFramework(Framework):
         if metadata:
             self._logger.info("Reading metadata content")
             metadata_tests = metadata.get("tests", None)
+
+        env = await self._read_path(sut)
 
         tests = []
         lines = content.split('\n')
@@ -147,8 +149,6 @@ class LTPFramework(Framework):
                 self._logger.info("Test '%s' is not parallelizable", test_name)
             else:
                 self._logger.info("Test '%s' is parallelizable", test_name)
-
-            env = await self._read_path(sut)
 
             test = Test(
                 name=test_name,
