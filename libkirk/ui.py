@@ -107,7 +107,7 @@ class ConsoleUserInterface:
         self._print(f"{cmd}", color=self.CYAN)
 
     async def run_cmd_stdout(self, data: str) -> None:
-        self._print(data)
+        self._print(data, end='')
 
     async def run_cmd_stop(
             self,
