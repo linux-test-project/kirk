@@ -12,11 +12,18 @@ from libkirk.tests.test_session import _TestSession
 pytestmark = [pytest.mark.asyncio, pytest.mark.qemu]
 
 TEST_QEMU_IMAGE = os.environ.get("TEST_QEMU_IMAGE", None)
+TEST_QEMU_USERNAME = os.environ.get("TEST_QEMU_USERNAME", None)
 TEST_QEMU_PASSWORD = os.environ.get("TEST_QEMU_PASSWORD", None)
+TEST_QEMU_KERNEL = os.environ.get("TEST_QEMU_KERNEL", None)
+TEST_QEMU_BUSYBOX = os.environ.get("TEST_QEMU_BUSYBOX", None)
 
 if not TEST_QEMU_IMAGE:
     pytestmark.append(pytest.mark.skip(
         reason="TEST_QEMU_IMAGE not defined"))
+
+if not TEST_QEMU_USERNAME:
+    pytestmark.append(pytest.mark.skip(
+        reason="TEST_QEMU_USERNAME not defined"))
 
 if not TEST_QEMU_PASSWORD:
     pytestmark.append(pytest.mark.skip(
@@ -59,6 +66,7 @@ async def sut_isa(tmpdir):
     runner.setup(
         tmpdir=str(tmpdir),
         image=TEST_QEMU_IMAGE,
+        user=TEST_QEMU_USERNAME,
         password=TEST_QEMU_PASSWORD,
         serial="isa")
 
@@ -77,6 +85,7 @@ async def sut_virtio(tmpdir):
     runner.setup(
         tmpdir=str(tmpdir),
         image=TEST_QEMU_IMAGE,
+        user=TEST_QEMU_USERNAME,
         password=TEST_QEMU_PASSWORD,
         serial="virtio")
 
@@ -124,3 +133,33 @@ class TestSessionQemuVirtIO(_TestSession):
     @pytest.fixture
     async def sut(self, sut_virtio):
         yield sut_virtio
+
+
+@pytest.mark.skipif(
+    not TEST_QEMU_KERNEL,
+    reason="TEST_QEMU_KERNEL not defined")
+@pytest.mark.skipif(
+    not TEST_QEMU_BUSYBOX,
+    reason="TEST_QEMU_BUSYBOX not defined")
+class TestQemuSUTBusybox(_TestQemuSUT):
+    """
+    Test QemuSUT implementation using kernel/initrd functionality with
+    busybox initramfs image.
+    """
+
+    @pytest.fixture
+    async def sut(self, tmpdir):
+        """
+        Qemu instance using kernel/initrd.
+        """
+        runner = QemuSUT()
+        runner.setup(
+            tmpdir=str(tmpdir),
+            kernel=TEST_QEMU_KERNEL,
+            initrd=TEST_QEMU_BUSYBOX,
+            prompt="/ #")
+
+        yield runner
+
+        if await runner.is_running:
+            await runner.stop()

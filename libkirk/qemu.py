@@ -443,6 +443,9 @@ class QemuSUT(SUT):
                 await self._write_stdin("stty -echo; stty cols 1024\n")
                 await self._wait_for(self._prompt, None)
 
+                await self._write_stdin("dmesg -D\n")
+                await self._wait_for(self._prompt, None)
+
                 _, retcode, _ = await self._exec("export PS1=''", None)
                 if retcode != 0:
                     raise SUTError("Can't setup prompt string")
