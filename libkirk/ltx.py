@@ -769,11 +769,17 @@ class LTXSUT(SUT):
         while await self.is_running:
             await asyncio.sleep(1e-2)
 
-        if self._stdin_fd != -1:
-            os.close(self._stdin_fd)
+        try:
+            if self._stdin_fd != -1:
+                os.close(self._stdin_fd)
 
-        if self._stdout_fd != -1:
-            os.close(self._stdout_fd)
+            if self._stdout_fd != -1:
+                os.close(self._stdout_fd)
+        except OSError as err:
+            # LTX can exit before we close file, so we skip
+            # 'Bad file descriptor' error message
+            if err.errno == 9:
+                pass
 
     async def _reserve_slot(self) -> int:
         """
