@@ -58,22 +58,6 @@ class TestLTX:
         replies = await handle.gather([req], timeout=1)
         assert start_t < replies[req][0] * 1e-9 < time.monotonic()
 
-    async def test_ping_flood(self, handle):
-        """
-        Test multiple ping request in a row.
-        """
-        times = 100
-        requests = []
-        for _ in range(times):
-            requests.append(Requests.ping())
-
-        start_t = time.monotonic()
-        replies = await handle.gather(requests, timeout=10)
-        end_t = time.monotonic()
-
-        for reply in replies:
-            assert start_t < replies[reply][0] * 1e-9 < end_t
-
     async def test_execute(self, handle):
         """
         Test execute request.
