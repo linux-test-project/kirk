@@ -116,19 +116,22 @@ class QemuSUT(SUT):
                 "security_model=mapped-xattr,"
                 "readonly=on")
 
-        if self._opts:
-            params.append(self._opts)
-
         if self._image:
             params.append(f"-drive if=virtio,cache=unsafe,file={self._image}")
-        else:
+
+        if self._initrd:
+            params.append(f"-initrd {self._initrd}")
+
+        if self._kernel:
             console = "ttyS0"
             if self._serial_type == "virtio":
                 console = "hvc0"
 
             params.append(f"-append 'console={console} ignore_loglevel'")
-            params.append(f"-initrd {self._initrd}")
             params.append(f"-kernel {self._kernel}")
+
+        if self._opts:
+            params.append(self._opts)
 
         cmd = f"{self._qemu_cmd} {' '.join(params)}"
 
@@ -139,8 +142,8 @@ class QemuSUT(SUT):
 
         self._tmpdir = kwargs.get("tmpdir", None)
         self._user = kwargs.get("user", None)
-        self._password = kwargs.get("password", "root")
-        self._prompt = kwargs.get("prompt", "#")
+        self._password = kwargs.get("password", None)
+        self._prompt = kwargs.get("prompt", "# ")
         self._image = kwargs.get("image", None)
         self._initrd = kwargs.get("initrd", None)
         self._kernel = kwargs.get("kernel", None)
@@ -152,12 +155,6 @@ class QemuSUT(SUT):
 
         system = kwargs.get("system", "x86_64")
         self._qemu_cmd = f"qemu-system-{system}"
-
-        if self._image and (self._initrd or self._kernel):
-            raise SUTError("Can't provide 'image' and 'kernel' with 'initrd'")
-
-        if not self._image and not (self._initrd and self._kernel):
-            raise SUTError("Both 'kernel' and 'initrd' must be defined")
 
         if not self._tmpdir or not os.path.isdir(self._tmpdir):
             raise SUTError(
@@ -191,9 +188,9 @@ class QemuSUT(SUT):
     @property
     def config_help(self) -> dict:
         return {
-            "image": "qemu image location. Can't be used with kernel/initrd",
-            "kernel": "kernel image location. Can't be used with image",
-            "initrd": "initrd image location Can't be used with image",
+            "image": "qemu image location",
+            "kernel": "kernel image location",
+            "initrd": "initrd image location",
             "user": "user name (default: '')",
             "password": "user password (default: '')",
             "prompt": "prompt string (default: '#')",
@@ -264,6 +261,8 @@ class QemuSUT(SUT):
         """
         if not await self.is_running:
             return None
+
+        self._logger.info("Waiting for message: %s", repr(message))
 
         stdout = self._last_read
         self._panic = False
