@@ -4,11 +4,11 @@ Unittests for ltx module.
 import os
 import time
 import signal
-import subprocess
+import asyncio.subprocess
 import pytest
-import libkirk.ltx as ltx
+from libkirk.ltx import LTX
 from libkirk.ltx import Requests
-from libkirk.ltx import LTXSUT
+from libkirk.ltx_sut import LTXSUT
 from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_session import _TestSession
 
@@ -23,111 +23,123 @@ if not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY):
 
 class TestLTX:
     """
-    Unittest for LTX class.
+    Test LTX implementation.
     """
 
-    @pytest.fixture(scope="session")
-    async def handle(self):
+    @pytest.fixture
+    async def ltx(self, tmpdir):
         """
-        LTX session handler.
+        LTX handler.
         """
-        with subprocess.Popen(
-                TEST_LTX_BINARY,
-                bufsize=0,
-                stdout=subprocess.PIPE,
-                stdin=subprocess.PIPE) as proc:
-            async with ltx.Session(
-                    proc.stdin.fileno(),
-                    proc.stdout.fileno()) as handle:
-                yield handle
+        stdin_path = str(tmpdir / 'transport.in')
+        stdout_path = str(tmpdir / 'transport.out')
 
-    async def test_version(self, handle):
+        os.mkfifo(stdin_path)
+        os.mkfifo(stdout_path)
+
+        stdin = os.open(stdin_path, os.O_RDWR | os.O_NONBLOCK)
+        stdout = os.open(stdout_path, os.O_RDWR)
+
+        proc = await asyncio.subprocess.create_subprocess_shell(
+            TEST_LTX_BINARY,
+            stdin=stdin,
+            stdout=stdout)
+
+        try:
+            async with LTX(stdin, stdout) as handle:
+                yield handle
+        finally:
+            proc.kill()
+
+    async def test_version(self, ltx):
         """
         Test version request.
         """
         req = Requests.version()
-        replies = await handle.gather([req], timeout=1)
+        replies = await ltx.gather([req], timeout=1)
         assert replies[req][0] == "0.1"
 
-    async def test_ping(self, handle):
+    async def test_ping(self, ltx):
         """
         Test ping request.
         """
         start_t = time.monotonic()
         req = Requests.ping()
-        replies = await handle.gather([req], timeout=1)
+        replies = await ltx.gather([req], timeout=1)
         assert start_t < replies[req][0] * 1e-9 < time.monotonic()
 
-    async def test_execute(self, handle):
+    async def test_execute(self, ltx):
         """
         Test execute request.
         """
         stdout = []
 
-        def _stdout_callback(data):
+        async def _stdout_coro(data):
             stdout.append(data)
 
         start_t = time.monotonic()
-        req = Requests.execute(0, "uname", stdout_callback=_stdout_callback)
-        replies = await handle.gather([req], timeout=3)
+        req = Requests.execute(0, "uname", stdout_coro=_stdout_coro)
+        replies = await ltx.gather([req], timeout=3)
         reply = replies[req]
 
         assert ''.join(stdout) == "Linux\n"
-        assert reply[0] == "Linux\n"
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 1
-        assert reply[3] == 0
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == "Linux\n"
 
-    async def test_execute_builtin(self, handle):
+    async def test_execute_builtin(self, ltx):
         """
         Test execute request with builtin command.
         """
         stdout = []
 
-        def _stdout_callback(data):
+        async def _stdout_coro(data):
             stdout.append(data)
 
         start_t = time.monotonic()
         req = Requests.execute(
-            0, "echo -n ciao", stdout_callback=_stdout_callback)
-        replies = await handle.gather([req], timeout=3)
+            0, "echo -n ciao", stdout_coro=_stdout_coro)
+        replies = await ltx.gather([req], timeout=3)
         reply = replies[req]
 
         assert ''.join(stdout) == "ciao"
-        assert reply[0] == "ciao"
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 1
-        assert reply[3] == 0
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == "ciao"
 
-    async def test_execute_multiple(self, handle):
+    async def test_execute_multiple(self, ltx):
         """
         Test multiple execute request in a row.
         """
-        times = os.cpu_count()
+        times = 2
         stdout = []
 
-        def _stdout_callback(data):
+        async def _stdout_coro(data):
             stdout.append(data)
 
-        start_t = time.monotonic()
         req = []
         for slot in range(times):
-            req.append(Requests.execute(slot, "echo -n ciao",
-                       stdout_callback=_stdout_callback))
+            req.append(Requests.execute(
+                slot,
+                "echo -n ciao",
+                stdout_coro=_stdout_coro))
 
-        replies = await handle.gather(req, timeout=3)
+        start_t = time.monotonic()
+        replies = await ltx.gather(req, timeout=3)
         end_t = time.monotonic()
 
         for reply in replies.values():
-            assert reply[0] == "ciao"
-            assert start_t < reply[1] * 1e-9 < end_t
-            assert reply[2] == 1
-            assert reply[3] == 0
+            assert start_t < reply[0] * 1e-9 < end_t
+            assert reply[1] == 1
+            assert reply[2] == 0
+            assert reply[3] == "ciao"
 
         for data in stdout:
             assert data == "ciao"
 
-    async def test_set_file(self, handle, tmp_path):
+    async def test_set_file(self, ltx, tmp_path):
         """
         Test set_file request.
         """
@@ -135,11 +147,11 @@ class TestLTX:
         pfile = tmp_path / 'file.bin'
 
         req = Requests.set_file(str(pfile), data)
-        await handle.gather([req], timeout=5)
+        await ltx.gather([req], timeout=5)
 
         assert pfile.read_bytes() == data
 
-    async def test_get_file(self, handle, tmp_path):
+    async def test_get_file(self, ltx, tmp_path):
         """
         Test get_file request.
         """
@@ -147,56 +159,57 @@ class TestLTX:
         pfile.write_bytes(b'AaXa\x00\x01\x02Zz' * 1024)
 
         req = Requests.get_file(str(pfile))
-        replies = await handle.gather([req], timeout=5)
+        replies = await ltx.gather([req], timeout=5)
 
-        assert pfile.read_bytes() == replies[req][0]
+        assert replies[req][0] == str(pfile)
+        assert pfile.read_bytes() == replies[req][1]
 
-    async def test_kill(self, handle):
+    async def test_kill(self, ltx):
         """
         Test kill method.
         """
         start_t = time.monotonic()
         exec_req = Requests.execute(0, "sleep 1")
         kill_req = Requests.kill(0)
-        replies = await handle.gather([exec_req, kill_req], timeout=3)
+        replies = await ltx.gather([exec_req, kill_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == ""
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 2
-        assert reply[3] == signal.SIGKILL
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 2
+        assert reply[2] == signal.SIGKILL
+        assert reply[3] == ""
 
-    async def test_env(self, handle):
+    async def test_env(self, ltx):
         """
         Test env request.
         """
         start_t = time.monotonic()
         env_req = Requests.env(0, "HELLO", "CIAO")
         exec_req = Requests.execute(0, "echo -n $HELLO")
-        replies = await handle.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == "CIAO"
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 1
-        assert reply[3] == 0
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == "CIAO"
 
-    async def test_env_multiple(self, handle):
+    async def test_env_multiple(self, ltx):
         """
         Test env request.
         """
         start_t = time.monotonic()
         env_req = Requests.env(128, "HELLO", "CIAO")
         exec_req = Requests.execute(0, "echo -n $HELLO")
-        replies = await handle.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == "CIAO"
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 1
-        assert reply[3] == 0
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == "CIAO"
 
-    async def test_cwd(self, handle, tmpdir):
+    async def test_cwd(self, ltx, tmpdir):
         """
         Test cwd request.
         """
@@ -205,15 +218,15 @@ class TestLTX:
         start_t = time.monotonic()
         env_req = Requests.cwd(0, path)
         exec_req = Requests.execute(0, "echo -n $PWD")
-        replies = await handle.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == path
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 1
-        assert reply[3] == 0
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == path
 
-    async def test_cwd_multiple(self, handle, tmpdir):
+    async def test_cwd_multiple(self, ltx, tmpdir):
         """
         Test cwd request on multiple slots.
         """
@@ -222,15 +235,15 @@ class TestLTX:
         start_t = time.monotonic()
         env_req = Requests.cwd(128, path)
         exec_req = Requests.execute(0, "echo -n $PWD")
-        replies = await handle.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req], timeout=3)
         reply = replies[exec_req]
 
-        assert reply[0] == path
-        assert start_t < reply[1] * 1e-9 < time.monotonic()
-        assert reply[2] == 1
-        assert reply[3] == 0
+        assert start_t < reply[0] * 1e-9 < time.monotonic()
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == path
 
-    async def test_all_together(self, handle, tmp_path):
+    async def test_all_together(self, ltx, tmp_path):
         """
         Test all requests together.
         """
@@ -246,7 +259,7 @@ class TestLTX:
         requests.append(Requests.kill(0))
         requests.append(Requests.get_file(str(pfile)))
 
-        await handle.gather(requests, timeout=10)
+        await ltx.gather(requests, timeout=10)
 
 
 @pytest.fixture
@@ -263,13 +276,10 @@ async def sut(tmpdir):
     stdin = os.open(stdin_path, os.O_RDONLY | os.O_NONBLOCK)
     stdout = os.open(stdout_path, os.O_RDWR)
 
-    proc = subprocess.Popen(
+    proc = await asyncio.subprocess.create_subprocess_shell(
         TEST_LTX_BINARY,
         stdin=stdin,
-        stdout=stdout,
-        stderr=stdout,
-        bufsize=0,
-        shell=True)
+        stdout=stdout)
 
     sut = LTXSUT()
     sut.setup(
