@@ -48,7 +48,7 @@ class Request:
     def __init__(self) -> None:
         self._logger = logging.getLogger("ltx.request")
         self._completed = False
-        self.on_complete = None
+        self._done_coro = None
 
     @property
     def completed(self) -> bool:
@@ -57,15 +57,21 @@ class Request:
         """
         return self._completed
 
+    def add_done_coro(self, coro: typing.Coroutine) -> None:
+        """
+        Add done event to request.
+        :param coro: called when request is done
+        :type coro: Coroutine
+        """
+        self._done_coro = coro
+
     async def _raise_complete(self, *args) -> None:
         """
         Raise the complete callback with given data.
         """
-        if self.on_complete:
+        if self._done_coro:
             self._logger.info("Raising 'on_complete(self, %s)'", args)
-
-            # pylint: disable=not-callable
-            await self.on_complete(self, *args)
+            await self._done_coro(self, *args)
 
         self._completed = True
 
@@ -441,8 +447,8 @@ class LTX:
         request2 = Requests.get_file("myfile")
 
         # set the complete event
-        request1.on_complete = exec_complete_handler
-        request2.on_complete = get_file_complete_handler
+        request1.add_done_coro(exec_complete_handler)
+        request2.add_done_coro(get_file_complete_handler)
 
         # send request
         ltx.send([request1, request2])
@@ -545,7 +551,7 @@ class LTX:
         """
         Gather multiple requests and wait for the response, then return all
         rquests' replies inside a dictionary that maps requests with their
-        reply. Beware that this coroutine will override "on_complete" event for
+        reply. Beware that this coroutine will override done event for
         all requests.
         """
         req_len = len(requests)
@@ -559,7 +565,7 @@ class LTX:
             replies[req] = args
 
         for req in requests:
-            req.on_complete = on_complete
+            req.add_done_coro(on_complete)
 
         await asyncio.gather(*[
             self.send(requests),
