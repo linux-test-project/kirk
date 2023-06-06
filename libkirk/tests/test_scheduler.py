@@ -466,7 +466,7 @@ class TestSuiteScheduler:
             ))
         await runner.schedule([Suite("suite01", tests)])
 
-        assert runner.results[0].exec_time >= 0.1
+        assert runner.results[0].exec_time == 0.0
 
         for i in range(len(tests)):
             res = runner.results[0].tests_results[i]

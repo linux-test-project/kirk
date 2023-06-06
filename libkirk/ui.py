@@ -119,13 +119,20 @@ class ConsoleUserInterface:
     async def suite_started(self, suite: Suite) -> None:
         self._print(f"Starting suite: {suite.name}")
 
-    async def suite_completed(self, results: SuiteResults) -> None:
+    async def suite_completed(
+            self,
+            results: SuiteResults,
+            exec_time: float) -> None:
         duration = self._user_friendly_duration(results.exec_time)
+        exec_time_uf = self._user_friendly_duration(exec_time)
 
         message = "\n"
-        message += f"Suite Name: {results.suite.name}" + " " * 32 + "\n"
+        message += " " * 128 + "\n"
+        message += f"Execution time: {exec_time_uf}\n"
+        message += "\n"
+        message += f"Suite Name: {results.suite.name}\n"
         message += f"Total Run: {len(results.suite.tests)}\n"
-        message += f"Elapsed Time: {duration}\n"
+        message += f"Total Runtime: {duration}\n"
         message += f"Passed Tests: {results.passed}\n"
         message += f"Failed Tests: {results.failed}\n"
         message += f"Skipped Tests: {results.skipped}\n"

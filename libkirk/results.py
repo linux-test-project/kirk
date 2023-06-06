@@ -174,8 +174,6 @@ class SuiteResults(Results):
         :type suite: Suite
         :param tests: List of the tests results
         :type tests: list(TestResults)
-        :param exec_time: execution time
-        :type exec_time: float
         :param distro: distribution name
         :type distro: str
         :param distro_ver: distribution version
@@ -187,7 +185,6 @@ class SuiteResults(Results):
         """
         self._suite = kwargs.get("suite", None)
         self._tests = kwargs.get("tests", [])
-        self._exec_t = max(kwargs.get("exec_time", 0.0), 0.0)
         self._distro = kwargs.get("distro", None)
         self._distro_ver = kwargs.get("distro_ver", None)
         self._kernel = kwargs.get("kernel", None)
@@ -203,7 +200,6 @@ class SuiteResults(Results):
         return \
             f"suite: '{self._suite}', " \
             f"tests: '{self._tests}', " \
-            f"exec_time: {self._exec_t}, " \
             f"distro: {self._distro}, " \
             f"distro_ver: {self._distro_ver}, " \
             f"kernel: {self._kernel}, " \
@@ -289,7 +285,7 @@ class SuiteResults(Results):
 
     @property
     def exec_time(self) -> float:
-        return self._exec_t
+        return self._get_result("exec_time")
 
     @property
     def failed(self) -> int:

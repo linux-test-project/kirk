@@ -579,10 +579,12 @@ class SuiteScheduler(Scheduler):
                 arch=info["arch"],
                 cpu=info["cpu"],
                 swap=info["swap"],
-                ram=info["ram"],
-                exec_time=suite_exec_time)
+                ram=info["ram"])
 
-            await libkirk.events.fire("suite_completed", suite_results)
+            await libkirk.events.fire(
+                "suite_completed",
+                suite_results,
+                suite_exec_time)
 
             self._logger.info("Suite completed")
             self._logger.debug(suite_results)
