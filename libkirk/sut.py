@@ -233,25 +233,38 @@ class SUT(Plugin):
 
         return ret
 
+    _tainted_lock = asyncio.Lock()
+    _tainted_status = asyncio.Queue(maxsize=1)
+
     async def get_tainted_info(self) -> tuple:
         """
         Return information about kernel if tainted.
-        :returns: set(int, list[str]),
+        :returns: (int, list[str])
         """
-        ret = await self.run_command("cat /proc/sys/kernel/tainted")
-        if ret["returncode"] != 0:
-            raise SUTError("Can't read tainted kernel information")
+        if self._tainted_lock.locked() and self._tainted_status.qsize() > 0:
+            status = await self._tainted_status.get()
+            return status
 
-        stdout = ret["stdout"].rstrip()
+        async with self._tainted_lock:
+            ret = await self.run_command("cat /proc/sys/kernel/tainted")
+            if ret["returncode"] != 0:
+                raise SUTError("Can't read tainted kernel information")
 
-        tainted_num = len(TAINED_MSG)
-        code = int(stdout.rstrip())
-        bits = format(code, f"0{tainted_num}b")[::-1]
+            stdout = ret["stdout"].rstrip()
 
-        messages = []
-        for i in range(0, tainted_num):
-            if bits[i] == "1":
-                msg = TAINED_MSG[i]
-                messages.append(msg)
+            tainted_num = len(TAINED_MSG)
+            code = int(stdout.rstrip())
+            bits = format(code, f"0{tainted_num}b")[::-1]
 
-        return code, messages
+            messages = []
+            for i in range(0, tainted_num):
+                if bits[i] == "1":
+                    msg = TAINED_MSG[i]
+                    messages.append(msg)
+
+            if self._tainted_status.qsize() > 0:
+                await self._tainted_status.get()
+
+            await self._tainted_status.put((code, messages))
+
+            return code, messages
