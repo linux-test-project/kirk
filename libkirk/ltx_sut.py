@@ -83,7 +83,10 @@ class LTXSUT(SUT):
                 while self._slots:
                     await asyncio.sleep(1e-2)
 
-        await self._ltx.disconnect()
+        try:
+            await self._ltx.disconnect()
+        except LTXError as err:
+            raise SUTError(err)
 
         while await self.is_running:
             await asyncio.sleep(1e-2)
@@ -156,7 +159,11 @@ class LTXSUT(SUT):
 
         self._ltx = LTX(self._stdin_fd, self._stdout_fd)
 
-        await self._ltx.connect()
+        try:
+            await self._ltx.connect()
+        except LTXError as err:
+            raise SUTError(err)
+
         await self._send_request([Requests.version()], timeout=10)
 
     async def run_command(

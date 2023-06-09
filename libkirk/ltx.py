@@ -487,7 +487,11 @@ class LTX:
         """
         True if connected, False otherwise.
         """
-        return len(self._polls) > 0
+        for task in self._polls:
+            if not task.done():
+                return True
+
+        return False
 
     async def connect(self) -> None:
         """
@@ -501,13 +505,12 @@ class LTX:
         # start producer
         task1 = libkirk.to_thread(self._producer)
         self._polls.add(task1)
-        task1.add_done_callback(self._polls.discard)
 
         # start consumer
         task2 = libkirk.create_task(self._consumer())
         self._polls.add(task2)
-        task2.add_done_callback(self._polls.discard)
 
+        self._check_errors()
         self._logger.info("Connected")
 
     async def disconnect(self) -> None:
@@ -518,11 +521,13 @@ class LTX:
             return
 
         self._logger.info("Disconnecting")
+        self._check_errors()
         self._stop = True
 
         while self.connected:
             await asyncio.sleep(0.005)
 
+        self._polls.clear()
         self._logger.info("Disconnected")
 
     async def send(self, requests: list) -> None:
@@ -532,6 +537,8 @@ class LTX:
         :param requests: list of requests to send
         :type requests: list
         """
+        self._check_errors()
+
         if not requests:
             raise ValueError("No requests given")
 
@@ -573,6 +580,21 @@ class LTX:
         ])
 
         return replies
+
+    def _check_errors(self) -> None:
+        """
+        Handle task discard event.
+        """
+        for task in self._polls:
+            if not task.done():
+                continue
+
+            try:
+                err = task.exception()
+                if err is not None:
+                    raise err
+            except asyncio.CancelledError:
+                pass
 
     def _blocking_read(self, size: int) -> bytes:
         """
