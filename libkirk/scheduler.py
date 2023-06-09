@@ -486,6 +486,8 @@ class SuiteScheduler(Scheduler):
 
         await libkirk.events.fire("suite_started", suite)
 
+        info = await self._sut.get_info()
+
         tests_results = []
         tests = []
         tests_left = []
@@ -564,8 +566,6 @@ class SuiteScheduler(Scheduler):
                     tests_left.clear()
                     break
         finally:
-            info = await self._sut.get_info()
-
             suite_exec_time = sum(exec_times)
             if not exec_times:
                 suite_exec_time = self._suite_timeout
