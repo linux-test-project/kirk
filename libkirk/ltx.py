@@ -370,11 +370,12 @@ class Requests:
 
                 log = message[3]
 
-                self._logger.info("LOG replied with data: %s", repr(log))
-                self._stdout.append(log)
+                if log:
+                    self._logger.info("LOG replied with data: %s", repr(log))
+                    self._stdout.append(log)
 
-                if self._stdout_coro:
-                    await self._stdout_coro(log)
+                    if self._stdout_coro:
+                        await self._stdout_coro(log)
             elif message[0] == self.RESULT:
                 if not self._echoed:
                     raise LTXError("RESULT received without EXEC echo")
