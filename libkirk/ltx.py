@@ -467,7 +467,7 @@ class LTX:
         self._stdin_fd = stdin_fd
         self._stdout_fd = stdout_fd
         self._lock = asyncio.Lock()
-        self._polls = set()
+        self._task = None
         self._messages = []
 
     async def __aenter__(self) -> None:
@@ -488,11 +488,10 @@ class LTX:
         """
         True if connected, False otherwise.
         """
-        for task in self._polls:
-            if not task.done():
-                return True
+        if not self._task:
+            return False
 
-        return False
+        return not self._task.done()
 
     async def connect(self) -> None:
         """
@@ -503,15 +502,9 @@ class LTX:
 
         self._logger.info("Connecting to LTX")
 
-        # start producer
-        task1 = libkirk.to_thread(self._producer)
-        self._polls.add(task1)
-
-        # start consumer
-        task2 = libkirk.create_task(self._consumer())
-        self._polls.add(task2)
-
+        self._task = libkirk.create_task(self._polling())
         self._check_errors()
+
         self._logger.info("Connected")
 
     async def disconnect(self) -> None:
@@ -528,7 +521,6 @@ class LTX:
         while self.connected:
             await asyncio.sleep(0.005)
 
-        self._polls.clear()
         self._logger.info("Disconnected")
 
     async def send(self, requests: list) -> None:
@@ -553,7 +545,7 @@ class LTX:
             data = [await req.pack() for req in requests]
             tosend = b''.join(data)
 
-            self._blocking_write(bytes(tosend))
+            await self._write(bytes(tosend))
 
     async def gather(self, requests: list, timeout: float) -> dict:
         """
@@ -586,30 +578,29 @@ class LTX:
         """
         Handle task discard event.
         """
-        for task in self._polls:
-            if not task.done():
-                continue
+        if not self._task:
+            return
 
-            try:
-                err = task.exception()
-                if err is not None:
-                    raise err
-            except asyncio.CancelledError:
-                pass
+        try:
+            err = self._task.exception()
+            if err is not None:
+                raise err
+        except asyncio.InvalidStateError:
+            pass
 
-    def _blocking_read(self, size: int) -> bytes:
+    async def _read(self, size: int) -> bytes:
         """
         Blocking I/O method to read from stdout.
         """
-        return os.read(self._stdout_fd, size)
+        return await libkirk.to_thread(os.read, self._stdout_fd, size)
 
-    def _blocking_write(self, data: bytes) -> None:
+    async def _write(self, data: bytes) -> None:
         """
         Blocking I/O method to write on stdin.
         """
         towrite = len(data)
         try:
-            wrote = os.write(self._stdin_fd, data)
+            wrote = await libkirk.to_thread(os.write, self._stdin_fd, data)
 
             if towrite != wrote:
                 raise LTXError(f"Wrote {wrote} bytes but expected {towrite}")
@@ -617,9 +608,9 @@ class LTX:
             pass
 
     # pylint: disable=too-many-nested-blocks
-    def _producer(self) -> None:
+    async def _polling(self) -> None:
         """
-        Blocking I/O producer that reads messages from stdout.
+        Read and process messages coming from LTX stdout.
         """
         self._logger.info("Starting producer")
 
@@ -631,13 +622,13 @@ class LTX:
 
         try:
             while not self._stop:
-                events = poller.poll(0.1)
+                events = await libkirk.to_thread(poller.poll, 0.1)
 
                 for fdesc, _ in events:
                     if fdesc != self._stdout_fd:
                         continue
 
-                    data = self._blocking_read(self.BUFFSIZE)
+                    data = await self._read(self.BUFFSIZE)
                     if not data:
                         continue
 
@@ -658,27 +649,11 @@ class LTX:
                             if msg[0] == Request.ERROR:
                                 raise LTXError(data[1])
 
-                            self._messages.append(msg)
+                            await self._feed_requests(msg)
                         except msgpack.OutOfData:
                             break
         finally:
             self._logger.info("Producer has stopped")
-
-    async def _consumer(self) -> None:
-        """
-        Consume messages coming from LTX.
-        """
-        self._logger.info("Starting consumer")
-
-        try:
-            while not self._stop:
-                await asyncio.sleep(0.005)
-
-                while len(self._messages) > 0:
-                    msg = self._messages.pop(0)
-                    await self._feed_requests(msg)
-        finally:
-            self._logger.info("Consumer has stopped")
 
     async def _feed_requests(self, data: list) -> None:
         """
