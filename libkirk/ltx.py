@@ -49,13 +49,6 @@ class Request:
         self._logger = logging.getLogger("ltx.request")
         self._completed = False
         self._done_coro = []
-        self._exc = None
-
-    def exception(self) -> Exception:
-        """
-        Return an exception if an error occured during request.
-        """
-        return self._exc
 
     @property
     def completed(self) -> bool:
@@ -146,8 +139,7 @@ class Requests:
                 self._echoed = True
             elif message[0] == self.PONG:
                 if not self._echoed:
-                    self._exc = LTXError("PONG received without PING echo")
-                    return
+                    raise LTXError("PONG received without PING echo")
 
                 end_t = message[1]
 
@@ -376,8 +368,7 @@ class Requests:
                 self._echoed = True
             elif message[0] == self.LOG:
                 if not self._echoed:
-                    self._exc = LTXError("LOG received without EXEC echo")
-                    return
+                    raise LTXError("LOG received without EXEC echo")
 
                 log = message[3]
 
@@ -389,8 +380,7 @@ class Requests:
                         await self._stdout_coro(log)
             elif message[0] == self.RESULT:
                 if not self._echoed:
-                    self._exc = LTXError("RESULT received without EXEC echo")
-                    return
+                    raise LTXError("RESULT received without EXEC echo")
 
                 self._logger.info("RESULT received")
 
@@ -583,7 +573,6 @@ class LTX:
 
         for req in requests:
             req.add_done_coro(on_complete)
-            req.add_done_coro(self._check_request_error)
 
         try:
             await self.send(requests)
@@ -594,12 +583,6 @@ class LTX:
             self._exc = err
 
         return replies
-
-    async def _check_request_error(self, req, *_) -> None:
-        """
-        Check if request raised an error.
-        """
-        self._exc = req.exception()
 
     async def _read(self, size: int) -> bytes:
         """
