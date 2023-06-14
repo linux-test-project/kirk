@@ -320,7 +320,8 @@ class ParallelUserInterface(ConsoleUserInterface):
         self._print(f"*** {tests_num} background test(s) ***")
 
         for test_name in self._running:
-            self._print(f"- {test_name}")
+            self._print(f"- {test_name}", end='')
+            self._print(" " * 32)
 
         # move back at the very beginning so the next time
         # we will override current running tests status
