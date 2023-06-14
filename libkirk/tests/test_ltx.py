@@ -56,7 +56,8 @@ class TestLTX:
         Test version request.
         """
         req = Requests.version()
-        replies = await ltx.gather([req], timeout=1)
+        replies = await ltx.gather([req])
+        assert not ltx.exception()
         assert replies[req][0] == "0.1"
 
     async def test_ping(self, ltx):
@@ -65,7 +66,8 @@ class TestLTX:
         """
         start_t = time.monotonic()
         req = Requests.ping()
-        replies = await ltx.gather([req], timeout=1)
+        replies = await ltx.gather([req])
+        assert not ltx.exception()
         assert start_t < replies[req][0] * 1e-9 < time.monotonic()
 
     async def test_execute(self, ltx):
@@ -79,7 +81,8 @@ class TestLTX:
 
         start_t = time.monotonic()
         req = Requests.execute(0, "uname", stdout_coro=_stdout_coro)
-        replies = await ltx.gather([req], timeout=3)
+        replies = await ltx.gather([req])
+        assert not ltx.exception()
         reply = replies[req]
 
         assert ''.join(stdout) == "Linux\n"
@@ -100,7 +103,8 @@ class TestLTX:
         start_t = time.monotonic()
         req = Requests.execute(
             0, "echo -n ciao", stdout_coro=_stdout_coro)
-        replies = await ltx.gather([req], timeout=3)
+        replies = await ltx.gather([req])
+        assert not ltx.exception()
         reply = replies[req]
 
         assert ''.join(stdout) == "ciao"
@@ -127,8 +131,10 @@ class TestLTX:
                 stdout_coro=_stdout_coro))
 
         start_t = time.monotonic()
-        replies = await ltx.gather(req, timeout=3)
+        replies = await ltx.gather(req)
         end_t = time.monotonic()
+
+        assert not ltx.exception()
 
         for reply in replies.values():
             assert start_t < reply[0] * 1e-9 < end_t
@@ -147,7 +153,8 @@ class TestLTX:
         pfile = tmp_path / 'file.bin'
 
         req = Requests.set_file(str(pfile), data)
-        await ltx.gather([req], timeout=5)
+        await ltx.gather([req])
+        assert not ltx.exception()
 
         assert pfile.read_bytes() == data
 
@@ -159,7 +166,8 @@ class TestLTX:
         pfile.write_bytes(b'AaXa\x00\x01\x02Zz' * 1024)
 
         req = Requests.get_file(str(pfile))
-        replies = await ltx.gather([req], timeout=5)
+        replies = await ltx.gather([req])
+        assert not ltx.exception()
 
         assert replies[req][0] == str(pfile)
         assert pfile.read_bytes() == replies[req][1]
@@ -171,7 +179,8 @@ class TestLTX:
         start_t = time.monotonic()
         exec_req = Requests.execute(0, "sleep 1")
         kill_req = Requests.kill(0)
-        replies = await ltx.gather([exec_req, kill_req], timeout=3)
+        replies = await ltx.gather([exec_req, kill_req])
+        assert not ltx.exception()
         reply = replies[exec_req]
 
         assert start_t < reply[0] * 1e-9 < time.monotonic()
@@ -186,7 +195,8 @@ class TestLTX:
         start_t = time.monotonic()
         env_req = Requests.env(0, "HELLO", "CIAO")
         exec_req = Requests.execute(0, "echo -n $HELLO")
-        replies = await ltx.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req])
+        assert not ltx.exception()
         reply = replies[exec_req]
 
         assert start_t < reply[0] * 1e-9 < time.monotonic()
@@ -201,7 +211,8 @@ class TestLTX:
         start_t = time.monotonic()
         env_req = Requests.env(128, "HELLO", "CIAO")
         exec_req = Requests.execute(0, "echo -n $HELLO")
-        replies = await ltx.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req])
+        assert not ltx.exception()
         reply = replies[exec_req]
 
         assert start_t < reply[0] * 1e-9 < time.monotonic()
@@ -218,7 +229,8 @@ class TestLTX:
         start_t = time.monotonic()
         env_req = Requests.cwd(0, path)
         exec_req = Requests.execute(0, "echo -n $PWD")
-        replies = await ltx.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req])
+        assert not ltx.exception()
         reply = replies[exec_req]
 
         assert start_t < reply[0] * 1e-9 < time.monotonic()
@@ -235,7 +247,8 @@ class TestLTX:
         start_t = time.monotonic()
         env_req = Requests.cwd(128, path)
         exec_req = Requests.execute(0, "echo -n $PWD")
-        replies = await ltx.gather([env_req, exec_req], timeout=3)
+        replies = await ltx.gather([env_req, exec_req])
+        assert not ltx.exception()
         reply = replies[exec_req]
 
         assert start_t < reply[0] * 1e-9 < time.monotonic()
@@ -259,7 +272,8 @@ class TestLTX:
         requests.append(Requests.kill(0))
         requests.append(Requests.get_file(str(pfile)))
 
-        await ltx.gather(requests, timeout=10)
+        await ltx.gather(requests)
+        assert not ltx.exception()
 
 
 @pytest.fixture

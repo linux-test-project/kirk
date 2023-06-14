@@ -78,7 +78,7 @@ class LTXSUT(SUT):
                 requests.append(Requests.kill(slot_id))
 
             if requests:
-                await self._send_request(requests, timeout=360)
+                await self._send_request(requests)
 
                 while self._slots:
                     await asyncio.sleep(1e-2)
@@ -103,15 +103,14 @@ class LTXSUT(SUT):
             if err.errno == 9:
                 pass
 
-    async def _send_request(self, requests: list, timeout: float) -> dict:
+    async def _send_request(self, requests: list) -> dict:
         """
         Wrapper around `ltx.gather` to catch `LTXError` exception.
         """
-        replies = None
-        try:
-            replies = await self._ltx.gather(requests, timeout=timeout)
-        except LTXError as err:
-            raise SUTError(err)
+        replies = await self._ltx.gather(requests)
+
+        if self._ltx.exception():
+            raise self._ltx.exception()
 
         return replies
 
@@ -146,7 +145,7 @@ class LTXSUT(SUT):
 
         req = Requests.ping()
         start_t = time.monotonic()
-        replies = await self._send_request([req], timeout=1)
+        replies = await self._send_request([req])
 
         return (replies[req][0] * 1e-9) - start_t
 
@@ -164,7 +163,7 @@ class LTXSUT(SUT):
         except LTXError as err:
             raise SUTError(err)
 
-        await self._send_request([Requests.version()], timeout=10)
+        await self._send_request([Requests.version()])
 
     async def run_command(
             self,
@@ -204,7 +203,7 @@ class LTXSUT(SUT):
                 stdout_coro=_stdout_coro)
 
             requests.append(exec_req)
-            replies = await self._send_request(requests, timeout=3600)
+            replies = await self._send_request(requests)
             reply = replies[exec_req]
 
             ret = {
@@ -234,7 +233,7 @@ class LTXSUT(SUT):
 
         async with self._fetch_lock:
             req = Requests.get_file(target_path)
-            replies = await self._send_request([req], timeout=3600)
+            replies = await self._send_request([req])
             reply = replies[req]
 
             return reply[1]

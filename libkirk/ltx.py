@@ -48,7 +48,14 @@ class Request:
     def __init__(self) -> None:
         self._logger = logging.getLogger("ltx.request")
         self._completed = False
-        self._done_coro = None
+        self._done_coro = []
+        self._exc = None
+
+    def exception(self) -> Exception:
+        """
+        Return an exception if an error occured during request.
+        """
+        return self._exc
 
     @property
     def completed(self) -> bool:
@@ -63,7 +70,7 @@ class Request:
         :param coro: called when request is done
         :type coro: Coroutine
         """
-        self._done_coro = coro
+        self._done_coro.append(coro)
 
     async def _raise_complete(self, *args) -> None:
         """
@@ -71,7 +78,9 @@ class Request:
         """
         if self._done_coro:
             self._logger.info("Raising 'on_complete(self, %s)'", args)
-            await self._done_coro(self, *args)
+
+            for coro in self._done_coro:
+                await coro(self, *args)
 
         self._completed = True
 
@@ -137,7 +146,8 @@ class Requests:
                 self._echoed = True
             elif message[0] == self.PONG:
                 if not self._echoed:
-                    raise LTXError("PONG received without PING echo")
+                    self._exc = LTXError("PONG received without PING echo")
+                    return
 
                 end_t = message[1]
 
@@ -366,7 +376,8 @@ class Requests:
                 self._echoed = True
             elif message[0] == self.LOG:
                 if not self._echoed:
-                    raise LTXError("LOG received without EXEC echo")
+                    self._exc = LTXError("LOG received without EXEC echo")
+                    return
 
                 log = message[3]
 
@@ -378,7 +389,8 @@ class Requests:
                         await self._stdout_coro(log)
             elif message[0] == self.RESULT:
                 if not self._echoed:
-                    raise LTXError("RESULT received without EXEC echo")
+                    self._exc = LTXError("RESULT received without EXEC echo")
+                    return
 
                 self._logger.info("RESULT received")
 
@@ -469,6 +481,7 @@ class LTX:
         self._lock = asyncio.Lock()
         self._task = None
         self._messages = []
+        self._exc = None
 
     async def __aenter__(self) -> None:
         """
@@ -502,8 +515,11 @@ class LTX:
 
         self._logger.info("Connecting to LTX")
 
+        self._exc = None
         self._task = libkirk.create_task(self._polling())
-        self._check_errors()
+
+        if self.exception():
+            raise self.exception()
 
         self._logger.info("Connected")
 
@@ -515,13 +531,21 @@ class LTX:
             return
 
         self._logger.info("Disconnecting")
-        self._check_errors()
         self._stop = True
 
         while self.connected:
             await asyncio.sleep(0.005)
 
+        if self.exception():
+            raise self.exception()
+
         self._logger.info("Disconnected")
+
+    def exception(self) -> Exception:
+        """
+        Return an exception if error occurs during execution.
+        """
+        return self._exc
 
     async def send(self, requests: list) -> None:
         """
@@ -530,8 +554,6 @@ class LTX:
         :param requests: list of requests to send
         :type requests: list
         """
-        self._check_errors()
-
         if not requests:
             raise ValueError("No requests given")
 
@@ -547,46 +569,37 @@ class LTX:
 
             await self._write(bytes(tosend))
 
-    async def gather(self, requests: list, timeout: float) -> dict:
+    async def gather(self, requests: list) -> dict:
         """
         Gather multiple requests and wait for the response, then return all
         rquests' replies inside a dictionary that maps requests with their
-        reply. Beware that this coroutine will override done event for
-        all requests.
+        reply.
         """
         req_len = len(requests)
         replies = {}
-
-        async def wait_for_completed():
-            while len(replies) != req_len:
-                await asyncio.sleep(0.005)
 
         async def on_complete(req, *args):
             replies[req] = args
 
         for req in requests:
             req.add_done_coro(on_complete)
+            req.add_done_coro(self._check_request_error)
 
-        await asyncio.gather(*[
-            self.send(requests),
-            asyncio.wait_for(wait_for_completed(), timeout=timeout),
-        ])
+        try:
+            await self.send(requests)
+
+            while len(replies) != req_len:
+                await asyncio.sleep(0.005)
+        except LTXError as err:
+            self._exc = err
 
         return replies
 
-    def _check_errors(self) -> None:
+    async def _check_request_error(self, req, *_) -> None:
         """
-        Handle task discard event.
+        Check if request raised an error.
         """
-        if not self._task:
-            return
-
-        try:
-            err = self._task.exception()
-            if err is not None:
-                raise err
-        except asyncio.InvalidStateError:
-            pass
+        self._exc = req.exception()
 
     async def _read(self, size: int) -> bytes:
         """
@@ -652,6 +665,8 @@ class LTX:
                             await self._feed_requests(msg)
                         except msgpack.OutOfData:
                             break
+        except LTXError as err:
+            self._exc = err
         finally:
             self._logger.info("Producer has stopped")
 
