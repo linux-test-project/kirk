@@ -5,14 +5,14 @@ import os
 import pytest
 from libkirk.data import Test
 from libkirk.host import HostSUT
-from libkirk.kselftest import KselftestFramework
+from libkirk.kselftests import KselftestFramework
 
 pytestmark = pytest.mark.asyncio
 
 
-class TestKselftestFramework:
+class TestKselftestsFramework:
     """
-    Kselftest framework unittests.
+    Kselftests framework unittests.
     """
     GROUPS = [
         "cgroup"
@@ -68,7 +68,7 @@ class TestKselftestFramework:
         """
         Test that name property is not empty.
         """
-        assert framework.name == "kselftest"
+        assert framework.name == "kselftests"
 
     async def test_get_suites(self, framework, sut):
         """

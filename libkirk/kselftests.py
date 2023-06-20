@@ -26,12 +26,12 @@ class KselftestFramework(Framework):
 
     @property
     def name(self) -> str:
-        return "kselftest"
+        return "kselftests"
 
     @property
     def config_help(self) -> dict:
         return {
-            "root": "kselftest folder"
+            "root": "kselftests folder"
         }
 
     def setup(self, **kwargs: dict) -> None:
