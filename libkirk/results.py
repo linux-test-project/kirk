@@ -166,6 +166,14 @@ class TestResults(Results):
         return self._stdout
 
     @property
+    def status(self) -> int:
+        """
+        Overall test result status.
+        :returns: int
+        """
+        return self._status
+
+    @property
     def exec_time(self) -> float:
         return self._exec_t
 
@@ -188,10 +196,6 @@ class TestResults(Results):
     @property
     def warnings(self) -> int:
         return self._warns
-
-    @property
-    def status(self) -> int:
-        return self._status
 
 
 class SuiteResults(Results):
