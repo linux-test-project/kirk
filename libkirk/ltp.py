@@ -291,7 +291,7 @@ class LTPFramework(Framework):
                 elif not error:
                     failed = 1
 
-        if retcode == 2 or retcode == -1:
+        if retcode in (2, -1):
             status = ResultStatus.BROK
         elif retcode == 4:
             status = ResultStatus.WARN
