@@ -6,7 +6,7 @@ import asyncio
 import pytest
 from libkirk.data import Test
 from libkirk.data import Suite
-from libkirk.results import SuiteResults, TestResults
+from libkirk.results import SuiteResults, TestResults, ResultStatus
 from libkirk.export import JSONExporter
 
 
@@ -56,7 +56,8 @@ class TestJSONExporter:
                 warnings=0,
                 exec_time=1,
                 retcode=0,
-                stdout="folder\nfile.txt"
+                stdout="folder\nfile.txt",
+                status=0,
             ),
             TestResults(
                 test=tests[1],
@@ -67,7 +68,8 @@ class TestJSONExporter:
                 warnings=0,
                 exec_time=1,
                 retcode=0,
-                stdout="folder\nfile.txt"
+                stdout="folder\nfile.txt",
+                status=0,
             ),
             TestResults(
                 test=tests[2],
@@ -78,7 +80,8 @@ class TestJSONExporter:
                 warnings=0,
                 exec_time=1,
                 retcode=1,
-                stdout=""
+                stdout="",
+                status=ResultStatus.FAIL,
             ),
         ]
 

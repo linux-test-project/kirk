@@ -9,6 +9,7 @@ import os
 import json
 import logging
 from libkirk import KirkException
+from libkirk.results import ResultStatus
 
 
 class ExporterError(KirkException):
@@ -60,13 +61,13 @@ class JSONExporter(Exporter):
         for result in results:
             for test_report in result.tests_results:
                 status = ""
-                if test_report.return_code == 0:
+                if test_report.status == ResultStatus.PASS:
                     status = "pass"
-                elif test_report.return_code == 2:
+                elif test_report.status == ResultStatus.BROK:
                     status = "brok"
-                elif test_report.return_code == 4:
+                elif test_report.status == ResultStatus.WARN:
                     status = "warn"
-                elif test_report.return_code == 32:
+                elif test_report.status == ResultStatus.CONF:
                     status = "conf"
                 else:
                     status = "fail"

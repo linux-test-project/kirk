@@ -10,6 +10,7 @@ import re
 import json
 import logging
 from libkirk.results import TestResults
+from libkirk.results import ResultStatus
 from libkirk.sut import SUT
 from libkirk.data import Suite
 from libkirk.data import Test
@@ -257,6 +258,7 @@ class LTPFramework(Framework):
         skipped = 0
         warnings = 0
         error = retcode == -1
+        status = ResultStatus.PASS
 
         if match:
             passed = int(match.group("passed"))
@@ -289,6 +291,15 @@ class LTPFramework(Framework):
                 elif not error:
                     failed = 1
 
+        if retcode == 2 or retcode == -1:
+            status = ResultStatus.BROK
+        elif retcode == 4:
+            status = ResultStatus.WARN
+        elif retcode == 32:
+            status = ResultStatus.CONF
+        else:
+            status = ResultStatus.FAIL
+
         if error:
             broken = 1
 
@@ -302,6 +313,7 @@ class LTPFramework(Framework):
             exec_time=exec_t,
             retcode=retcode,
             stdout=stdout,
+            status=status,
         )
 
         return result

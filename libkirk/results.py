@@ -9,6 +9,29 @@ from libkirk.data import Test
 from libkirk.data import Suite
 
 
+class ResultStatus:
+    """
+    Overall status of the test. This is a specific flag that is used to
+    recognize final test status. For example, we might have 10 tests passing
+    inside a single test binary, but the overall status of the test is fine, so
+    we assign a PASS status.
+    """
+    # regular test run
+    PASS = 0
+
+    # test broken result
+    BROK = 2
+
+    # test warns
+    WARN = 4
+
+    # test failure
+    FAIL = 16
+
+    # test configuration error
+    CONF = 32
+
+
 class Results:
     """
     Base class for results.
@@ -84,6 +107,8 @@ class TestResults(Results):
         :type warnings: int
         :param exec_time: time for test's execution
         :type exec_time: float
+        :param status: overall status of the test
+        :type status: int
         :param retcode: return code of the executed test
         :type retcode: int
         :param stdout: stdout of the test
@@ -97,6 +122,7 @@ class TestResults(Results):
         self._warns = max(kwargs.get("warnings", 0), 0)
         self._exec_t = max(kwargs.get("exec_time", 0.0), 0.0)
         self._retcode = kwargs.get("retcode", 0)
+        self._status = kwargs.get("status", ResultStatus.PASS)
         self._stdout = kwargs.get("stdout", None)
 
         if not self._test:
@@ -110,6 +136,7 @@ class TestResults(Results):
             f"broken: {self._broken}, " \
             f"skipped: {self._skipped}, " \
             f"warnins: {self._warns}, " \
+            f"status: {self._status}, " \
             f"exec_time: {self._exec_t}, " \
             f"retcode: {self._retcode}, " \
             f"stdout: {repr(self._stdout)}"
@@ -161,6 +188,10 @@ class TestResults(Results):
     @property
     def warnings(self) -> int:
         return self._warns
+
+    @property
+    def status(self) -> int:
+        return self._status
 
 
 class SuiteResults(Results):

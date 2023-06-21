@@ -12,6 +12,7 @@ from libkirk.sut import SUT
 from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.results import TestResults
+from libkirk.results import ResultStatus
 from libkirk.framework import Framework
 from libkirk.framework import FrameworkError
 
@@ -151,6 +152,7 @@ class Liburing(Framework):
         broken = 0
         skipped = 0
         error = retcode == -1
+        status = ResultStatus.PASS
 
         skip_msgs = re.findall(r'[Ss]kip(ped|ping)?', stdout.lower())
         if skip_msgs:
@@ -159,9 +161,11 @@ class Liburing(Framework):
         if retcode == 0:
             passed = 1
         elif retcode != 0 and not error:
+            status = ResultStatus.FAIL
             failed = 1
 
         if error:
+            status = ResultStatus.BROK
             broken = 1
 
         result = TestResults(
@@ -174,6 +178,7 @@ class Liburing(Framework):
             exec_time=exec_t,
             retcode=retcode,
             stdout=stdout,
+            status=status,
         )
 
         return result
