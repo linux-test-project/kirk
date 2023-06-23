@@ -96,8 +96,11 @@ class EventsHandler:
         if not coros:
             return
 
+        tasks = []
         for coro in coros:
-            await self._tasks.put(coro(*args, **kwargs))
+            tasks.append(coro(*args, **kwargs))
+
+        self._tasks.put(asyncio.gather(*tasks))
 
     async def _consume(self) -> None:
         """
