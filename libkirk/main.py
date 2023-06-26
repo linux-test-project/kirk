@@ -199,7 +199,15 @@ def _start_session(
         except re.error:
             parser.error(f"'{skip_tests}' is not a valid regular expression")
 
-    # create session object
+    # check if session can be restored
+    restore_dir = args.restore
+    if restore_dir and os.path.islink(args.restore):
+        restore_dir = os.readlink(args.restore)
+
+    if restore_dir and not os.path.isdir(restore_dir):
+        parser.error(f"Can't restore '{args.restore}'. Folder doesn't exist")
+
+    # create temporary directory
     tmpdir = None
     if args.tmp_dir == '':
         tmpdir = TempDir(None)
@@ -265,7 +273,8 @@ def _start_session(
         await session.run(
             command=args.run_command,
             suites=args.run_suite,
-            report_path=args.json_report
+            report_path=args.json_report,
+            restore=restore_dir,
         )
         await libkirk.events.stop()
 
@@ -312,6 +321,11 @@ def run(cmd_args: list = None) -> None:
         type=str,
         default="/tmp",
         help="Temporary directory")
+    parser.add_argument(
+        "--restore",
+        "-R",
+        type=str,
+        help="Restore a specific session")
 
     # tests setup arguments
     parser.add_argument(

@@ -166,6 +166,42 @@ class TestMain:
         out, _ = capsys.readouterr()
         assert "test00: pass" in out
 
+    def test_restore_suite(self, tmpdir):
+        """
+        Test --restore option.
+        """
+        temp = tmpdir.mkdir("temp")
+
+        # run a normal session
+        cmd_args = [
+            "--tmp-dir", str(temp),
+            "--framework", "dummy",
+            "--run-suite", "suite01"
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        self.read_report(temp, 2)
+
+        # restore session
+        name = pwd.getpwuid(os.getuid()).pw_name
+        cmd_args = [
+            "--tmp-dir", str(temp),
+            "--restore", f"{str(temp)}/kirk.{name}/latest",
+            "--framework", "dummy",
+            "--run-suite", "suite01", "environ"
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        self.read_report(temp, 1)
+
     def test_json_report(self, tmpdir):
         """
         Test --json-report option.

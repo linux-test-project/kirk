@@ -113,8 +113,16 @@ It's possible to run a single command before running testing suites using
         --run-suite syscalls
 
 Every session has a temporary directory that can be found in
-`/<TMPDIR>/kirk-of<username>`. Inside this folder there's a symlink
+`/<TMPDIR>/kirk.<username>`. Inside this folder there's a symlink
 called `latest`, pointing to the latest session's temporary directory.
+
+In certain cases, `kirk` sessions can be restored. This can be really helpful
+when we need to restore the last session after a system crash:
+
+    # restore the latest session
+    ./kirk --framework ltp \
+        --restore /tmp/kirk.<username>/latest \
+        --run-suite syscalls
 
 Setting up console for Qemu
 ===========================

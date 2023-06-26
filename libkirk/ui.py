@@ -33,7 +33,9 @@ class ConsoleUserInterface:
     def __init__(self, no_colors: bool = False) -> None:
         self._no_colors = no_colors
         self._line = ""
+        self._restore = ""
 
+        libkirk.events.register("session_restore", self.session_restore)
         libkirk.events.register("session_started", self.session_started)
         libkirk.events.register("session_stopped", self.session_stopped)
         libkirk.events.register("sut_start", self.sut_start)
@@ -77,6 +79,9 @@ class ConsoleUserInterface:
             uf_time = f"{seconds:.3f}s"
 
         return uf_time
+
+    async def session_restore(self, restore: str) -> None:
+        self._print(f"Restore session: {restore}")
 
     async def session_started(self, tmpdir: str) -> None:
         uname = platform.uname()
