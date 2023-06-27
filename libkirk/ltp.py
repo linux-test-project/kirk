@@ -57,6 +57,10 @@ class LTPFramework(Framework):
         if env:
             self._env.update(env)
 
+        timeout = kwargs.get("test_timeout", None)
+        if timeout:
+            self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
+
         root = kwargs.get("root", None)
         if root:
             self._root = root

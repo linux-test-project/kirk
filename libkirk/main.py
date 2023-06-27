@@ -238,6 +238,13 @@ def _start_session(
     fw_config = args.framework.copy()
     if args.env:
         fw_config['env'] = args.env.copy()
+
+    if args.exec_timeout:
+        fw_config['test_timeout'] = args.exec_timeout
+
+    if args.suite_timeout:
+        fw_config['suite_timeout'] = args.suite_timeout
+
     try:
         framework.setup(**fw_config)
     except FrameworkError as err:
