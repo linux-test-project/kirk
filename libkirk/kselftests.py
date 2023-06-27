@@ -1,7 +1,7 @@
 """
-.. module:: kselftest
+.. module:: kselftests
     :platform: Linux
-    :synopsis: kselftest framework support
+    :synopsis: kselftests framework support
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
@@ -18,11 +18,11 @@ from libkirk.framework import Framework
 
 class KselftestFramework(Framework):
     """
-    kselftest testing suite integration class.
+    kselftests testing suite integration class.
     """
 
     def __init__(self) -> None:
-        self._logger = logging.getLogger("libkirk.kselftest")
+        self._logger = logging.getLogger("libkirk.kselftests")
         self._root = None
 
     @property
@@ -90,7 +90,7 @@ class KselftestFramework(Framework):
         ret = await sut.run_command(f"test -d {self._root}")
         if ret["returncode"] != 0:
             raise KirkException(
-                f"kselftest folder doesn't exist: {self._root}")
+                f"kselftests folder doesn't exist: {self._root}")
 
         suite = None
         if name == "cgroup":
