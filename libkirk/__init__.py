@@ -98,12 +98,12 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
             })
 
 
-def to_thread(coro: callable, *args: typing.Any) -> typing.Any:
+def to_thread(callback: callable, *args: typing.Any) -> typing.Any:
     """
-    Run coroutine inside a thread. This is useful for blocking I/O operations.
+    Run callback inside a thread. This is useful for blocking I/O operations.
     """
     loop = get_event_loop()
-    return loop.run_in_executor(None, coro, *args)
+    return loop.run_in_executor(None, callback, *args)
 
 
 def run(coro: typing.Coroutine) -> typing.Any:
