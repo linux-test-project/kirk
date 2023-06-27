@@ -185,7 +185,58 @@ def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     return skip
 
 
-# pylint: disable=too-many-statements
+def _get_sut(
+        args: argparse.Namespace,
+        parser: argparse.ArgumentParser,
+        tmpdir: TempDir) -> SUT:
+    """
+    Create and return SUT object.
+    """
+    sut_config = args.sut.copy()
+    sut_config["tmpdir"] = tmpdir.abspath
+
+    sut_name = args.sut["name"]
+    sut = _get_plugin(LOADED_SUT, sut_name)
+    if not sut:
+        parser.error(f"'{sut_name}' SUT is not available")
+
+    try:
+        sut.setup(**sut_config)
+    except SUTError as err:
+        parser.error(str(err))
+
+    return sut
+
+
+def _get_framework(
+        args: argparse.Namespace,
+        parser: argparse.ArgumentParser) -> Framework:
+    """
+    Create and framework object.
+    """
+    fw_config = args.framework.copy()
+    if args.env:
+        fw_config['env'] = args.env.copy()
+
+    if args.exec_timeout:
+        fw_config['test_timeout'] = args.exec_timeout
+
+    if args.suite_timeout:
+        fw_config['suite_timeout'] = args.suite_timeout
+
+    fw_name = args.framework["name"]
+    framework = _get_plugin(LOADED_FRAMEWORK, fw_name)
+    if not framework:
+        parser.error(f"'{fw_name}' framework is not available")
+
+    try:
+        framework.setup(**fw_config)
+    except FrameworkError as err:
+        parser.error(str(err))
+
+    return framework
+
+
 def _start_session(
         args: argparse.Namespace,
         parser: argparse.ArgumentParser) -> None:
@@ -216,39 +267,9 @@ def _start_session(
     else:
         tmpdir = TempDir("/tmp")
 
-    # get the current SUT
-    sut_name = args.sut["name"]
-    sut = _get_plugin(LOADED_SUT, sut_name)
-    if not sut:
-        parser.error(f"'{sut_name}' SUT is not available")
-
-    sut_config = args.sut.copy()
-    sut_config["tmpdir"] = tmpdir.abspath
-    try:
-        sut.setup(**sut_config)
-    except SUTError as err:
-        parser.error(str(err))
-
-    # get the current Framework
-    fw_name = args.framework["name"]
-    framework = _get_plugin(LOADED_FRAMEWORK, fw_name)
-    if not framework:
-        parser.error(f"'{fw_name}' framework is not available")
-
-    fw_config = args.framework.copy()
-    if args.env:
-        fw_config['env'] = args.env.copy()
-
-    if args.exec_timeout:
-        fw_config['test_timeout'] = args.exec_timeout
-
-    if args.suite_timeout:
-        fw_config['suite_timeout'] = args.suite_timeout
-
-    try:
-        framework.setup(**fw_config)
-    except FrameworkError as err:
-        parser.error(str(err))
+    # create SUT and Framework objects
+    sut = _get_sut(args, parser, tmpdir)
+    framework = _get_framework(args, parser)
 
     # start session
     session = Session(
