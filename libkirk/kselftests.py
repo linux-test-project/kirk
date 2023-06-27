@@ -50,17 +50,13 @@ class KselftestFramework(Framework):
             raise KirkException(
                 f"cgroup folder is not available: {cgroup_dir}")
 
-        names = []
-        for ext in ("c", "sh"):
-            ret = await sut.run_command(
-                f"basename -s .c -- test_*.{ext}",
-                cwd=cgroup_dir)
-            if ret["returncode"] != 0 or not ret["stdout"]:
-                raise KirkException("Can't read cgroup tests")
+        ret = await sut.run_command(
+            "basename -s .c -- test_*.c",
+            cwd=cgroup_dir)
+        if ret["returncode"] != 0 or not ret["stdout"]:
+            raise KirkException("Can't read cgroup tests")
 
-            tests = ret["stdout"].split('\n')
-            names.extend(tests)
-
+        names = ret["stdout"].split('\n')
         tests_obj = []
 
         for name in names:
