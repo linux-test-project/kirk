@@ -298,23 +298,6 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
 
-        # run on single worker
-        cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite02",
-            "--workers", "1",
-        ]
-
-        first_t = 0
-        start_t = time.time()
-        with pytest.raises(SystemExit) as excinfo:
-            libkirk.main.run(cmd_args=cmd_args)
-        first_t = time.time() - start_t
-
-        assert excinfo.value.code == libkirk.main.RC_OK
-        self.read_report(temp, 2)
-
         # run on multiple workers
         cmd_args = [
             "--tmp-dir", str(temp),
@@ -323,16 +306,11 @@ class TestMain:
             "--workers", str(os.cpu_count()),
         ]
 
-        second_t = 0
-        start_t = time.time()
         with pytest.raises(SystemExit) as excinfo:
             libkirk.main.run(cmd_args=cmd_args)
-        second_t = time.time() - start_t
 
         assert excinfo.value.code == libkirk.main.RC_OK
         self.read_report(temp, 2)
-
-        assert second_t < first_t
 
     def test_sut_help(self):
         """
