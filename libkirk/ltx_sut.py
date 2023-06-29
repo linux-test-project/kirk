@@ -109,11 +109,8 @@ class LTXSUT(SUT):
         """
         replies = await self._ltx.gather(requests)
 
-        try:
-            if self._ltx.exception():
-                raise self._ltx.exception()
-        except LTXError as err:
-            raise SUTError(err)
+        if self._ltx.exception():
+            raise SUTError(self._ltx.exception())
 
         return replies
 
