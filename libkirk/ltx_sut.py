@@ -109,8 +109,11 @@ class LTXSUT(SUT):
         """
         replies = await self._ltx.gather(requests)
 
-        if self._ltx.exception():
-            raise self._ltx.exception()
+        try:
+            if self._ltx.exception():
+                raise self._ltx.exception()
+        except LTXError as err:
+            raise SUTError(err)
 
         return replies
 
@@ -227,9 +230,6 @@ class LTXSUT(SUT):
 
         if not await self.is_running:
             raise SUTError("SSH connection is not present")
-
-        if not os.path.isfile(target_path):
-            raise SUTError("target path doesn't exist")
 
         async with self._fetch_lock:
             req = Requests.get_file(target_path)
