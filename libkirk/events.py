@@ -100,7 +100,7 @@ class EventsHandler:
         for coro in coros:
             tasks.append(coro(*args, **kwargs))
 
-        self._tasks.put(asyncio.gather(*tasks))
+        await self._tasks.put(asyncio.gather(*tasks))
 
     async def _consume(self) -> None:
         """
