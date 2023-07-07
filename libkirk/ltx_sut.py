@@ -78,7 +78,7 @@ class LTXSUT(SUT):
                 requests.append(Requests.kill(slot_id))
 
             if requests:
-                await self._send_request(requests)
+                await self._send_requests(requests)
 
                 while self._slots:
                     await asyncio.sleep(1e-2)
@@ -103,16 +103,17 @@ class LTXSUT(SUT):
             if err.errno == 9:
                 pass
 
-    async def _send_request(self, requests: list) -> dict:
+    async def _send_requests(self, requests: list) -> list:
         """
-        Wrapper around `ltx.gather` to catch `LTXError` exception.
+        Send requests and check for LTXError.
         """
-        replies = await self._ltx.gather(requests)
+        reply = None
+        try:
+            reply = await self._ltx.gather(requests)
+        except LTXError as err:
+            raise SUTError(err)
 
-        if self._ltx.exception():
-            raise SUTError(self._ltx.exception())
-
-        return replies
+        return reply
 
     async def _reserve_slot(self) -> int:
         """
@@ -145,7 +146,7 @@ class LTXSUT(SUT):
 
         req = Requests.ping()
         start_t = time.monotonic()
-        replies = await self._send_request([req])
+        replies = await self._send_requests([req])
 
         return (replies[req][0] * 1e-9) - start_t
 
@@ -163,7 +164,7 @@ class LTXSUT(SUT):
         except LTXError as err:
             raise SUTError(err)
 
-        await self._send_request([Requests.version()])
+        await self._send_requests([Requests.version()])
 
     async def run_command(
             self,
@@ -203,7 +204,7 @@ class LTXSUT(SUT):
                 stdout_coro=_stdout_coro)
 
             requests.append(exec_req)
-            replies = await self._send_request(requests)
+            replies = await self._send_requests(requests)
             reply = replies[exec_req]
 
             ret = {
@@ -230,7 +231,7 @@ class LTXSUT(SUT):
 
         async with self._fetch_lock:
             req = Requests.get_file(target_path)
-            replies = await self._send_request([req])
+            replies = await self._send_requests([req])
             reply = replies[req]
 
             return reply[1]

@@ -471,7 +471,7 @@ class LTX:
         self._lock = asyncio.Lock()
         self._task = None
         self._messages = []
-        self._exc = None
+        self._exception = None
 
     async def __aenter__(self) -> None:
         """
@@ -505,11 +505,11 @@ class LTX:
 
         self._logger.info("Connecting to LTX")
 
-        self._exc = None
+        self._exception = None
         self._task = libkirk.create_task(self._polling())
 
-        if self.exception():
-            raise self.exception()
+        if self._exception:
+            raise self._exception
 
         self._logger.info("Connected")
 
@@ -525,17 +525,13 @@ class LTX:
 
         while self.connected:
             await asyncio.sleep(0.005)
+            if self._exception:
+                raise self._exception
 
-        if self.exception():
-            raise self.exception()
+        if self._exception:
+            raise self._exception
 
         self._logger.info("Disconnected")
-
-    def exception(self) -> Exception:
-        """
-        Return an exception if error occurs during execution.
-        """
-        return self._exc
 
     async def send(self, requests: list) -> None:
         """
@@ -574,13 +570,15 @@ class LTX:
         for req in requests:
             req.add_done_coro(on_complete)
 
-        try:
-            await self.send(requests)
+        await self.send(requests)
 
-            while len(replies) != req_len:
-                await asyncio.sleep(0.005)
-        except LTXError as err:
-            self._exc = err
+        while len(replies) != req_len:
+            await asyncio.sleep(0.005)
+            if self._exception:
+                raise self._exception
+
+        if self._exception:
+            raise self._exception
 
         return replies
 
@@ -643,13 +641,13 @@ class LTX:
                                 raise LTXError("Message must be an array")
 
                             if msg[0] == Request.ERROR:
-                                raise LTXError(data[1])
+                                raise LTXError(msg[1])
 
                             await self._feed_requests(msg)
                         except msgpack.OutOfData:
                             break
         except LTXError as err:
-            self._exc = err
+            self._exception = err
         finally:
             self._logger.info("Producer has stopped")
 
