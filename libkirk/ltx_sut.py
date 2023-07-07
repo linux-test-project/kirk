@@ -57,6 +57,12 @@ class LTXSUT(SUT):
         self._stdin = kwargs.get("stdin", None)
         self._stdout = kwargs.get("stdout", None)
 
+        if not os.path.isfile(self._stdin):
+            raise SUTError(f"'{self._stdin}' stdin file doesn't exist")
+
+        if not os.path.isfile(self._stdout):
+            raise SUTError(f"'{self._stdout}' stdout file doesn't exist")
+
     @property
     def parallel_execution(self) -> bool:
         return True
