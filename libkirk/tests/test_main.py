@@ -2,6 +2,7 @@
 Unittests for main module.
 """
 import os
+import sys
 import pwd
 import time
 import json
@@ -66,6 +67,7 @@ class TestMain:
 
         assert excinfo.value.code == libkirk.main.RC_OK
 
+    @pytest.mark.skipif(sys.version_info < (3,8), reason="requires python3.8+")
     def test_run_command_timeout(self, tmpdir):
         """
         Test --run-command option with timeout.

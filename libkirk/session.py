@@ -231,6 +231,7 @@ class Session:
         Execute a single command on SUT.
         """
         async with self._exec_lock:
+            exc = None
             try:
                 await libkirk.events.fire("run_cmd_start", command)
 
@@ -247,10 +248,13 @@ class Session:
                     ret["stdout"],
                     ret["returncode"])
             except asyncio.TimeoutError:
-                raise KirkException(f"Command timeout: {repr(command)}")
+                exc = KirkException(f"Command timeout: {repr(command)}")
             except KirkException as err:
                 if not self._stop:
-                    raise err
+                    exc = err
+
+            if exc:
+                raise exc
 
     async def _inner_stop(self) -> None:
         """
