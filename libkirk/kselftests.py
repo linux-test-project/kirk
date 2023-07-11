@@ -56,7 +56,7 @@ class KselftestFramework(Framework):
         if ret["returncode"] != 0 or not ret["stdout"]:
             raise KirkException("Can't read cgroup tests")
 
-        names = ret["stdout"].split('\n')
+        names = [n.rstrip() for n in  ret["stdout"].split('\n')]
         tests_obj = []
 
         for name in names:
@@ -74,11 +74,47 @@ class KselftestFramework(Framework):
 
         return suite
 
+    async def _get_bpf(self, sut: SUT) -> Suite:
+        """
+        Return the eBPF testing suite. For now only covers test_progs.
+        """
+        bpf_dir = os.path.join(self._root, "bpf")
+
+        ret = await sut.run_command(f"test -d {bpf_dir}")
+        if ret["returncode"] != 0:
+            raise KirkException(
+                f"bpf folder is not available: {bpf_dir}")
+
+        self._logger.info("Running eBPF %s/test_progs --list", bpf_dir)
+        ret = await sut.run_command(
+            "./test_progs --list",
+            cwd=bpf_dir)
+        if ret["returncode"] != 0 or not ret["stdout"]:
+            raise KirkException("Can't list eBPF prog tests")
+
+        names = [n.rstrip() for n in  ret["stdout"].split('\n')]
+        tests_obj = []
+
+        for name in names:
+            if not name:
+                continue
+
+            tests_obj.append(Test(
+                name=name,
+                cmd="./test_progs",
+                args=["-t", name],
+                cwd=bpf_dir))
+
+        suite = Suite(name="bpf", tests=tests_obj)
+        self._logger.debug("suite=%s", suite)
+
+        return suite
+
     async def get_suites(self, sut: SUT) -> list:
         if not sut:
             raise ValueError("SUT is None")
 
-        return ["cgroup"]
+        return ["cgroup", "bpf"]
 
     async def find_suite(self, sut: SUT, name: str) -> Suite:
         if not sut:
@@ -95,6 +131,8 @@ class KselftestFramework(Framework):
         suite = None
         if name == "cgroup":
             suite = await self._get_cgroup(sut)
+        elif name == "bpf":
+            suite = await self._get_bpf(sut)
         else:
             raise KirkException(f"'{name}' suite is not available")
 

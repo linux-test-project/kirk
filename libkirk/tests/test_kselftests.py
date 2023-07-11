@@ -15,7 +15,8 @@ class TestKselftestsFramework:
     Kselftests framework unittests.
     """
     GROUPS = [
-        "cgroup"
+        "cgroup",
+        "bpf"
     ]
 
     TESTS = [
@@ -53,16 +54,27 @@ class TestKselftestsFramework:
         Prepare the temporary directory adding runtest folder.
         """
         for group in self.GROUPS:
-            cgroup_dir = tmpdir.mkdir(group)
+            group_dir = tmpdir.mkdir(group)
 
-            for name in self.TESTS:
-                # use a generic script simulating binary build
-                test_binfile = cgroup_dir / name
-                test_binfile.write(f"#!/bin/sh\n\necho -n {name}\n")
+            if group == "cgroup":
+                for name in self.TESTS:
+                    # use a generic script simulating binary build
+                    test_binfile = group_dir / name
+                    test_binfile.write(f"#!/bin/sh\n\necho -n {name}\n")
 
-                # source code of the test we are simulating
-                test_file = cgroup_dir / f"{name}.c"
-                test_file.write("int main() { return 0; }\n\n")
+                    # source code of the test we are simulating
+                    test_file = group_dir / f"{name}.c"
+                    test_file.write("int main() { return 0; }\n\n")
+
+            if group == "bpf":
+                test_binfile = group_dir / "test_progs"
+                with test_binfile.open('w') as f:
+                    print("#!/bin/sh\n", file=f)
+
+                    for name in self.TESTS:
+                        print(f"echo {name}", file=f)
+
+                test_binfile.chmod(0o700)
 
     def test_name(self, framework):
         """
@@ -89,11 +101,17 @@ class TestKselftestsFramework:
             for i in range(0, len(self.TESTS)):
                 test = suite.tests[i]
 
-                assert os.path.basename(test.command) in self.TESTS
-                assert not test.arguments
                 assert not test.env
                 assert test.cwd == str(tmpdir / group)
                 assert not test.parallelizable
+
+                if suite == "cgroup":
+                    assert os.path.basename(test.command) in self.TESTS
+                    assert not test.arguments
+                elif suite == "bpf":
+                    assert test.command == "./test_progs"
+                    assert test.arguments[0] == "-t"
+                    assert test.arguments[1] in self.TESTS
 
     async def test_read_result_passed(self, framework):
         """
