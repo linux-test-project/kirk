@@ -115,6 +115,8 @@ class EventsHandler:
         # pylint: disable=broad-except
         try:
             await task
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
             if "internal_error" not in self._events:
                 return

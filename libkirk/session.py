@@ -311,8 +311,6 @@ class Session:
                 if suites:
                     suites_obj = await self._read_suites(suites, restore)
                     await self._scheduler.schedule(suites_obj)
-            except asyncio.CancelledError:
-                await libkirk.events.fire("session_stopped")
             except KirkException as err:
                 if not self._stop:
                     self._logger.exception(err)

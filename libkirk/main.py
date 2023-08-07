@@ -237,6 +237,7 @@ def _get_framework(
     return framework
 
 
+# pylint: disable=too-many-statements
 def _start_session(
         args: argparse.Namespace,
         parser: argparse.ArgumentParser) -> None:
@@ -298,23 +299,38 @@ def _start_session(
         """
         Run session then stop events handler.
         """
-        await session.run(
-            command=args.run_command,
-            suites=args.run_suite,
-            report_path=args.json_report,
-            restore=restore_dir,
-        )
-        await libkirk.events.stop()
+        try:
+            await session.run(
+                command=args.run_command,
+                suites=args.run_suite,
+                report_path=args.json_report,
+                restore=restore_dir,
+            )
+        except asyncio.CancelledError:
+            await session.stop()
+        finally:
+            await libkirk.events.stop()
+
+    loop = libkirk.get_event_loop()
 
     try:
-        libkirk.run(asyncio.gather(*[
-            libkirk.create_task(libkirk.events.start()),
-            session_run()
-        ]))
+        loop.run_until_complete(
+            asyncio.gather(*[
+                libkirk.events.start(),
+                session_run()
+            ])
+        )
     except KeyboardInterrupt:
         exit_code = RC_INTERRUPT
     except KirkException:
         exit_code = RC_ERROR
+    finally:
+        try:
+            # at this point loop has been closed, so we can collect all
+            # tasks and cancel them
+            libkirk.cancel_tasks(loop)
+        except KeyboardInterrupt:
+            pass
 
     parser.exit(exit_code)
 
