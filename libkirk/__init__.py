@@ -12,6 +12,10 @@ import asyncio
 from libkirk.events import EventsHandler
 
 
+# Kirk version
+VERSION = '1.0'
+
+
 class KirkException(Exception):
     """
     The most generic exception that is raised by any module when

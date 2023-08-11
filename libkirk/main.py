@@ -346,6 +346,13 @@ def run(cmd_args: list = None) -> None:
     parser = argparse.ArgumentParser(
         description='Kirk - All-in-one Linux Testing Framework')
 
+    # generic arguments
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="store_true",
+        help="Print current version")
+
     # user interface arguments
     parser.add_argument(
         "--verbose",
@@ -445,6 +452,10 @@ def run(cmd_args: list = None) -> None:
 
     # parse comand line
     args = parser.parse_args(cmd_args)
+
+    if args.version:
+        print(f"kirk {libkirk.VERSION}")
+        parser.exit(RC_OK)
 
     if args.sut and "help" in args.sut:
         print(args.sut["help"])

@@ -4,11 +4,12 @@
    :synopsis: installer module
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@mailbox.org>
 """
+import libkirk
 from setuptools import setup
 
 setup(
     name='kirk',
-    version='1.0',
+    version=libkirk.VERSION,
     description='All-in-one Linux Testing Framework',
     author='Andrea Cervesato',
     author_email='andrea.cervesato@mailbox.org',
