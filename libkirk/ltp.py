@@ -38,11 +38,13 @@ class LTPFramework(Framework):
         self._logger = logging.getLogger("libkirk.ltp")
         self._root = None
         self._env = None
+        self._max_runtime = None
 
     @ property
     def config_help(self) -> dict:
         return {
             "root": "LTP install folder",
+            "max_runtime": "filter out all tests above this time value",
         }
 
     def setup(self, **kwargs: dict) -> None:
@@ -66,6 +68,16 @@ class LTPFramework(Framework):
             self._root = root
             self._env["LTPROOT"] = self._root
 
+        runtime = kwargs.get("max_runtime", None)
+
+        if runtime:
+            try:
+                runtime = float(runtime)
+            except TypeError:
+                raise FrameworkError("max_runtime must be an integer")
+
+            self._max_runtime = runtime
+
     async def _read_path(self, sut: SUT) -> dict:
         """
         Read PATH and initialize it with testcases folder as well.
@@ -86,6 +98,30 @@ class LTPFramework(Framework):
         self._logger.debug("PATH=%s", env["PATH"])
 
         return env
+
+    def _is_addable(self, test_params: dict) -> bool:
+        """
+        Check if test has to be added or not, according with test parameters
+        from metadata.
+        """
+        addable = True
+
+        # filter out max_runtime tests
+        runtime = test_params.get("max_runtime")
+        if runtime:
+            try:
+                runtime = float(runtime)
+                if runtime >= self._max_runtime:
+                    self._logger.info(
+                        "max_runtime is bigger than %f",
+                        self._max_runtime)
+                    addable = False
+            except TypeError:
+                self._logger.error(
+                    "metadata contains wrong max_runtime type: %s",
+                    runtime)
+
+        return addable
 
     # pylint: disable=too-many-locals
     async def _read_runtest(
@@ -145,6 +181,9 @@ class LTPFramework(Framework):
                     # so we can't decide if test can run in parallel or not
                     parallelizable = False
                 else:
+                    if not self._is_addable(test_params):
+                        continue
+
                     for blacklist_param in self.PARALLEL_BLACKLIST:
                         if blacklist_param in test_params:
                             parallelizable = False
