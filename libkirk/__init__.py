@@ -69,11 +69,9 @@ def all_tasks(loop: asyncio.AbstractEventLoop) -> list:
 
     # pylint: disable=no-member
     if sys.version_info >= (3, 7):
-        tasks = [t for t in asyncio.all_tasks(loop=loop) if t is not
-                asyncio.current_task()]
+        tasks = asyncio.all_tasks(loop=loop)
     else:
-        tasks = [t for t in asyncio.Task.all_tasks(loop=loop) if t is not
-                asyncio.tasks.Task.current_task()]
+        tasks = asyncio.Task.all_tasks(loop=loop)
 
     return tasks
 
