@@ -69,7 +69,7 @@ class TestLTPFramework:
         tests = {}
         for i in range(self.TESTS_NUM, self.TESTS_NUM * 2):
             name = f"slow_test0{i}"
-            tests[name] = {}
+            tests[name] = {"max_runtime": "10"}
 
         metadata_d = {"tests": tests}
         metadata = tmpdir.mkdir("metadata") / "ltp.json"
@@ -123,10 +123,20 @@ class TestLTPFramework:
                 str(tmpdir),
                 "testcases",
                 "bin")
-            assert test.parallelizable
+            assert not test.parallelizable
             assert "LTPROOT" in test.env
             assert "TMPDIR" in test.env
             assert "LTP_COLORIZE_OUTPUT" in test.env
+
+    async def test_find_suite_max_runtime(self, sut, tmpdir):
+        """
+        Test find_suite method when max_runtime is defined.
+        """
+        framework = LTPFramework()
+        framework.setup(root=str(tmpdir), max_runtime=5)
+
+        suite = await framework.find_suite(sut, "slow_suite")
+        assert len(suite.tests) == 0
 
     async def test_read_result_passed(self, framework):
         """
