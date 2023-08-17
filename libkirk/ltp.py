@@ -106,20 +106,21 @@ class LTPFramework(Framework):
         """
         addable = True
 
-        # filter out max_runtime tests
-        runtime = test_params.get("max_runtime")
-        if runtime:
-            try:
-                runtime = float(runtime)
-                if runtime >= self._max_runtime:
-                    self._logger.info(
-                        "max_runtime is bigger than %f",
-                        self._max_runtime)
-                    addable = False
-            except TypeError:
-                self._logger.error(
-                    "metadata contains wrong max_runtime type: %s",
-                    runtime)
+        # filter out max_runtime tests when required
+        if self._max_runtime:
+            runtime = test_params.get("max_runtime")
+            if runtime:
+                try:
+                    runtime = float(runtime)
+                    if runtime >= self._max_runtime:
+                        self._logger.info(
+                            "max_runtime is bigger than %f",
+                            self._max_runtime)
+                        addable = False
+                except TypeError:
+                    self._logger.error(
+                        "metadata contains wrong max_runtime type: %s",
+                        runtime)
 
         return addable
 
