@@ -143,7 +143,7 @@ class QemuSUT(SUT):
         self._tmpdir = kwargs.get("tmpdir", None)
         self._user = kwargs.get("user", None)
         self._password = kwargs.get("password", None)
-        self._prompt = kwargs.get("prompt", "# ")
+        self._prompt = kwargs.get("prompt", "#")
         self._image = kwargs.get("image", None)
         self._initrd = kwargs.get("initrd", None)
         self._kernel = kwargs.get("kernel", None)
