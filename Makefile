@@ -15,6 +15,6 @@ install:
 	install -m 00644 $(top_srcdir)/tools/kirk/libkirk/*.py $(BASE_DIR)/libkirk
 	install -m 00775 $(top_srcdir)/tools/kirk/kirk $(BASE_DIR)/kirk
 
-	ln -sf $(BASE_DIR)/kirk $(BASE_DIR)/runltp-ng
+	ln -sf kirk runltp-ng
 
 include $(top_srcdir)/include/mk/generic_leaf_target.mk
