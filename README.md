@@ -93,7 +93,7 @@ Some basic commands are the following:
 
     # run LTP syscalls testing suite via SSH
     ./kirk --framework ltp \
-        --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
+        --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite syscalls
 
     # run LTP syscalls testing suite in parallel on host using 16 workers
@@ -101,7 +101,7 @@ Some basic commands are the following:
 
     # run LTP syscalls testing suite in parallel via SSH using 16 workers
     ./kirk --framework ltp \
-        --sut=ssh:host myhost.com:user=root:key_file=myhost_id_rsa \
+        --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite syscalls --workers 16
 
 It's possible to run a single command before running testing suites using
