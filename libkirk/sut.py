@@ -253,7 +253,13 @@ class SUT(Plugin):
             stdout = ret["stdout"].rstrip()
 
             tainted_num = len(TAINED_MSG)
-            code = int(stdout.rstrip())
+            code = stdout.rstrip()
+
+            # output is likely message in stderr
+            if not code.isdigit():
+                raise SUTError(code)
+
+            code = int(code)
             bits = format(code, f"0{tainted_num}b")[::-1]
 
             messages = []
