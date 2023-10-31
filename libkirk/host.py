@@ -144,7 +144,7 @@ class HostSUT(SUT):
         try:
             kwargs = {
                 "stdout": asyncio.subprocess.PIPE,
-                "stderr": asyncio.subprocess.PIPE,
+                "stderr": asyncio.subprocess.STDOUT,
                 "cwd": cwd,
                 "preexec_fn": os.setsid
             }
