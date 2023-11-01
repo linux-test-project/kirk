@@ -122,3 +122,17 @@ class Test:
         Environment variables
         """
         return self._env
+
+    @property
+    def full_command(self):
+        """
+        Return the full command, with arguments as well.
+        For example, if `command="ls"` and `arguments="-l -a"`,
+        `full_command="ls -l -a"`.
+        """
+        cmd = self.command
+        if len(self.arguments) > 0:
+            cmd += ' '
+            cmd += ' '.join(self.arguments)
+
+        return cmd

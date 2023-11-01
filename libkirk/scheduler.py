@@ -131,18 +131,6 @@ class TestScheduler(Scheduler):
         if not self._framework:
             raise ValueError("Framework object is empty")
 
-    @ staticmethod
-    def _command_from_test(test: Test) -> str:
-        """
-        Returns a command from test.
-        """
-        cmd = test.command
-        if len(test.arguments) > 0:
-            cmd += ' '
-            cmd += ' '.join(test.arguments)
-
-        return cmd
-
     async def _get_tainted_status(self) -> tuple:
         """
         Check tainted status of the Kernel.
@@ -220,7 +208,7 @@ class TestScheduler(Scheduler):
             await self._write_kmsg(test)
 
             iobuffer = RedirectTestStdout(test)
-            cmd = self._command_from_test(test)
+            cmd = test.full_command
             start_t = time.time()
             exec_time = 0
             test_data = None
