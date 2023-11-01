@@ -34,6 +34,19 @@ class Framework(Plugin):
         """
         raise NotImplementedError()
 
+    async def find_command(self, sut: SUT, command: str) -> Test:
+        """
+        Search for command inside Framework folder and, if it's not found,
+        search for command in the operating system. Then return a Test object
+        which can be used to execute command.
+        :param sut: SUT object to communicate with
+        :type sut: SUT
+        :param command: command to execute
+        :type command: str
+        :returns: Test
+        """
+        raise NotImplementedError()
+
     async def find_suite(self, sut: SUT, name: str) -> Suite:
         """
         Search for suite with given name inside SUT.
