@@ -66,6 +66,18 @@ class TestLiburing:
         suites = await framework.get_suites(sut)
         assert suites == ["default"]
 
+    async def test_find_command(self, framework, sut, tmpdir):
+        """
+        Test find_command method.
+        """
+        test = await framework.find_command(sut, "test0 ciao bepi")
+        assert test.name == "test0"
+        assert test.command == "test0"
+        assert test.arguments == ["ciao", "bepi"]
+        assert not test.parallelizable
+        assert test.env == {"PATH": str(tmpdir)}
+        assert test.cwd == str(tmpdir)
+
     async def test_find_suite(self, framework, sut, tmpdir):
         """
         Test find_suite method.
