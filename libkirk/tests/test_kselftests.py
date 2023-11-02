@@ -89,6 +89,18 @@ class TestKselftestsFramework:
         suites = await framework.get_suites(sut)
         assert suites == self.GROUPS
 
+    async def test_find_command(self, framework, sut, tmpdir):
+        """
+        Test find_command method.
+        """
+        test = await framework.find_command(sut, "test_progs")
+        assert test.name == "test_progs"
+        assert test.command == "test_progs"
+        assert not test.arguments
+        assert not test.parallelizable
+        assert test.env == {"PATH": str(tmpdir / "bpf")}
+        assert test.cwd == str(tmpdir / "bpf")
+
     async def test_find_suite(self, framework, sut, tmpdir):
         """
         Test find_suite method.

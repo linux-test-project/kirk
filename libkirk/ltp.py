@@ -8,6 +8,7 @@
 import os
 import re
 import json
+import shlex
 import logging
 from libkirk.results import TestResults
 from libkirk.results import ResultStatus
@@ -39,6 +40,7 @@ class LTPFramework(Framework):
         self._root = None
         self._env = None
         self._max_runtime = None
+        self._tc_folder = None
 
     @ property
     def config_help(self) -> dict:
@@ -68,6 +70,8 @@ class LTPFramework(Framework):
             self._root = root
             self._env["LTPROOT"] = self._root
 
+        self._tc_folder = os.path.join(self._root, "testcases", "bin")
+
         runtime = kwargs.get("max_runtime", None)
 
         if runtime:
@@ -82,11 +86,9 @@ class LTPFramework(Framework):
         """
         Read PATH and initialize it with testcases folder as well.
         """
-        tc_path = os.path.join(self._root, "testcases", "bin")
-
         env = self._env.copy()
         if 'PATH' in env:
-            env["PATH"] = env["PATH"] + f":{tc_path}"
+            env["PATH"] = env["PATH"] + f":{self._tc_folder}"
         else:
             ret = await sut.run_command("echo -n $PATH")
             if ret["returncode"] != 0:
@@ -145,7 +147,6 @@ class LTPFramework(Framework):
 
         tests = []
         lines = content.split('\n')
-        tc_path = os.path.join(self._root, "testcases", "bin")
 
         for line in lines:
             if not line.strip() or line.strip().startswith("#"):
@@ -199,7 +200,7 @@ class LTPFramework(Framework):
                 name=test_name,
                 cmd=test_cmd,
                 args=test_args,
-                cwd=tc_path,
+                cwd=self._tc_folder,
                 env=env,
                 parallelizable=parallelizable)
 
@@ -240,6 +241,32 @@ class LTPFramework(Framework):
 
         suites = [line for line in stdout.split('\n') if line]
         return suites
+
+    async def find_command(self, sut: SUT, command: str) -> Test:
+        if not sut:
+            raise ValueError("SUT is None")
+
+        if not command:
+            raise ValueError("command is empty")
+
+        cmd_args = shlex.split(command)
+        cwd = None
+        env = None
+
+        ret = await sut.run_command(f"test -d {self._tc_folder}")
+        if ret["returncode"] == 0:
+            cwd = self._tc_folder
+            env = await self._read_path(sut)
+
+        test = Test(
+            name=cmd_args[0],
+            cmd=cmd_args[0],
+            args=cmd_args[1:] if len(cmd_args) > 0 else None,
+            cwd=cwd,
+            env=env,
+            parallelizable=False)
+
+        return test
 
     async def find_suite(self, sut: SUT, name: str) -> Suite:
         if not sut:

@@ -6,6 +6,7 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 import os
+import shlex
 import logging
 from libkirk import KirkException
 from libkirk.sut import SUT
@@ -115,6 +116,43 @@ class KselftestFramework(Framework):
             raise ValueError("SUT is None")
 
         return ["cgroup", "bpf"]
+
+    async def find_command(self, sut: SUT, command: str) -> Test:
+        if not sut:
+            raise ValueError("SUT is None")
+
+        if not command:
+            raise ValueError("command is empty")
+
+        cmd_args = shlex.split(command)
+        suite_folder = None
+
+        for suite in await self.get_suites(sut):
+            folder = os.path.join(self._root, suite)
+            binary = os.path.join(folder, cmd_args[0])
+
+            ret = await sut.run_command(f"test -f {binary}")
+            if ret["returncode"] == 0:
+                suite_folder = folder
+                break
+
+        cwd = None
+        env = None
+
+        ret = await sut.run_command(f"test -d {suite_folder}")
+        if ret["returncode"] == 0:
+            cwd = suite_folder
+            env={"PATH": suite_folder}
+
+        test = Test(
+            name=cmd_args[0],
+            cmd=cmd_args[0],
+            args=cmd_args[1:] if len(cmd_args) > 0 else None,
+            cwd=cwd,
+            env=env,
+            parallelizable=False)
+
+        return test
 
     async def find_suite(self, sut: SUT, name: str) -> Suite:
         if not sut:

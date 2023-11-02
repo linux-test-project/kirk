@@ -50,7 +50,7 @@ class TestLTPFramework:
         for i in range(self.TESTS_NUM):
             content += f"test0{i} echo ciao\n"
 
-        tmpdir.mkdir("testcases").mkdir("bin")
+        testcases = tmpdir.mkdir("testcases").mkdir("bin")
         runtest = tmpdir.mkdir("runtest")
 
         for i in range(self.SUITES_NUM):
@@ -75,6 +75,10 @@ class TestLTPFramework:
         metadata = tmpdir.mkdir("metadata") / "ltp.json"
         metadata.write(json.dumps(metadata_d))
 
+        # create shell test
+        test_sh = testcases / "test.sh"
+        test_sh.write("#!/bin/bash\necho $1 $2\n")
+
     def test_name(self, framework):
         """
         Test that name property is not empty.
@@ -90,6 +94,18 @@ class TestLTPFramework:
         assert "suite1" in suites
         assert "suite2" in suites
         assert "slow_suite" in suites
+
+    async def test_find_command(self, framework, sut, tmpdir):
+        """
+        Test find_command method.
+        """
+        test = await framework.find_command(sut, "test.sh ciao bepi")
+        assert test.name == "test.sh"
+        assert test.command == "test.sh"
+        assert test.arguments == ["ciao", "bepi"]
+        assert not test.parallelizable
+        assert test.cwd == tmpdir / "testcases" / "bin"
+        assert test.env
 
     async def test_find_suite(self, framework, sut, tmpdir):
         """
