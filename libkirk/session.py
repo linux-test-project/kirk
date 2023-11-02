@@ -235,9 +235,13 @@ class Session:
             try:
                 await libkirk.events.fire("run_cmd_start", command)
 
+                test = await self._framework.find_command(self._sut, command)
+
                 ret = await asyncio.wait_for(
                     self._sut.run_command(
-                        command,
+                        test.full_command,
+                        cwd=test.cwd,
+                        env=test.env,
                         iobuffer=RedirectSUTStdout(self._sut, True)),
                     timeout=self._exec_timeout
                 )

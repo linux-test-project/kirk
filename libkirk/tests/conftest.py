@@ -48,6 +48,9 @@ class DummyFramework(Framework):
     async def get_suites(self, sut: SUT) -> list:
         return ["suite01", "suite02", "sleep", "environ", "kernel_panic"]
 
+    async def find_command(self, sut: SUT, command: str) -> Test:
+        return Test(name=command, cmd=command)
+
     async def find_suite(self, sut: SUT, name: str) -> Suite:
         if name in "suite01":
             test0 = Test(
