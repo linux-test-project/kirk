@@ -155,13 +155,8 @@ class TestScheduler(Scheduler):
             self._logger.info("Can't write on /dev/kmsg from user")
             return
 
-        cmd = f"{test.command}"
-        if len(test.arguments) > 0:
-            cmd += ' '
-            cmd += ' '.join(test.arguments)
-
         message = f'{sys.argv[0]}[{os.getpid()}]: ' \
-            f'starting test {test.name} ({cmd})\n'
+            f'starting test {test.name} ({test.full_command})\n'
 
         await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
 
@@ -261,7 +256,7 @@ class TestScheduler(Scheduler):
             if status not in [self.STATUS_OK, self.KERNEL_TAINED]:
                 test_data = {
                     "name": test.name,
-                    "command": test.command,
+                    "command": test.full_command,
                     "stdout": iobuffer.stdout,
                     "returncode": -1,
                     "exec_time": exec_time,

@@ -272,7 +272,7 @@ class VerboseUserInterface(ConsoleUserInterface):
         self._print(test.name, color=self.CYAN, end="")
         self._print(" =====")
         self._print("command: ", end="")
-        self._print(f"{test.command} {' '.join(test.arguments)}")
+        self._print(test.full_command)
 
     async def test_completed(self, results: TestResults) -> None:
         if self._timed_out:
