@@ -154,7 +154,7 @@ class LTPFramework(Framework):
 
             self._logger.debug("Test declaration: %s", line)
 
-            parts = line.split()
+            parts = shlex.split(line)
             if len(parts) < 2:
                 raise FrameworkError(
                     "runtest file is not defining test command")
