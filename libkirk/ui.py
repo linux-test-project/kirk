@@ -46,6 +46,7 @@ class ConsoleUserInterface:
         libkirk.events.register("run_cmd_stop", self.run_cmd_stop)
         libkirk.events.register("suite_started", self.suite_started)
         libkirk.events.register("suite_completed", self.suite_completed)
+        libkirk.events.register("session_warning", self.session_warning)
         libkirk.events.register("session_error", self.session_error)
         libkirk.events.register("internal_error", self.internal_error)
 
@@ -157,6 +158,9 @@ class ConsoleUserInterface:
         self._print(
             f"Suite '{suite.name}' timed out after {timeout} seconds",
             color=self.RED)
+
+    async def session_warning(self, msg: str) -> None:
+        self._print(f"Warning: {msg}", color=self.YELLOW)
 
     async def session_error(self, error: str) -> None:
         self._print(f"Error: {error}", color=self.RED)

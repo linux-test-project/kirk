@@ -306,6 +306,11 @@ class Session:
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
 
+            if not self._sut.parallel_execution:
+                await libkirk.events.fire(
+                    "session_warning",
+                    "SUT doesn't support parallel execution")
+
             try:
                 await self._start_sut()
 
