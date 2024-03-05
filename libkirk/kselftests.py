@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+import re
 import os
 import shlex
 import logging
@@ -51,21 +52,26 @@ class KselftestFramework(Framework):
             raise KirkException(
                 f"cgroup folder is not available: {cgroup_dir}")
 
-        ret = await sut.run_command(
-            "basename -s .c -- test_*.c",
-            cwd=cgroup_dir)
+        ret = await sut.run_command("ls -1 test_*", cwd=cgroup_dir)
         if ret["returncode"] != 0 or not ret["stdout"]:
             raise KirkException("Can't read cgroup tests")
 
-        names = [n.rstrip() for n in  ret["stdout"].split('\n')]
+        # we want to loop into a list rather than using one regexp that
+        # rules everything. In this way we are not dependent by ls format
+        names = ret["stdout"].split('\n')
+        if not names:
+            raise KirkException("Can't find cgroup tests")
+
+        match = re.compile(r'^test_[^.]+$')
         tests_obj = []
 
         for name in names:
-            if not name:
+            myname = match.search(name)
+            if not myname:
                 continue
 
             tests_obj.append(Test(
-                name=name,
+                name=myname,
                 cmd=os.path.join(cgroup_dir, name),
                 cwd=cgroup_dir,
                 parallelizable=False))
