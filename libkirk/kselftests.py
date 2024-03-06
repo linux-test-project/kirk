@@ -71,7 +71,7 @@ class KselftestFramework(Framework):
                 continue
 
             tests_obj.append(Test(
-                name=myname,
+                name=myname.group(),
                 cmd=os.path.join(cgroup_dir, name),
                 cwd=cgroup_dir,
                 parallelizable=False))
