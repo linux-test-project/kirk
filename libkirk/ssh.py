@@ -269,8 +269,7 @@ class SSHSUT(SUT):
                 if proc:
                     self._procs.remove(proc)
 
-                    if proc.returncode is None:
-                        proc.kill()
+                    await proc.wait()
 
                     ret = {
                         "command": command,
