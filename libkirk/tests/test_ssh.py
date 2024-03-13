@@ -56,9 +56,9 @@ class _TestSSHSUT(_TestSUT):
     Test SSHSUT implementation using username/password.
     """
 
-    async def test_reset_command(self, config):
+    async def test_reset_cmd(self, config):
         """
-        Test reset_command option.
+        Test reset_cmd option.
         """
         kwargs = dict(reset_cmd="echo ciao")
         kwargs.update(config)
