@@ -4,13 +4,13 @@ Unittests for runner module.
 import re
 import asyncio
 import pytest
-from libkirk.sut import TAINED_MSG
+from libkirk.sut import TAINTED_MSG
 from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.host import HostSUT
 from libkirk.scheduler import TestScheduler
 from libkirk.scheduler import SuiteScheduler
-from libkirk.scheduler import KernelTainedError
+from libkirk.scheduler import KernelTaintedError
 from libkirk.scheduler import KernelTimeoutError
 from libkirk.scheduler import KernelPanicError
 
@@ -193,7 +193,7 @@ class TestTestScheduler:
                 parallelizable=True,
             ))
 
-        with pytest.raises(KernelTainedError):
+        with pytest.raises(KernelTaintedError):
             await runner.schedule(tests)
 
     @pytest.mark.parametrize("workers", [1, 10])
@@ -368,7 +368,7 @@ class TestSuiteScheduler:
         index = 0
         value = 0
 
-        for msg in TAINED_MSG:
+        for msg in TAINTED_MSG:
             tainted.append((value, [msg]))
             value = pow(2, index)
             index += 1
