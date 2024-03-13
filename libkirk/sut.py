@@ -35,7 +35,7 @@ class IOBuffer:
         raise NotImplementedError()
 
 
-TAINED_MSG = [
+TAINTED_MSG = [
     "proprietary module was loaded",
     "module was force loaded",
     "kernel running on an out of specification system",
@@ -252,7 +252,7 @@ class SUT(Plugin):
 
             stdout = ret["stdout"].rstrip()
 
-            tainted_num = len(TAINED_MSG)
+            tainted_num = len(TAINTED_MSG)
             code = stdout.rstrip()
 
             # output is likely message in stderr
@@ -265,7 +265,7 @@ class SUT(Plugin):
             messages = []
             for i in range(0, tainted_num):
                 if bits[i] == "1":
-                    msg = TAINED_MSG[i]
+                    msg = TAINTED_MSG[i]
                     messages.append(msg)
 
             if self._tainted_status.qsize() > 0:

@@ -23,7 +23,7 @@ from libkirk.results import TestResults
 from libkirk.results import SuiteResults
 
 
-class KernelTainedError(KirkException):
+class KernelTaintedError(KirkException):
     """
     Raised when kernel is tainted.
     """
@@ -98,7 +98,7 @@ class TestScheduler(Scheduler):
     STATUS_OK = 0
     TEST_TIMEOUT = 1
     KERNEL_PANIC = 2
-    KERNEL_TAINED = 3
+    KERNEL_TAINTED = 3
     KERNEL_TIMEOUT = 4
 
     def __init__(self, **kwargs: dict) -> None:
@@ -228,7 +228,7 @@ class TestScheduler(Scheduler):
                         tainted_msg2)
 
                     tainted_msg = tainted_msg2
-                    status = self.KERNEL_TAINED
+                    status = self.KERNEL_TAINTED
             except libkirk.sut.KernelPanicError:
                 exec_time = time.time() - start_t
 
@@ -253,7 +253,7 @@ class TestScheduler(Scheduler):
                     status = self.KERNEL_TIMEOUT
 
             # create test results and save it
-            if status not in [self.STATUS_OK, self.KERNEL_TAINED]:
+            if status not in [self.STATUS_OK, self.KERNEL_TAINTED]:
                 test_data = {
                     "name": test.name,
                     "command": test.full_command,
@@ -272,9 +272,9 @@ class TestScheduler(Scheduler):
             self._results.append(results)
 
             # raise kernel errors at the end so we can collect test results
-            if status == self.KERNEL_TAINED:
+            if status == self.KERNEL_TAINTED:
                 await libkirk.events.fire("kernel_tainted", tainted_msg)
-                raise KernelTainedError()
+                raise KernelTaintedError()
 
             if status == self.KERNEL_PANIC:
                 await libkirk.events.fire("kernel_panic")
@@ -508,7 +508,7 @@ class SuiteScheduler(Scheduler):
 
                     timed_out = True
                 except (KernelPanicError,
-                        KernelTainedError,
+                        KernelTaintedError,
                         KernelTimeoutError):
                     # once we catch a kernel error, restart the SUT
                     await self._restart_sut()

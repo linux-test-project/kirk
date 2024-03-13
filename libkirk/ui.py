@@ -266,7 +266,7 @@ class VerboseUserInterface(ConsoleUserInterface):
         self._print(data, end='')
 
     async def kernel_tainted(self, message: str) -> None:
-        self._print(f"Tained kernel: {message}", color=self.YELLOW)
+        self._print(f"Tainted kernel: {message}", color=self.YELLOW)
 
     async def test_timed_out(self, _: Test, timeout: int) -> None:
         self._timed_out = True
