@@ -57,7 +57,7 @@ class SSHSUT(SUT):
             "password": "root password",
             "timeout": "connection timeout in seconds (default: 10)",
             "key_file": "private key location",
-            "reset_command": "command to reset the remote SUT",
+            "reset_cmd": "command to reset the remote SUT",
             "sudo": "use sudo to access to root shell (default: 0)",
         }
 
