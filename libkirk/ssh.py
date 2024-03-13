@@ -55,7 +55,6 @@ class SSHSUT(SUT):
             "port": "TCP port of the service (default: 22)",
             "user": "name of the user (default: root)",
             "password": "root password",
-            "timeout": "connection timeout in seconds (default: 10)",
             "key_file": "private key location",
             "reset_cmd": "command to reset the remote SUT",
             "sudo": "use sudo to access to root shell (default: 0)",
