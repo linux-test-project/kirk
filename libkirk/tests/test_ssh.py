@@ -2,6 +2,7 @@
 Unittests for ssh module.
 """
 import os
+import subprocess
 import asyncio
 import pytest
 from libkirk.sut import IOBuffer
@@ -107,6 +108,31 @@ class _TestSSHSUT(_TestSUT):
         with pytest.raises(KernelPanicError):
             await sut.run_command(
                 "echo 'Kernel panic\nThis is a generic message'")
+
+    async def test_stderr(self, sut):
+        """
+        Test if we are correctly reading stderr.
+        """
+        await sut.communicate()
+
+        ret = await sut.run_command(">&2 echo ciao_stderr && echo ciao_stdout")
+        assert ret["stdout"] == "ciao_stdout\nciao_stderr\n"
+
+    async def test_long_stdout(self, sut):
+        """
+        Test really long stdout.
+        """
+        await sut.communicate()
+
+        result = subprocess.run(
+            "tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 10000",
+            shell=True,
+            capture_output=True,
+            text=True,
+            check=True)
+
+        ret = await sut.run_command(f"echo -n {result.stdout}")
+        assert ret["stdout"] == result.stdout
 
 
 @pytest.fixture
