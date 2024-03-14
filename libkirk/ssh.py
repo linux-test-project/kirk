@@ -18,6 +18,42 @@ from libkirk.sut import KernelPanicError
 try:
     import asyncssh
     import asyncssh.misc
+
+    class MySSHClientSession(asyncssh.SSHClientSession):
+        """
+        Custom SSHClientSession used to store stdout during execution of commands
+        and to check if Kernel Panic has occured in the system.
+        """
+
+        def __init__(self, iobuffer: IOBuffer):
+            self._output = []
+            self._iobuffer = iobuffer
+            self._panic = False
+
+        def data_received(self, data, _) -> None:
+            """
+            Override default data_received callback, storing stdout/stderr inside
+            a buffer and checking for kernel panic.
+            """
+            self._output.append(data)
+
+            if self._iobuffer:
+                self._iobuffer.write(data)
+
+            if "Kernel panic" in data:
+                self._panic = True
+
+        def kernel_panic(self) -> bool:
+            """
+            True if command triggered a kernel panic during its execution.
+            """
+            return self._panic
+
+        def get_output(self) -> list:
+            """
+            Return the list containing stored stdout/stderr messages.
+            """
+            return self._output
 except ModuleNotFoundError:
     pass
 
@@ -42,7 +78,7 @@ class SSHSUT(SUT):
         self._stop = False
         self._conn = None
         self._downloader = None
-        self._procs = []
+        self._channels = []
 
     @property
     def name(self) -> str:
@@ -188,14 +224,14 @@ class SSHSUT(SUT):
 
         self._stop = True
         try:
-            if self._procs:
-                self._logger.info("Killing %d process(es)", len(self._procs))
+            if self._channels:
+                self._logger.info("Killing %d process(es)", len(self._channels))
 
-                for proc in self._procs:
+                for proc in self._channels:
                     proc.kill()
-                    await proc.wait()
+                    await proc.wait_closed()
 
-                self._procs.clear()
+                self._channels.clear()
 
             if self._downloader:
                 await self._downloader.close()
@@ -244,38 +280,36 @@ class SSHSUT(SUT):
         async with self._session_sem:
             cmd = self._create_command(command, cwd, env)
             ret = None
-            proc = None
             start_t = 0
+            stdout = None
+            panic = False
+            channel = None
+            session = None
 
             try:
                 self._logger.info("Running command: %s", repr(command))
 
-                proc = await self._conn.create_process(cmd)
-                self._procs.append(proc)
+                channel, session = await self._conn.create_session(
+                    lambda: MySSHClientSession(iobuffer),
+                    cmd
+                )
 
+                self._channels.append(channel)
                 start_t = time.time()
-                panic = False
-                stdout = ""
 
-                async for data in proc.stdout:
-                    stdout += data
+                await channel.wait_closed()
 
-                    if iobuffer:
-                        await iobuffer.write(data)
-
-                    if "Kernel panic" in data:
-                        panic = True
+                panic = session.kernel_panic()
+                stdout = session.get_output()
             finally:
-                if proc:
-                    self._procs.remove(proc)
-
-                    await proc.wait()
+                if channel:
+                    self._channels.remove(channel)
 
                     ret = {
                         "command": command,
-                        "returncode": proc.returncode,
+                        "returncode": channel.get_returncode(),
                         "exec_time": time.time() - start_t,
-                        "stdout": stdout
+                        "stdout": "".join(stdout)
                     }
 
             if panic:
