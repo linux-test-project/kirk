@@ -38,7 +38,7 @@ try:
             self._output.append(data)
 
             if self._iobuffer:
-                self._iobuffer.write(data)
+                asyncio.ensure_future(self._iobuffer.write(data))
 
             if "Kernel panic" in data:
                 self._panic = True
