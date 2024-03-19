@@ -281,7 +281,7 @@ class SSHSUT(SUT):
             cmd = self._create_command(command, cwd, env)
             ret = None
             start_t = 0
-            stdout = None
+            stdout = []
             panic = False
             channel = None
             session = None
