@@ -104,6 +104,10 @@ Some basic commands are the following:
         --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite syscalls --workers 16
 
+    # pass environment variables (list of key=value separated by ':')
+    ./kirk --framework ltp --run-suite net.features \
+        --env 'VIRT_PERF_THRESHOLD=180:LTP_NET_FEATURES_IGNORE_PERFORMANCE_FAILURE=1'
+
 It's possible to run a single command before running testing suites using
 `--run-command` option as following:
 
