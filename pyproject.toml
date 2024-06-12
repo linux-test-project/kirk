@@ -1,0 +1,27 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "kirk"
+authors = [{name = "Andrea Cervesato", email = "andrea.cervesato@suse.com"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: GNU Lesser General Public License v2 (GPLv2)"]
+requires-python = ">=3.6"
+dynamic = ["version", "description"]
+
+[project.optional-dependencies]
+all = [
+    "asyncssh",
+    "msgpack",
+]
+
+[tool.flit.module]
+name = "libkirk"
+
+[project.scripts]
+kirk = "libkirk.main:run"
+
+[project.urls]
+Source = "https://github.com/linux-test-project/kirk.git"

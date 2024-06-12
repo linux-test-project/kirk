@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup(
     name='kirk',
-    version=libkirk.VERSION,
+    version=libkirk.__version__,
     description='All-in-one Linux Testing Framework',
     author='Andrea Cervesato',
     author_email='andrea.cervesato@mailbox.org',
