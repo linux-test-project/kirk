@@ -14,7 +14,7 @@ import libkirk.sut
 import libkirk.data
 import libkirk.events
 import libkirk.plugin
-from libkirk import KirkException
+from libkirk import KirkException, __version__
 from libkirk.sut import SUT
 from libkirk.sut import SUTError
 from libkirk.framework import Framework
@@ -351,7 +351,7 @@ def run(cmd_args: list = None) -> None:
         "--version",
         "-V",
         action="version",
-        version=f"%(prog)s, {libkirk.VERSION}")
+        version=f"%(prog)s, {__version__}")
 
     # user interface arguments
     parser.add_argument(
