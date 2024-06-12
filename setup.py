@@ -13,7 +13,7 @@ setup(
     description='All-in-one Linux Testing Framework',
     author='Andrea Cervesato',
     author_email='andrea.cervesato@mailbox.org',
-    license='LGPLv2',
+    license='GPLv2',
     url='https://github.com/acerv/kirk',
     classifiers=[
         'Natural Language :: English',
