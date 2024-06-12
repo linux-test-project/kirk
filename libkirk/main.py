@@ -350,8 +350,8 @@ def run(cmd_args: list = None) -> None:
     parser.add_argument(
         "--version",
         "-V",
-        action="store_true",
-        help="Print current version")
+        action="version",
+        version=f"%(prog)s, {libkirk.VERSION}")
 
     # user interface arguments
     parser.add_argument(
@@ -452,10 +452,6 @@ def run(cmd_args: list = None) -> None:
 
     # parse comand line
     args = parser.parse_args(cmd_args)
-
-    if args.version:
-        print(f"kirk {libkirk.VERSION}")
-        parser.exit(RC_OK)
 
     if args.sut and "help" in args.sut:
         print(args.sut["help"])
