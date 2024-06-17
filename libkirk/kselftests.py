@@ -9,6 +9,7 @@ import re
 import os
 import shlex
 import logging
+import tempfile
 from libkirk import KirkException
 from libkirk.sut import SUT
 from libkirk.data import Test
@@ -26,6 +27,7 @@ class KselftestFramework(Framework):
     def __init__(self) -> None:
         self._logger = logging.getLogger("libkirk.kselftests")
         self._root = None
+        self._env = None
 
     @property
     def name(self) -> str:
@@ -50,88 +52,64 @@ class KselftestFramework(Framework):
         if self._env["KSELFTESTROOT"]:
             self._root = self._env["KSELFTESTROOT"]
 
-    async def _get_cgroup(self, sut: SUT) -> Suite:
+    async def _get_suite(self, sut: SUT, suite_name, suite_tests) -> Suite:
         """
-        Return a cgroup testing suite.
+        Return a subsuite from kselftest.
         """
-        self._logger.info("Reading cgroup folder")
-        cgroup_dir = os.path.join(self._root, "cgroup")
+        self._logger.info(f"Reading {suite_name} folder")
+        suite_dir = os.path.join(self._root, suite_name)
 
-        ret = await sut.run_command(f"test -d {cgroup_dir}")
+        ret = await sut.run_command(f"test -d {suite_dir}")
         if ret["returncode"] != 0:
             raise KirkException(
-                f"cgroup folder is not available: {cgroup_dir}")
+                f"{suite_name} folder is not available: {suite_dir}")
 
-        ret = await sut.run_command("ls -1 test_*", cwd=cgroup_dir)
-        if ret["returncode"] != 0 or not ret["stdout"]:
-            raise KirkException("Can't read cgroup tests")
-
-        # we want to loop into a list rather than using one regexp that
-        # rules everything. In this way we are not dependent by ls format
-        names = ret["stdout"].split('\n')
-        if not names:
-            raise KirkException("Can't find cgroup tests")
-
-        match = re.compile(r'^test_[^.]+$')
         tests_obj = []
 
-        for name in names:
-            myname = match.search(name)
-            if not myname:
-                continue
+        with open(suite_tests.name) as file:
+            for test_name in file:
+                test_name = test_name.strip()
+                if not test_name:
+                    continue
 
-            tests_obj.append(Test(
-                name=myname.group(),
-                cmd=os.path.join(cgroup_dir, name),
-                cwd=cgroup_dir,
-                parallelizable=False))
+                tests_obj.append(Test(
+                    name=test_name,
+                    cmd=os.path.join(suite_dir, test_name),
+                    cwd=suite_dir,
+                    parallelizable=False))
 
-        suite = Suite(name="cgroup", tests=tests_obj)
+        suite = Suite(name=suite_name, tests=tests_obj)
         self._logger.debug("suite=%s", suite)
 
         return suite
 
-    async def _get_bpf(self, sut: SUT) -> Suite:
-        """
-        Return the eBPF testing suite. For now only covers test_progs.
-        """
-        bpf_dir = os.path.join(self._root, "bpf")
-
-        ret = await sut.run_command(f"test -d {bpf_dir}")
-        if ret["returncode"] != 0:
-            raise KirkException(
-                f"bpf folder is not available: {bpf_dir}")
-
-        self._logger.info("Running eBPF %s/test_progs --list", bpf_dir)
-        ret = await sut.run_command(
-            "./test_progs --list",
-            cwd=bpf_dir)
-        if ret["returncode"] != 0 or not ret["stdout"]:
-            raise KirkException("Can't list eBPF prog tests")
-
-        names = [n.rstrip() for n in  ret["stdout"].split('\n')]
-        tests_obj = []
-
-        for name in names:
-            if not name:
-                continue
-
-            tests_obj.append(Test(
-                name=name,
-                cmd="./test_progs",
-                args=["-t", name],
-                cwd=bpf_dir))
-
-        suite = Suite(name="bpf", tests=tests_obj)
-        self._logger.debug("suite=%s", suite)
-
-        return suite
+    @property
+    def name(self) -> str:
+        return "kselftest"
 
     async def get_suites(self, sut: SUT) -> list:
         if not sut:
             raise ValueError("SUT is None")
 
-        return ["cgroup", "bpf"]
+        ret = await sut.run_command(f"test -d {self._root}")
+        if ret["returncode"] != 0:
+            raise KirkException(
+                f"kselftests folder doesn't exist: {self._root}")
+
+        suite_file = os.path.join(self._root, "kselftest-list.txt")
+        ret = await sut.run_command(f"test -f {suite_file}")
+        if ret["returncode"] != 0:
+            raise FrameworkError(f"'{name}' suite doesn't exist")
+        suite_tests = tempfile.NamedTemporaryFile()
+        tests = ""
+        suites = []
+        with open(suite_file, 'r') as file:
+            for line in file.readlines():
+                name, _ = line.split(":")
+                suites.append(name)
+
+        # Make the list of suites unique.
+        return list(dict.fromkeys(suites))
 
     async def find_command(self, sut: SUT, command: str) -> Test:
         if not sut:
@@ -182,11 +160,26 @@ class KselftestFramework(Framework):
             raise KirkException(
                 f"kselftests folder doesn't exist: {self._root}")
 
-        suite = None
-        if name == "cgroup":
-            suite = await self._get_cgroup(sut)
-        elif name == "bpf":
-            suite = await self._get_bpf(sut)
+        suite_file = os.path.join(self._root, "kselftest-list.txt")
+        ret = await sut.run_command(f"test -f {suite_file}")
+        if ret["returncode"] != 0:
+            raise FrameworkError(f"'{name}' suite doesn't exist")
+
+        suite_tests = tempfile.NamedTemporaryFile()
+        tests = ""
+        with open(suite_file, 'r') as file:
+            for line in file.readlines():
+                if f"{name}:" in line:
+                    name, test = line.split(":")
+                    tests += f"{test.strip()}\n"
+
+        with open(suite_tests.name, 'w') as f:
+            f.write(tests)
+
+        suite_path = os.path.join(self._root, name)
+        suite = name
+        if suite != "":
+            suite = await self._get_suite(sut, name, suite_tests)
         else:
             raise KirkException(f"'{name}' suite is not available")
 
