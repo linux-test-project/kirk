@@ -50,7 +50,7 @@ class LTPFramework(Framework):
         }
 
     def setup(self, **kwargs: dict) -> None:
-        self._root = "/opt/ltp"
+        self._root = kwargs.get("root", "/opt/ltp")
         self._env = {
             "LTPROOT": self._root,
             "TMPDIR": "/tmp",
@@ -65,10 +65,8 @@ class LTPFramework(Framework):
         if timeout:
             self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
-        root = kwargs.get("root", None)
-        if root:
-            self._root = root
-            self._env["LTPROOT"] = self._root
+        if self._env["LTPROOT"]:
+            self._root = self._env["LTPROOT"]
 
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
 
