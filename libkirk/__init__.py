@@ -13,7 +13,7 @@ from libkirk.events import EventsHandler
 
 
 # Kirk version
-__version__ = '1.3'
+__version__ = '1.4'
 
 
 class KirkException(Exception):
