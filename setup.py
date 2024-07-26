@@ -15,10 +15,10 @@ setup(
     description="All-in-one Linux Testing Framework",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    author="Andrea Cervesato",
-    author_email="andrea.cervesato@mailbox.org",
+    author="Linux Test Project",
+    author_email="ltp@lists.linux.it",
     license="GPLv2",
-    url="https://github.com/acerv/kirk",
+    url="https://github.com/linux-test-project/kirk",
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
