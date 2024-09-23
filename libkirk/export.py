@@ -95,12 +95,12 @@ class JSONExporter(Exporter):
         data = {
             "results": results_json,
             "stats": {
-                "runtime": results[0].exec_time,
-                "passed": results[0].passed,
-                "failed": results[0].failed,
-                "broken": results[0].broken,
-                "skipped": results[0].skipped,
-                "warnings": results[0].warnings
+                "runtime": sum(result.exec_time for result in results),
+                "passed": sum(result.passed for result in results),
+                "failed": sum(result.failed for result in results),
+                "broken": sum(result.broken for result in results),
+                "skipped": sum(result.skipped for result in results),
+                "warnings": sum(result.warnings for result in results)
             },
             "environment": {
                 "distribution": results[0].distro,
