@@ -47,8 +47,8 @@ exclude = ["libkirk.tests"]
 kirk = "libkirk.main:run"
 
 [project.optional-dependencies]
-ssh = ["asyncssh <= 2.13.2"]
-ltx = ["msgpack <= 1.0.5"]
+ssh = ["asyncssh <= 2.17.0"]
+ltx = ["msgpack <= 1.1.0"]
 
 [tool.setuptools]
 include-package-data = true
