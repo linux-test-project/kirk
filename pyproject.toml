@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kirk"
+dynamic = ["version"]
+description = "All-in-one Linux Testing Framework"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.6"
+keywords = ["testing", "linux", "development", "ltp", "linux-test-project"]
+authors = [
+	{name = "Linux Test Project", email = "ltp@lists.linux.it" }
+]
+maintainers = [
+	{name = "Andrea Cervesato", email = "andrea.cervesato@suse.com"}
+]
+classifiers = [
+        "Natural Language :: English",
+        "Intended Audience :: Developers",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/linux-test-project/kirk"
+"Bug Reports" = "https://github.com/linux-test-project/kirk/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "libkirk.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["libkirk"]
+exclude = ["libkirk.tests"]
+
+[project.scripts]
+kirk = "libkirk.main:run"
+
+[project.optional-dependencies]
+ssh = ["asyncssh <= 2.13.2"]
+ltx = ["msgpack <= 1.0.5"]
+
+[tool.setuptools]
+include-package-data = true
