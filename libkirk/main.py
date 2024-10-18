@@ -466,7 +466,7 @@ def run(cmd_args: list = None) -> None:
         parser.error(f"JSON report file already exists: {args.json_report}")
 
     if not args.run_suite and not args.run_command:
-        parser.error("--run-suite/--run-cmd are required")
+        parser.error("--run-suite/--run-command are required")
 
     if args.skip_file and not os.path.isfile(args.skip_file):
         parser.error(f"'{args.skip_file}' skip file doesn't exist")
