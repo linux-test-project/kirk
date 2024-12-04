@@ -146,7 +146,7 @@ class HostSUT(SUT):
                 "stdout": asyncio.subprocess.PIPE,
                 "stderr": asyncio.subprocess.STDOUT,
                 "cwd": cwd,
-                "preexec_fn": os.setsid
+                "start_new_session": True
             }
 
             if env:
