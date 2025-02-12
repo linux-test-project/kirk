@@ -46,6 +46,7 @@ class ConsoleUserInterface:
         libkirk.events.register("run_cmd_stop", self.run_cmd_stop)
         libkirk.events.register("suite_started", self.suite_started)
         libkirk.events.register("suite_completed", self.suite_completed)
+        libkirk.events.register("suite_timeout", self.suite_timeout)
         libkirk.events.register("session_warning", self.session_warning)
         libkirk.events.register("session_error", self.session_error)
         libkirk.events.register("internal_error", self.internal_error)
