@@ -304,6 +304,7 @@ def _start_session(
             await session.run(
                 command=args.run_command,
                 suites=args.run_suite,
+                pattern=args.run_pattern,
                 report_path=args.json_report,
                 restore=restore_dir,
             )
@@ -415,6 +416,11 @@ def run(cmd_args: list = None) -> None:
         nargs="*",
         help="List of suites to run")
     parser.add_argument(
+        "--run-pattern",
+        "-S",
+        nargs="*",
+        help="Filter tests using a pattern string")
+    parser.add_argument(
         "--run-command",
         "-c",
         help="Command to run")
@@ -465,7 +471,7 @@ def run(cmd_args: list = None) -> None:
     if args.json_report and os.path.exists(args.json_report):
         parser.error(f"JSON report file already exists: {args.json_report}")
 
-    if not args.run_suite and not args.run_command:
+    if not args.run_suite and not args.run_command and not args.run_pattern:
         parser.error("--run-suite/--run-command are required")
 
     if args.skip_file and not os.path.isfile(args.skip_file):
