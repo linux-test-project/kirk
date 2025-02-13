@@ -296,6 +296,14 @@ def _start_session(
     # start event loop
     exit_code = RC_OK
 
+    # read tests regex filter
+    run_pattern = args.run_pattern
+    if run_pattern:
+        try:
+            re.compile(run_pattern)
+        except re.error:
+            parser.error(f"'{run_pattern}' is not a valid regular expression")
+
     async def session_run() -> None:
         """
         Run session then stop events handler.
@@ -304,6 +312,7 @@ def _start_session(
             await session.run(
                 command=args.run_command,
                 suites=args.run_suite,
+                pattern=run_pattern,
                 report_path=args.json_report,
                 restore=restore_dir,
             )
@@ -415,6 +424,10 @@ def run(cmd_args: list = None) -> None:
         nargs="*",
         help="List of suites to run")
     parser.add_argument(
+        "--run-pattern",
+        "-S",
+        help="Run all tests matching the regex pattern")
+    parser.add_argument(
         "--run-command",
         "-c",
         help="Command to run")
@@ -465,8 +478,8 @@ def run(cmd_args: list = None) -> None:
     if args.json_report and os.path.exists(args.json_report):
         parser.error(f"JSON report file already exists: {args.json_report}")
 
-    if not args.run_suite and not args.run_command:
-        parser.error("--run-suite/--run-command are required")
+    if not args.run_suite and not args.run_command and not args.run_pattern:
+        parser.error("At least one of the run commands is required")
 
     if args.skip_file and not os.path.isfile(args.skip_file):
         parser.error(f"'{args.skip_file}' skip file doesn't exist")
