@@ -4,14 +4,13 @@
 """
 This script parses JSON results from kirk and produces a HTML page.
 """
-import re
 import os
 import json
 import argparse
 from datetime import timedelta
 from html import escape
 
-_HTML_HEADER="""<html>
+_HTML_HEADER = """<html>
  <head>
   <meta charset=\"UTF-8\">
   <title>LTP results</title>
@@ -162,7 +161,7 @@ _HTML_HEADER="""<html>
    <center>
    <h1>LTP Results</h1>"""
 
-_HTML_FOOTER="""   </center>
+_HTML_FOOTER = """   </center>
   </div>
   <script type=\"text/javascript\">
    var table = document.getElementById(\"results\");
@@ -182,6 +181,7 @@ _HTML_FOOTER="""   </center>
   </script>
  </body>
 </html>"""
+
 
 def _generate_environment(environment):
     """
@@ -207,6 +207,7 @@ def _generate_environment(environment):
 
     print("   </table>")
 
+
 def _generate_stats(stats):
     """
     Generates HTML overall statistics.
@@ -229,7 +230,8 @@ def _generate_stats(stats):
 
     print("\n".join(out))
 
-_RESULT_TABLE_HEADER="""    <div style=\"background-color: #ccc\">
+
+_RESULT_TABLE_HEADER = """    <div style=\"background-color: #ccc\">
      <hr>
      <input type=\"checkbox\" onchange=\"toggle_visibility(this, 'pass')\"> Hide Passed
      <input type=\"checkbox\" onchange=\"toggle_visibility(this, 'skip')\"> Hide Skipped
@@ -247,6 +249,7 @@ _RESULT_TABLE_HEADER="""    <div style=\"background-color: #ccc\">
       <th onclick=\"sort_by(6)\">Warns &#8597;</th>
      </tr>"""
 
+
 def _generate_results(results):
     """
     generates html result table.
@@ -256,7 +259,7 @@ def _generate_results(results):
     for res in results:
         overall = 'pass'
 
-        test = res['test'];
+        test = res['test']
 
         if test['failed'] > 0:
             overall = 'fail'
@@ -271,7 +274,7 @@ def _generate_results(results):
 
         out.append(f"     <tr class=\"{overall}\">")
         out.append(f"      <td class=\"id\">{res['test_fqn']}</td>")
-        out.append(f"      <td>{'%.2f' % test['duration']}</td>")
+        out.append(f"      <td>{test['duration']:.2f}</td>")
         out.append(f"      <td>{test['passed']}</td>")
         out.append(f"      <td>{test['skipped']}</td>")
         out.append(f"      <td>{test['failed']}</td>")
@@ -289,6 +292,7 @@ def _generate_results(results):
 
     print("    </table>")
 
+
 def _generate_html(results_path):
     """
     Generates HTML results.
@@ -298,11 +302,12 @@ def _generate_html(results_path):
     with open(results_path, 'r', encoding="utf-8") as file:
         results = json.load(file)
 
-    _generate_environment(results['environment']);
-    _generate_stats(results['stats']);
-    _generate_results(results['results']);
+    _generate_environment(results['environment'])
+    _generate_stats(results['stats'])
+    _generate_results(results['results'])
 
     print(_HTML_FOOTER)
+
 
 def _file_exists(filepath):
     """
@@ -312,6 +317,7 @@ def _file_exists(filepath):
         raise argparse.ArgumentTypeError(
             f"The file '{filepath}' does not exist.")
     return filepath
+
 
 def run():
     """
@@ -330,6 +336,7 @@ def run():
     args = parser.parse_args()
 
     _generate_html(args.results)
+
 
 if __name__ == "__main__":
     run()
