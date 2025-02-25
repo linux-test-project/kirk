@@ -125,3 +125,25 @@ class _TestSession:
         with open(report, "r") as report_file:
             report_data = json.loads(report_file.read())
             assert len(report_data["results"]) == 0
+
+    @pytest.mark.parametrize(
+        "iterate,expect",
+        [
+            (0, 4),
+            (1, 4),
+            (3, 12),
+        ]
+    )
+    async def test_run_suite_iterate(self, tmpdir, session, iterate, expect):
+        """
+        Test run method when executing a testing suite multiple times.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01", "suite02"],
+            suite_iterate=iterate,
+            report_path=report)
+
+        with open(report, "r", encoding="utf-8") as report_file:
+            report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) == expect

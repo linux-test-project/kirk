@@ -67,7 +67,7 @@ class TestMain:
 
         assert excinfo.value.code == libkirk.main.RC_OK
 
-    @pytest.mark.skipif(sys.version_info < (3,8), reason="requires python3.8+")
+    @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8+")
     def test_run_command_timeout(self, tmpdir):
         """
         Test --run-command option with timeout.
@@ -362,3 +362,22 @@ class TestMain:
 
         report_d = self.read_report(temp, 1)
         assert report_d["results"][0]["test"]["log"] == "ciao"
+
+    def test_suite_iterate(self, tmpdir):
+        """
+        Test --suite-iterate option.
+        """
+        temp = tmpdir.mkdir("temp")
+        cmd_args = [
+            "--tmp-dir", str(temp),
+            "--framework", "dummy",
+            "--run-suite", "suite01",
+            "--suite-iterate", "4",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        self.read_report(temp, 8)
