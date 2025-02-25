@@ -316,6 +316,7 @@ def _start_session(
                 report_path=args.json_report,
                 restore=restore_dir,
                 test_iterate=args.test_iterate,
+                suite_iterate=args.suite_iterate,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -402,7 +403,7 @@ def run(cmd_args: list = None) -> None:
         help="Skip specific tests")
     parser.add_argument(
         "--skip-file",
-        "-I",
+        "-K",
         type=str,
         help="Skip specific tests using a skip file (newline separated item)")
     parser.add_argument(
@@ -417,6 +418,12 @@ def run(cmd_args: list = None) -> None:
         type=int,
         default=3600,
         help="Timeout before stopping a single execution")
+    parser.add_argument(
+        "--suite-iterate",
+        "-I",
+        type=int,
+        default=1,
+        help="Number of time to repeat testing suites")
     parser.add_argument(
         "--test-iterate",
         "-i",

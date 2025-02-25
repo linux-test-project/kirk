@@ -210,12 +210,49 @@ class Session:
 
         return suites_obj
 
+    @staticmethod
+    def _apply_iterate(
+            suites_obj: list,
+            test_iterate: int,
+            suite_iterate: int) -> list:
+        """
+        Return testing suites after applying iterate parameters.
+        """
+        suites_list = []
+        if test_iterate > 1:
+            for suite in suites_obj:
+                tests = []
+                for test in suite.tests:
+                    for i in range(0, test_iterate):
+                        obj = copy.deepcopy(test)
+                        obj.name = f"{test.name}[{i}]"
+                        tests.append(obj)
+
+                suites_list.append(Suite(suite.name, tests))
+        else:
+            suites_list.extend(suites_obj)
+
+        if suite_iterate > 1:
+            suites_copy = []
+            for suite in suites_list:
+                for i in range(0, suite_iterate):
+                    obj = copy.deepcopy(suite)
+                    obj.name = f"{suite.name}[{i}]"
+                    suites_copy.append(obj)
+
+            suites_list.clear()
+            suites_list.extend(suites_copy)
+
+        return suites_list
+
+    # pylint: disable=too-many-positional-arguments
     async def _read_suites(
             self,
             suites: list,
             pattern: str,
             restore: str,
-            test_iterate: int) -> list:
+            test_iterate: int,
+            suite_iterate: int) -> list:
         """
         Read suites and return a list of Suite objects.
         """
@@ -260,21 +297,10 @@ class Session:
         if num_tests == 0:
             raise KirkException("No tests selected")
 
-        suites_list = []
-        if test_iterate > 1:
-            for suite in suites_obj:
-                tests = []
-                for test in suite.tests:
-                    for i in range(0, test_iterate):
-                        obj = copy.deepcopy(test)
-                        obj.name = f"{test.name}[{i}]"
-                        tests.append(obj)
+        suites_obj = self._apply_iterate(
+            suites_obj, test_iterate, suite_iterate)
 
-                suites_list.append(Suite(suite.name, tests))
-        else:
-            suites_list.extend(suites_obj)
-
-        return suites_list
+        return suites_obj
 
     async def _exec_command(self, command: str) -> None:
         """
@@ -351,6 +377,8 @@ class Session:
         :type restore: str
         :param test_iterate: execute all tests multiple times
         :type test_iterate: int
+        :param suite_iterate: execute all suites multiple times
+        :type suite_iterate: int
         """
         command = kwargs.get("command", None)
         suites = kwargs.get("suites", None)
@@ -358,6 +386,7 @@ class Session:
         report_path = kwargs.get("report_path", None)
         restore = kwargs.get("restore", None)
         test_iterate = kwargs.get("test_iterate", 1)
+        suite_iterate = kwargs.get("suite_iterate", 1)
 
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
@@ -375,7 +404,9 @@ class Session:
 
                 if suites:
                     suites_obj = await self._read_suites(
-                        suites, pattern, restore, test_iterate)
+                        suites, pattern, restore,
+                        test_iterate, suite_iterate)
+
                     await self._scheduler.schedule(suites_obj)
             except KirkException as err:
                 if not self._stop:

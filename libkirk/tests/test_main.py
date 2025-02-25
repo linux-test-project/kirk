@@ -381,3 +381,42 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
 
         self.read_report(temp, 8)
+
+    def test_suite_iterate(self, tmpdir):
+        """
+        Test --suite-iterate option.
+        """
+        temp = tmpdir.mkdir("temp")
+        cmd_args = [
+            "--tmp-dir", str(temp),
+            "--framework", "dummy",
+            "--run-suite", "suite01",
+            "--suite-iterate", "4",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        self.read_report(temp, 8)
+
+    def test_combine_iterate(self, tmpdir):
+        """
+        Test --test-iterate and --suite-iterate option together.
+        """
+        temp = tmpdir.mkdir("temp")
+        cmd_args = [
+            "--tmp-dir", str(temp),
+            "--framework", "dummy",
+            "--run-suite", "suite01",
+            "--test-iterate", "4",
+            "--suite-iterate", "4",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        self.read_report(temp, 32)
