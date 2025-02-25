@@ -88,6 +88,16 @@ class Test:
         """
         return self._name
 
+    @name.setter
+    def name(self, value: str):
+        """
+        Set the test name.
+        """
+        if not value:
+            raise ValueError("empty test name")
+
+        self._name = value
+
     @property
     def command(self):
         """
