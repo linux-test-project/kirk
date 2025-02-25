@@ -130,6 +130,25 @@ def _env_config(value: str) -> dict:
     return config
 
 
+def _iterate_config(value: str) -> int:
+    """
+    Return the iterate value.
+    """
+    if not value:
+        return 1
+
+    ret = 1
+    try:
+        ret = int(value)
+    except TypeError as err:
+        raise argparse.ArgumentTypeError("Invalid number") from err
+
+    if ret <= 1:
+        return 1
+
+    return ret
+
+
 def _discover_sut(path: str) -> None:
     """
     Discover new SUT implementations.
@@ -315,6 +334,7 @@ def _start_session(
                 pattern=run_pattern,
                 report_path=args.json_report,
                 restore=restore_dir,
+                suite_iterate=args.suite_iterate,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -396,12 +416,12 @@ def run(cmd_args: list = None) -> None:
         help="List of key=value environment values separated by ':'")
     parser.add_argument(
         "--skip-tests",
-        "-i",
+        "-k",
         type=str,
         help="Skip specific tests")
     parser.add_argument(
         "--skip-file",
-        "-I",
+        "-K",
         type=str,
         help="Skip specific tests using a skip file (newline separated item)")
     parser.add_argument(
@@ -416,6 +436,12 @@ def run(cmd_args: list = None) -> None:
         type=int,
         default=3600,
         help="Timeout before stopping a single execution")
+    parser.add_argument(
+        "--suite-iterate",
+        "-I",
+        type=_iterate_config,
+        default=1,
+        help="Number of times to repeat testing suites")
 
     # tests execution arguments
     parser.add_argument(

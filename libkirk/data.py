@@ -37,6 +37,16 @@ class Suite:
         """
         return self._name
 
+    @name.setter
+    def name(self, value: str):
+        """
+        Set the suite name.
+        """
+        if not value:
+            raise ValueError("empty suite name")
+
+        self._name = value
+
     @property
     def tests(self):
         """
