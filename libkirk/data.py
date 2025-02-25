@@ -37,6 +37,16 @@ class Suite:
         """
         return self._name
 
+    @name.setter
+    def name(self, value: str):
+        """
+        Set the suite name.
+        """
+        if not value:
+            raise ValueError("empty suite name")
+
+        self._name = value
+
     @property
     def tests(self):
         """
@@ -87,6 +97,16 @@ class Test:
         Name of the test.
         """
         return self._name
+
+    @name.setter
+    def name(self, value: str):
+        """
+        Set the test name.
+        """
+        if not value:
+            raise ValueError("empty test name")
+
+        self._name = value
 
     @property
     def command(self):

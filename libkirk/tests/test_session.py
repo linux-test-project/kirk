@@ -125,3 +125,73 @@ class _TestSession:
         with open(report, "r") as report_file:
             report_data = json.loads(report_file.read())
             assert len(report_data["results"]) == 0
+
+    @pytest.mark.parametrize(
+        "iterate,expect",
+        [
+            (0, 4),
+            (1, 4),
+            (3, 12),
+        ]
+    )
+    async def test_run_test_iterate(self, tmpdir, session, iterate, expect):
+        """
+        Test run method iterating tests multiple times.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01", "suite02"],
+            test_iterate=iterate,
+            report_path=report)
+
+        with open(report, "r", encoding="utf-8") as report_file:
+            report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) == expect
+
+    @pytest.mark.parametrize(
+        "iterate,expect",
+        [
+            (0, 4),
+            (1, 4),
+            (3, 12),
+        ]
+    )
+    async def test_run_suite_iterate(self, tmpdir, session, iterate, expect):
+        """
+        Test run method when executing a testing suite multiple times.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01", "suite02"],
+            suite_iterate=iterate,
+            report_path=report)
+
+        with open(report, "r", encoding="utf-8") as report_file:
+            report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) == expect
+
+    @pytest.mark.parametrize(
+        "test_iterate,suite_iterate,expect",
+        [
+            (0, 0, 2),
+            (1, 1, 2),
+            (3, 2, 12),
+            (4, 4, 32),
+        ]
+    )
+    async def test_run_iterate_all(
+            self, tmpdir, session, test_iterate,
+            suite_iterate, expect):
+        """
+        Test run method when executing a testing suite multiple times.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01"],
+            test_iterate=test_iterate,
+            suite_iterate=suite_iterate,
+            report_path=report)
+
+        with open(report, "r", encoding="utf-8") as report_file:
+            report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) == expect

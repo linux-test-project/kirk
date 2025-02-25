@@ -160,7 +160,7 @@ class TestScheduler(Scheduler):
 
         await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
 
-    @ property
+    @property
     def results(self) -> list:
         return self._results
 
@@ -423,7 +423,7 @@ class SuiteScheduler(Scheduler):
             max_workers=kwargs.get("max_workers", 1),
             force_parallel=force_parallel)
 
-    @ property
+    @property
     def results(self) -> list:
         return self._results
 
