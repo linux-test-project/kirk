@@ -104,27 +104,19 @@ class _TestSession:
             stop()
         ])
 
-    async def test_run_skip_tests(self, tmpdir, sut, dummy_framework):
+    async def test_run_skip_tests(self, tmpdir, session):
         """
         Test run method when executing suites.
         """
-        session = Session(
-            tmpdir=TempDir(str(tmpdir)),
-            framework=dummy_framework,
-            skip_tests="test0[12]",
-            sut=sut)
-
         report = str(tmpdir / "report.json")
-        try:
-            await session.run(
-                suites=["suite01", "suite02"],
-                report_path=report)
-        finally:
-            await asyncio.wait_for(session.stop(), timeout=5)
+        await session.run(
+            suites=["suite01", "suite02"],
+            skip_tests="test0[23]",
+            report_path=report)
 
-        with open(report, "r") as report_file:
+        with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) == 0
+            assert len(report_data["results"]) == 2
 
     @pytest.mark.parametrize(
         "iterate,expect",

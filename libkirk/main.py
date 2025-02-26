@@ -300,8 +300,7 @@ def _start_session(
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
-        force_parallel=args.force_parallel,
-        skip_tests=skip_tests)
+        force_parallel=args.force_parallel)
 
     # initialize user interface
     if args.workers > 1:
@@ -335,6 +334,7 @@ def _start_session(
                 report_path=args.json_report,
                 restore=restore_dir,
                 suite_iterate=args.suite_iterate,
+                skip_tests=skip_tests,
             )
         except asyncio.CancelledError:
             await session.stop()

@@ -239,7 +239,7 @@ class TestMain:
             "--tmp-dir", str(temp),
             "--framework", "dummy",
             "--run-suite", "suite01",
-            "--skip-tests", "test0[12]"
+            "--skip-tests", "test0[23]"
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -247,14 +247,14 @@ class TestMain:
 
         assert excinfo.value.code == libkirk.main.RC_OK
 
-        self.read_report(temp, 0)
+        self.read_report(temp, 1)
 
     def test_skip_file(self, tmpdir):
         """
         Test --skip-file option.
         """
         skipfile = tmpdir / "skipfile"
-        skipfile.write("test01\ntest02")
+        skipfile.write("test02\ntest03")
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
@@ -269,14 +269,14 @@ class TestMain:
 
         assert excinfo.value.code == libkirk.main.RC_OK
 
-        self.read_report(temp, 0)
+        self.read_report(temp, 1)
 
     def test_skip_tests_and_file(self, tmpdir):
         """
         Test --skip-file option with --skip-tests.
         """
         skipfile = tmpdir / "skipfile"
-        skipfile.write("test02")
+        skipfile.write("test03")
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
@@ -292,7 +292,7 @@ class TestMain:
 
         assert excinfo.value.code == libkirk.main.RC_OK
 
-        self.read_report(temp, 0)
+        self.read_report(temp, 1)
 
     def test_workers(self, tmpdir):
         """

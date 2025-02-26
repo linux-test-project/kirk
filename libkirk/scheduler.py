@@ -6,7 +6,6 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 import os
-import re
 import sys
 import time
 import asyncio
@@ -160,7 +159,7 @@ class TestScheduler(Scheduler):
 
         await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
 
-    @ property
+    @property
     def results(self) -> list:
         return self._results
 
@@ -393,8 +392,6 @@ class SuiteScheduler(Scheduler):
         :type exec_timeout: float
         :param max_workers: maximum number of workers to schedule jobs
         :type max_workers: int
-        :param skip_tests: regexp excluding tests from execution
-        :type skip_tests: str
         :param force_parallel: Force parallel execution of all tests
         :type force_parallel: bool
         """
@@ -402,7 +399,6 @@ class SuiteScheduler(Scheduler):
         self._sut = kwargs.get("sut", None)
         self._framework = kwargs.get("framework", None)
         self._suite_timeout = max(kwargs.get("suite_timeout", 3600.0), 0.0)
-        self._skip_tests = kwargs.get("skip_tests", None)
         self._results = []
         self._stop = False
         self._lock = asyncio.Lock()
@@ -423,7 +419,7 @@ class SuiteScheduler(Scheduler):
             max_workers=kwargs.get("max_workers", 1),
             force_parallel=force_parallel)
 
-    @ property
+    @property
     def results(self) -> list:
         return self._results
 
@@ -471,22 +467,10 @@ class SuiteScheduler(Scheduler):
 
         info = await self._sut.get_info()
 
-        tests_results = []
-        tests = []
-        tests_left = []
         timed_out = False
         exec_times = []
-
-        # obtain the list of tests to execute
-        for test in suite.tests:
-            if self._skip_tests and re.search(self._skip_tests, test.name):
-                self._logger.info("Ignoring test: %s", test.name)
-                continue
-
-            tests.append(test)
-
-        # start the tests execution
-        tests_left.extend(tests)
+        tests_results = []
+        tests_left = list(suite.tests)
 
         try:
             while not self._stop and tests_left:
@@ -519,7 +503,7 @@ class SuiteScheduler(Scheduler):
                 # rebooted after a kernel error
                 tests_left.clear()
 
-                for test in tests:
+                for test in suite.tests:
                     found = False
                     for test_res in tests_results:
                         if test.name == test_res.test.name:
