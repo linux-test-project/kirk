@@ -8,6 +8,7 @@
 import os
 import re
 import copy
+import random
 import logging
 import asyncio
 import libkirk
@@ -374,6 +375,8 @@ class Session:
         :type restore: str
         :param suite_iterate: execute all suites multiple times
         :type suite_iterate: int
+        :param randomize: randomize all tests if True
+        :type randomize: bool
         """
         command = kwargs.get("command", None)
         suites = kwargs.get("suites", None)
@@ -382,6 +385,7 @@ class Session:
         report_path = kwargs.get("report_path", None)
         restore = kwargs.get("restore", None)
         suite_iterate = kwargs.get("suite_iterate", 1)
+        randomize = kwargs.get("randomize", False)
 
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
@@ -403,6 +407,10 @@ class Session:
 
                     suites_obj = self._apply_iterate(
                         suites_obj, suite_iterate)
+
+                    if randomize:
+                        for suite in suites_obj:
+                            random.shuffle(suite.tests)
 
                     await self._scheduler.schedule(suites_obj)
             except KirkException as err:

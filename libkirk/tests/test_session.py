@@ -139,3 +139,27 @@ class _TestSession:
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
             assert len(report_data["results"]) == expect
+
+    async def test_run_randomize(self, tmpdir, session):
+        """
+        Test run method when executing shuffled tests.
+        """
+        num_of_suites = 5
+
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01"] * num_of_suites,
+            randomize=True,
+            report_path=report)
+
+        report_data = None
+        with open(report, "r", encoding="utf-8") as report_file:
+            report_data = json.loads(report_file.read())
+
+        assert len(report_data["results"]) == 2 * num_of_suites
+
+        tests_names = []
+        for test in report_data["results"]:
+            tests_names.append(test["test_fqn"])
+
+        assert ["test01", "test02"] * num_of_suites != tests_names
