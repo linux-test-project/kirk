@@ -381,3 +381,31 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
 
         self.read_report(temp, 8)
+
+    def test_randomize(self, tmpdir):
+        """
+        Test --randomize option.
+        """
+        num_of_suites = 10
+
+        temp = tmpdir.mkdir("temp")
+        cmd_args = [
+            "--tmp-dir", str(temp),
+            "--framework", "dummy",
+            "--run-suite",
+        ]
+        cmd_args.extend(["suite01"] * num_of_suites)
+        cmd_args.append("--randomize")
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        report_d = self.read_report(temp, 2 * num_of_suites)
+
+        tests_names = []
+        for test in report_d["results"]:
+            tests_names.append(test["test_fqn"])
+
+        assert ["test01", "test02"] * num_of_suites != tests_names

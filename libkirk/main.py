@@ -335,6 +335,7 @@ def _start_session(
                 restore=restore_dir,
                 suite_iterate=args.suite_iterate,
                 skip_tests=skip_tests,
+                randomize=args.randomize,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -466,6 +467,11 @@ def run(cmd_args: list = None) -> None:
     parser.add_argument(
         "--force-parallel",
         "-p",
+        action="store_true",
+        help="Force parallelization execution of all tests")
+    parser.add_argument(
+        "--randomize",
+        "-x",
         action="store_true",
         help="Force parallelization execution of all tests")
 
