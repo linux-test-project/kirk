@@ -209,6 +209,50 @@ class Session:
 
         return suites_obj
 
+    async def _restore_tests(self, suites_obj: list, restore: bool) -> None:
+        """
+        Remove all tests but the one which need to be restored.
+        """
+        restored = self._read_restored_session(restore)
+        if not restored:
+            return
+
+        await libkirk.events.fire("session_restore", restore)
+
+        for suite_obj in suites_obj:
+            toremove = []
+            suite = suite_obj.name
+            if suite not in restored:
+                continue
+
+            for test in suite_obj.tests:
+                if test.name in restored[suite]:
+                    toremove.append(test)
+
+            for test in toremove:
+                suite_obj.tests.remove(test)
+
+            toremove.clear()
+
+    async def _filter_tests(self, suites_obj: list, pattern: str) -> None:
+        """
+        Filter suites tests using `pattern` regex.
+        """
+        if not pattern:
+            return
+
+        matcher = re.compile(pattern)
+
+        for suite_obj in suites_obj:
+            toremove = []
+
+            for test in suite_obj.tests:
+                if not matcher.search(test.name):
+                    toremove.append(test)
+
+            for item in toremove:
+                suite_obj.tests.remove(item)
+
     @staticmethod
     def _apply_iterate(suites_obj: list, suite_iterate: int) -> list:
         """
@@ -236,37 +280,8 @@ class Session:
         """
         suites_obj = await self._get_suites_objects(suites)
 
-        if pattern:
-            matcher = re.compile(pattern)
-
-            for suite_obj in suites_obj:
-                toremove = []
-
-                for test in suite_obj.tests:
-                    if not matcher.search(test.name):
-                        toremove.append(test)
-
-                for item in toremove:
-                    suite_obj.tests.remove(item)
-
-        restored = self._read_restored_session(restore)
-        if restored:
-            await libkirk.events.fire("session_restore", restore)
-
-            for suite_obj in suites_obj:
-                toremove = []
-                suite = suite_obj.name
-                if suite not in restored:
-                    continue
-
-                for test in suite_obj.tests:
-                    if test.name in restored[suite]:
-                        toremove.append(test)
-
-                for test in toremove:
-                    suite_obj.tests.remove(test)
-
-                toremove.clear()
+        await self._restore_tests(suites_obj, restore)
+        await self._filter_tests(suites_obj, pattern)
 
         num_tests = 0
         for suite_obj in suites_obj:
