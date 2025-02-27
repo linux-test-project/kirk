@@ -149,6 +149,33 @@ def _iterate_config(value: str) -> int:
     return ret
 
 
+def _time_config(data: str) -> int:
+    """
+    Return the time in seconds from '30s', '4m', '5h', '20d' format.
+    If no suffix is specified, value is considered in seconds.
+    """
+    indata = data.strip()
+
+    match = re.search(r'^(?P<value>\d+)\s*(?P<suffix>[smhd]?)$', indata)
+    if not match:
+        raise argparse.ArgumentTypeError(f"Incorrect time format '{indata}'")
+
+    value = int(match.group('value'))
+    suffix = match.group('suffix')
+
+    if not suffix or suffix == 's':
+        return value
+
+    if suffix == 'm':
+        value *= 60
+    elif suffix == 'h':
+        value *= 3600
+    elif suffix == 'd':
+        value *= 3600 * 24
+
+    return value
+
+
 def _discover_sut(path: str) -> None:
     """
     Discover new SUT implementations.
@@ -428,15 +455,15 @@ def run(cmd_args: list = None) -> None:
     parser.add_argument(
         "--suite-timeout",
         "-T",
-        type=int,
-        default=3600,
-        help="Timeout before stopping the suite")
+        type=_time_config,
+        default="1h",
+        help="Timeout before stopping the suite (default: 1h)")
     parser.add_argument(
         "--exec-timeout",
         "-t",
-        type=int,
-        default=3600,
-        help="Timeout before stopping a single execution")
+        type=_time_config,
+        default="1h",
+        help="Timeout before stopping a single execution (default: 1h)")
     parser.add_argument(
         "--suite-iterate",
         "-I",
