@@ -163,3 +163,17 @@ class _TestSession:
             tests_names.append(test["test_fqn"])
 
         assert ["test01", "test02"] * num_of_suites != tests_names
+
+    async def test_run_runtime(self, tmpdir, session):
+        """
+        Test run method when executing suites for a certain amount of time.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01"],
+            runtime=1,
+            report_path=report)
+
+        with open(report, "r", encoding="utf-8") as report_file:
+            report_data = json.loads(report_file.read())
+            assert len(report_data["results"]) > 2
