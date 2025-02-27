@@ -68,6 +68,7 @@ class Session:
         self._stop = False
         self._exec_lock = asyncio.Lock()
         self._run_lock = asyncio.Lock()
+        self._results = []
 
         if not self._tmpdir:
             raise ValueError("tmpdir is empty")
@@ -358,6 +359,48 @@ class Session:
             await libkirk.events.fire("session_stopped")
             self._stop = False
 
+    async def _schedule_once(self, suites_obj: list) -> None:
+        """
+        Schedule tests only once.
+        """
+        await self._scheduler.schedule(suites_obj)
+        self._results.extend(self._scheduler.results)
+
+    async def _schedule_infinite(self, suites_obj: list) -> None:
+        """
+        Schedule all testing suites infinite times.
+        """
+        suites_list = []
+        suites_list.extend(suites_obj)
+
+        count = 1
+        while not self._stop:
+            await self._schedule_once(suites_obj)
+            if self._scheduler.stopped:
+                break
+
+            count += 1
+
+            suites_list.clear()
+            for suite in copy.deepcopy(suites_obj):
+                suite.name = f"{suite.name}[{count}]"
+                suites_list.append(suite)
+
+    async def _run_scheduler(self, suites_obj: list, runtime: int) -> None:
+        """
+        Run the scheduler for specific amount of time given by `runtime`.
+        """
+        if runtime <= 0:
+            await self._schedule_once(suites_obj)
+            return
+
+        try:
+            await asyncio.wait_for(
+                self._schedule_infinite(suites_obj),
+                runtime)
+        except asyncio.TimeoutError:
+            await self._scheduler.stop()
+
     async def run(self, **kwargs: dict) -> None:
         """
         Run a new session and store results inside a JSON file.
@@ -377,16 +420,9 @@ class Session:
         :type suite_iterate: int
         :param randomize: randomize all tests if True
         :type randomize: bool
+        :param runtime: for how long we want to run the session
+        :type runtime: int
         """
-        command = kwargs.get("command", None)
-        suites = kwargs.get("suites", None)
-        pattern = kwargs.get("pattern", None)
-        skip_tests = kwargs.get("skip_tests", None)
-        report_path = kwargs.get("report_path", None)
-        restore = kwargs.get("restore", None)
-        suite_iterate = kwargs.get("suite_iterate", 1)
-        randomize = kwargs.get("randomize", False)
-
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
 
@@ -398,21 +434,29 @@ class Session:
             try:
                 await self._start_sut()
 
+                command = kwargs.get("command", None)
                 if command:
                     await self._exec_command(command)
 
+                suites = kwargs.get("suites", None)
                 if suites:
                     suites_obj = await self._read_suites(
-                        suites, pattern, skip_tests, restore)
+                        suites,
+                        kwargs.get("pattern", None),
+                        kwargs.get("skip_tests", None),
+                        kwargs.get("restore", False))
 
                     suites_obj = self._apply_iterate(
-                        suites_obj, suite_iterate)
+                        suites_obj,
+                        kwargs.get("suite_iterate", 1))
 
-                    if randomize:
+                    if kwargs.get("randomize", False):
                         for suite in suites_obj:
                             random.shuffle(suite.tests)
 
-                    await self._scheduler.schedule(suites_obj)
+                    await self._run_scheduler(
+                        suites_obj,
+                        kwargs.get("runtime", 0))
             except KirkException as err:
                 if not self._stop:
                     self._logger.exception(err)
@@ -420,22 +464,23 @@ class Session:
                     raise err
             finally:
                 try:
-                    if self._scheduler.results:
+                    if self._results:
                         exporter = JSONExporter()
 
                         tasks = []
                         tasks.append(
                             exporter.save_file(
-                                self._scheduler.results,
+                                self._results,
                                 os.path.join(
                                     self._tmpdir.abspath,
                                     "results.json")
                             ))
 
+                        report_path = kwargs.get("report_path", None)
                         if report_path:
                             tasks.append(
                                 exporter.save_file(
-                                    self._scheduler.results,
+                                    self._results,
                                     report_path
                                 ))
 
@@ -449,4 +494,5 @@ class Session:
                     await libkirk.events.fire("session_error", str(err))
                     raise err
                 finally:
+                    self._results.clear()
                     await self._inner_stop()

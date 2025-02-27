@@ -363,6 +363,7 @@ def _start_session(
                 suite_iterate=args.suite_iterate,
                 skip_tests=skip_tests,
                 randomize=args.randomize,
+                runtime=args.runtime,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -501,6 +502,12 @@ def run(cmd_args: list = None) -> None:
         "-x",
         action="store_true",
         help="Force parallelization execution of all tests")
+    parser.add_argument(
+        "--runtime",
+        "-u",
+        type=_time_config,
+        default="0",
+        help="Set for how long we want to run the session in seconds")
 
     # session arguments
     parser.add_argument(
