@@ -48,6 +48,13 @@ class Scheduler:
         """
         raise NotImplementedError()
 
+    @property
+    def stopped(self) -> bool:
+        """
+        Returns True when scheduler has been stopped.
+        """
+        raise NotImplementedError()
+
     async def stop(self) -> None:
         """
         Stop all running jobs.
@@ -122,6 +129,7 @@ class TestScheduler(Scheduler):
         self._lock = asyncio.Lock()
         self._results = []
         self._stop = False
+        self._stopped = False
         self._tasks = []
 
         if not self._sut:
@@ -163,6 +171,10 @@ class TestScheduler(Scheduler):
     def results(self) -> list:
         return self._results
 
+    @property
+    def stopped(self) -> bool:
+        return self._stopped
+
     async def stop(self) -> None:
         if not self._tasks:
             return
@@ -182,6 +194,7 @@ class TestScheduler(Scheduler):
                 pass
         finally:
             self._stop = False
+            self._stopped = True
 
         self._logger.info("Tests execution has stopped")
 
@@ -401,6 +414,7 @@ class SuiteScheduler(Scheduler):
         self._suite_timeout = max(kwargs.get("suite_timeout", 3600.0), 0.0)
         self._results = []
         self._stop = False
+        self._stopped = False
         self._lock = asyncio.Lock()
 
         if not self._sut:
@@ -423,6 +437,10 @@ class SuiteScheduler(Scheduler):
     def results(self) -> list:
         return self._results
 
+    @property
+    def stopped(self) -> bool:
+        return self._stopped
+
     async def stop(self) -> None:
         if not self._lock.locked():
             return
@@ -437,6 +455,7 @@ class SuiteScheduler(Scheduler):
                 pass
         finally:
             self._stop = False
+            self._stopped = True
 
         self._logger.info("Suites execution has stopped")
 
