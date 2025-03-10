@@ -198,14 +198,14 @@ class SSHSUT(SUT):
                     host=self._host,
                     port=self._port,
                     username=self._user,
-                    client_keys=[priv_key]),
+                    client_keys=[priv_key],
                     known_hosts=self._known_hosts if self._known_hosts else None)
             else:
                 self._conn = await asyncssh.connect(
                     host=self._host,
                     port=self._port,
                     username=self._user,
-                    password=self._password),
+                    password=self._password,
                     known_hosts=self._known_hosts if self._known_hosts else None)
 
             # read maximum number of sessions and limit `run_command`
