@@ -25,6 +25,7 @@ from libkirk.ui import VerboseUserInterface
 from libkirk.ui import ParallelUserInterface
 from libkirk.session import Session
 from libkirk.tempfile import TempDir
+from libkirk.monitor import JSONFileMonitor
 
 # runtime loaded SUT(s)
 LOADED_SUT = []
@@ -329,6 +330,11 @@ def _start_session(
         workers=args.workers,
         force_parallel=args.force_parallel)
 
+    # initialize monitor file
+    monitor = None
+    if args.monitor:
+        monitor = JSONFileMonitor(args.monitor)
+
     # initialize user interface
     if args.workers > 1:
         ParallelUserInterface(args.no_colors)
@@ -354,6 +360,9 @@ def _start_session(
         Run session then stop events handler.
         """
         try:
+            if monitor:
+                await monitor.start()
+
             await session.run(
                 command=args.run_command,
                 suites=args.run_suite,
@@ -369,6 +378,8 @@ def _start_session(
             await session.stop()
         finally:
             await libkirk.events.stop()
+            if monitor:
+                await monitor.stop()
 
     loop = libkirk.get_event_loop()
 
@@ -508,6 +519,11 @@ def run(cmd_args: list = None) -> None:
         type=_time_config,
         default="0",
         help="Set for how long we want to run the session in seconds")
+    parser.add_argument(
+        "--monitor",
+        "-m",
+        type=str,
+        help="Location of the monitor file")
 
     # session arguments
     parser.add_argument(
