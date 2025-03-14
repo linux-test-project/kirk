@@ -10,6 +10,42 @@ import logging
 import asyncio
 
 
+class Event:
+    """
+    An event to process.
+    """
+
+    def __init__(self, ordered: bool = False) -> None:
+        """
+        :param ordered: True if coroutines must be processed in order
+        :type ordered: bool
+        """
+        self._coros = []
+        self._ordered = ordered
+
+    def register(self, coro: typing.Coroutine) -> None:
+        """
+        Register a new coroutine.
+        """
+        self._coros.append(coro)
+
+    def create_tasks(self, *args: list, **kwargs: dict) -> list:
+        """
+        Create tasks to run according to registered coroutines.
+        :param args: Arguments to be passed to callback functions execution.
+        :type args: list
+        :param kwargs: Keyword arguments to be passed to callback functions
+            execution.
+        :type kwargs: dict
+        """
+        tasks = [coro(*args, **kwargs) for coro in self._coros]
+
+        if self._ordered:
+            return tasks
+
+        return [asyncio.gather(*tasks)]
+
+
 class EventsHandler:
     """
     This class implements event loop and events handling.
@@ -21,6 +57,16 @@ class EventsHandler:
         self._lock = asyncio.Lock()
         self._events = {}
         self._stop = False
+
+        # register a default event used to notify internal
+        # errors in the our application
+        self._events["internal_error"] = Event()
+
+    def _get_event(self, name: str) -> Event:
+        """
+        Return an event according to its `name`.
+        """
+        return self._events.get(name, None)
 
     def reset(self) -> None:
         """
@@ -41,13 +87,16 @@ class EventsHandler:
 
         return event_name in self._events
 
-    def register(self, event_name: str, coro: typing.Coroutine) -> None:
+    def register(self, event_name: str, coro: typing.Coroutine, ordered: bool = False) -> None:
         """
         Register an event with ``event_name``.
         :param event_name: name of the event
         :type event_name: str
         :param coro: coroutine associated with ``event_name``
         :type coro: Coroutine
+        :param ordered: if True, the event will raise coroutines in the order
+            they arrive
+        :type ordered: bool
         """
         if not event_name:
             raise ValueError("event_name is empty")
@@ -55,12 +104,14 @@ class EventsHandler:
         if not coro:
             raise ValueError("coro is empty")
 
-        self._logger.info("Register new event: %s", repr(event_name))
+        self._logger.info("Register event: %s", repr(event_name))
 
-        if not self.is_registered(event_name):
-            self._events[event_name] = []
+        evt = self._get_event(event_name)
+        if not evt:
+            evt = Event(ordered=ordered)
+            self._events[event_name] = evt
 
-        self._events[event_name].append(coro)
+        evt.register(coro)
 
     def unregister(self, event_name: str) -> None:
         """
@@ -76,7 +127,8 @@ class EventsHandler:
 
         self._logger.info("Unregister event: %s", repr(event_name))
 
-        self._events.pop(event_name)
+        if event_name in self._events:
+            del self._events[event_name]
 
     async def fire(self, event_name: str, *args: list, **kwargs: dict) -> None:
         """
@@ -92,22 +144,19 @@ class EventsHandler:
         if not event_name:
             raise ValueError("event_name is empty")
 
-        coros = self._events.get(event_name, None)
-        if not coros:
+        evt = self._get_event(event_name)
+        if not evt:
             return
 
-        tasks = []
-        for coro in coros:
-            tasks.append(coro(*args, **kwargs))
-
-        await self._tasks.put(asyncio.gather(*tasks))
+        for task in evt.create_tasks(*args, **kwargs):
+            await self._tasks.put(task)
 
     async def _consume(self) -> None:
         """
         Consume the next event.
         """
-        # following await is a blocking I/O
-        # so we don't need to sleep before get()
+        # asyncio.queue::get() will wait until an item is available
+        # without blocking the application
         task = await self._tasks.get()
         if not task:
             return
@@ -124,10 +173,12 @@ class EventsHandler:
             self._logger.info("Exception catched")
             self._logger.error(exc)
 
-            coros = self._events["internal_error"]
-            if len(coros) > 0:
-                coro = coros[0]
-                await coro(exc, coro.__name__)
+            ievt = self._get_event("internal_error")
+            ievt.create_tasks(exc, task.get_name())
+            if ievt:
+                await asyncio.gather(*ievt)
+        finally:
+            self._tasks.task_done()
 
     async def stop(self) -> None:
         """
