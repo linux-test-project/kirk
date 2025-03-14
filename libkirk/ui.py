@@ -51,17 +51,32 @@ class ConsoleUserInterface:
         libkirk.events.register("session_error", self.session_error)
         libkirk.events.register("internal_error", self.internal_error)
 
-    def _print(self, msg: str, color: str = None, end: str = "\n"):
+        # we register a special event 'printf' with ordered coroutines,
+        # so we ensure that print threads will be executed one after the
+        # other and user interface will be printed in the correct way
+        libkirk.events.register("printf", self.print_message, ordered=True)
+
+    async def _print(self, msg: str, color: str = None, end: str = "\n"):
         """
-        Print a message.
+        Fire a `printf` event.
         """
         msg = msg.replace(self.RESET_SCREEN, '')
         msg = msg.replace('\r', '')
 
         if color and not self._no_colors:
-            print(f"{color}{msg}{self.RESET_COLOR}", end=end, flush=True)
-        else:
-            print(msg, end=end, flush=True)
+            msg = f"{color}{msg}{self.RESET_COLOR}"
+
+        await libkirk.events.fire("printf", msg, end=end, flush=True)
+
+    async def print_message(self, msg: str, end: str = "\n", flush: bool = True):
+        """
+        Print a message in console, avoiding any I/O blocking operation
+        done by the `print` built-in function, using `asyncio.to_thread()`.
+        """
+        def _wrap():
+            print(msg, end=end, flush=flush)
+
+        await libkirk.to_thread(_wrap)
 
     @staticmethod
     def _user_friendly_duration(duration: float) -> str:
@@ -83,7 +98,7 @@ class ConsoleUserInterface:
         return uf_time
 
     async def session_restore(self, restore: str) -> None:
-        self._print(f"Restore session: {restore}")
+        await self._print(f"Restore session: {restore}")
 
     async def session_started(self, tmpdir: str) -> None:
         uname = platform.uname()
@@ -96,35 +111,35 @@ class ConsoleUserInterface:
         message += f"\tProcessor: {uname.processor}\n"
         message += f"\n\tTemporary directory: {tmpdir}\n"
 
-        self._print(message)
+        await self._print(message)
 
     async def session_stopped(self) -> None:
-        self._print("Session stopped")
+        await self._print("Session stopped")
 
     async def sut_start(self, sut: str) -> None:
-        self._print(f"Connecting to SUT: {sut}")
+        await self._print(f"Connecting to SUT: {sut}")
 
     async def sut_stop(self, sut: str) -> None:
-        self._print(f"\nDisconnecting from SUT: {sut}")
+        await self._print(f"\nDisconnecting from SUT: {sut}")
 
     async def sut_restart(self, sut: str) -> None:
-        self._print(f"Restarting SUT: {sut}")
+        await self._print(f"Restarting SUT: {sut}")
 
     async def run_cmd_start(self, cmd: str) -> None:
-        self._print(f"{cmd}", color=self.CYAN)
+        await self._print(f"{cmd}", color=self.CYAN)
 
     async def run_cmd_stdout(self, data: str) -> None:
-        self._print(data, end='')
+        await self._print(data, end='')
 
     async def run_cmd_stop(
             self,
             command: str,
             stdout: str,
             returncode: int) -> None:
-        self._print(f"\nExit code: {returncode}\n")
+        await self._print(f"\nExit code: {returncode}\n")
 
     async def suite_started(self, suite: Suite) -> None:
-        self._print(f"Starting suite: {suite.name}")
+        await self._print(f"Starting suite: {suite.name}")
 
     async def suite_completed(
             self,
@@ -153,21 +168,21 @@ class ConsoleUserInterface:
         message += f"Distro: {results.distro}\n"
         message += f"Distro Version: {results.distro_ver}\n"
 
-        self._print(message)
+        await self._print(message)
 
     async def suite_timeout(self, suite: Suite, timeout: float) -> None:
-        self._print(
+        await self._print(
             f"Suite '{suite.name}' timed out after {timeout} seconds",
             color=self.RED)
 
     async def session_warning(self, msg: str) -> None:
-        self._print(f"Warning: {msg}", color=self.YELLOW)
+        await self._print(f"Warning: {msg}", color=self.YELLOW)
 
     async def session_error(self, error: str) -> None:
-        self._print(f"Error: {error}", color=self.RED)
+        await self._print(f"Error: {error}", color=self.RED)
 
     async def internal_error(self, exc: BaseException, func_name: str) -> None:
-        self._print(
+        await self._print(
             f"\nUI error in function '{func_name}': {exc}\n",
             color=self.RED)
 
@@ -197,12 +212,12 @@ class SimpleUserInterface(ConsoleUserInterface):
     async def sut_not_responding(self) -> None:
         self._sut_not_responding = True
         # this message will replace ok/fail message
-        self._print("SUT not responding", color=self.RED)
+        await self._print("SUT not responding", color=self.RED)
 
     async def kernel_panic(self) -> None:
         self._kernel_panic = True
         # this message will replace ok/fail message
-        self._print("kernel panic", color=self.RED)
+        await self._print("kernel panic", color=self.RED)
 
     async def kernel_tainted(self, message: str) -> None:
         self._kernel_tainted = message
@@ -210,10 +225,10 @@ class SimpleUserInterface(ConsoleUserInterface):
     async def test_timed_out(self, _: Test, timeout: int) -> None:
         self._timed_out = True
         # this message will replace ok/fail message
-        self._print("timed out", color=self.RED)
+        await self._print("timed out", color=self.RED)
 
     async def test_started(self, test: Test) -> None:
-        self._print(f"{test.name}: ", end="")
+        await self._print(f"{test.name}: ", end="")
 
     async def test_completed(self, results: TestResults) -> None:
         if self._timed_out or self._sut_not_responding or self._kernel_panic:
@@ -235,15 +250,15 @@ class SimpleUserInterface(ConsoleUserInterface):
             msg = "broken"
             col = self.CYAN
 
-        self._print(msg, color=col, end="")
+        await self._print(msg, color=col, end="")
 
         if self._kernel_tainted:
-            self._print(" | ", end="")
-            self._print("tainted", color=self.YELLOW, end="")
+            await self._print(" | ", end="")
+            await self._print("tainted", color=self.YELLOW, end="")
             self._kernel_tainted = None
 
         uf_time = self._user_friendly_duration(results.exec_time)
-        self._print(f"  ({uf_time})")
+        await self._print(f"  ({uf_time})")
 
 
 class VerboseUserInterface(ConsoleUserInterface):
@@ -264,40 +279,40 @@ class VerboseUserInterface(ConsoleUserInterface):
         libkirk.events.register("test_stdout", self.test_stdout)
 
     async def sut_stdout(self, _: str, data: str) -> None:
-        self._print(data, end='')
+        await self._print(data, end='')
 
     async def kernel_tainted(self, message: str) -> None:
-        self._print(f"Tainted kernel: {message}", color=self.YELLOW)
+        await self._print(f"Tainted kernel: {message}", color=self.YELLOW)
 
     async def test_timed_out(self, _: Test, timeout: int) -> None:
         self._timed_out = True
 
     async def test_started(self, test: Test) -> None:
-        self._print("\n===== ", end="")
-        self._print(test.name, color=self.CYAN, end="")
-        self._print(" =====")
-        self._print("command: ", end="")
-        self._print(test.full_command)
+        await self._print("\n===== ", end="")
+        await self._print(test.name, color=self.CYAN, end="")
+        await self._print(" =====")
+        await self._print("command: ", end="")
+        await self._print(test.full_command)
 
     async def test_completed(self, results: TestResults) -> None:
         if self._timed_out:
-            self._print("Test timed out", color=self.RED)
+            await self._print("Test timed out", color=self.RED)
 
         self._timed_out = False
 
         if "Summary:" not in results.stdout:
-            self._print("\nSummary:")
-            self._print(f"passed    {results.passed}")
-            self._print(f"failed    {results.failed}")
-            self._print(f"broken    {results.broken}")
-            self._print(f"skipped   {results.skipped}")
-            self._print(f"warnings  {results.warnings}")
+            await self._print("\nSummary:")
+            await self._print(f"passed    {results.passed}")
+            await self._print(f"failed    {results.failed}")
+            await self._print(f"broken    {results.broken}")
+            await self._print(f"skipped   {results.skipped}")
+            await self._print(f"warnings  {results.warnings}")
 
         uf_time = self._user_friendly_duration(results.exec_time)
-        self._print(f"\nDuration: {uf_time}\n")
+        await self._print(f"\nDuration: {uf_time}\n")
 
     async def test_stdout(self, _: Test, data: str) -> None:
-        self._print(data, end='')
+        await self._print(data, end='')
 
 
 class ParallelUserInterface(ConsoleUserInterface):
@@ -322,21 +337,21 @@ class ParallelUserInterface(ConsoleUserInterface):
         libkirk.events.register("test_started", self.test_started)
         libkirk.events.register("test_completed", self.test_completed)
 
-    def _refresh_running_tests(self) -> None:
+    async def _refresh_running_tests(self) -> None:
         tests_num = len(self._running)
 
-        self._print(" " * 64, end='\r')
-        self._print("")
-        self._print(f"*** {tests_num} background test(s) ***")
+        await self._print(" " * 64, end='\r')
+        await self._print("")
+        await self._print(f"*** {tests_num} background test(s) ***")
 
         for test_name in self._running:
-            self._print(f"- {test_name}", end='')
-            self._print(" " * 32)
+            await self._print(f"- {test_name}", end='')
+            await self._print(" " * 32)
 
         # move back at the very beginning so the next time
         # we will override current running tests status
         for _ in range(tests_num + 2):
-            self._print(self.LINE_UP, end='')
+            await self._print(self.LINE_UP, end='')
 
     async def sut_not_responding(self) -> None:
         self._sut_not_responding = True
@@ -352,19 +367,19 @@ class ParallelUserInterface(ConsoleUserInterface):
 
     async def test_started(self, test: Test) -> None:
         self._running.append(test.name)
-        self._refresh_running_tests()
+        await self._refresh_running_tests()
 
     async def test_completed(self, results: TestResults) -> None:
-        self._print(f"{results.test.name}: ", end="")
+        await self._print(f"{results.test.name}: ", end="")
 
         if self._timed_out:
-            self._print("timed out", color=self.RED)
+            await self._print("timed out", color=self.RED)
         elif self._sut_not_responding:
             # this message will replace ok/fail message
-            self._print("SUT not responding", color=self.RED)
+            await self._print("SUT not responding", color=self.RED)
         elif self._kernel_panic:
             # this message will replace ok/fail message
-            self._print("kernel panic", color=self.RED)
+            await self._print("kernel panic", color=self.RED)
         else:
             msg = "pass"
             col = self.GREEN
@@ -379,15 +394,16 @@ class ParallelUserInterface(ConsoleUserInterface):
                 msg = "broken"
                 col = self.CYAN
 
-            self._print(msg, color=col, end="")
+            await self._print(msg, color=col, end="")
 
             if self._kernel_tainted:
-                self._print(" | ", end="")
-                self._print("tainted", color=self.YELLOW, end="")
+                await self._print(" | ", end="")
+                await self._print("tainted", color=self.YELLOW, end="")
 
             uf_time = self._user_friendly_duration(results.exec_time)
-            self._print(f"  ({uf_time})", end='')
-            self._print(" " * 16)  # cleanup message that was there before
+            await self._print(f"  ({uf_time})", end='')
+            # cleanup message that was there before
+            await self._print(" " * 16)
 
         self._sut_not_responding = False
         self._kernel_panic = False
@@ -395,4 +411,4 @@ class ParallelUserInterface(ConsoleUserInterface):
         self._timed_out = False
 
         self._running.remove(results.test.name)
-        self._refresh_running_tests()
+        await self._refresh_running_tests()
