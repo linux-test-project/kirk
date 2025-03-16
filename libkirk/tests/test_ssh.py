@@ -5,6 +5,7 @@ import os
 import subprocess
 import asyncio
 import pytest
+import pytest
 from libkirk.sut import IOBuffer
 from libkirk.sut import KernelPanicError
 from libkirk.ssh import SSHSUT
@@ -43,13 +44,13 @@ async def sut(config):
     """
     SSH SUT communication object.
     """
-    sut = SSHSUT()
-    sut.setup(**config)
+    _sut = SSHSUT()
+    _sut.setup(**config)
 
-    yield sut
+    yield _sut
 
-    if await sut.is_running:
-        await sut.stop()
+    if await _sut.is_running:
+        await _sut.stop()
 
 
 class _TestSSHSUT(_TestSUT):

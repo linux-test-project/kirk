@@ -79,7 +79,7 @@ class TestLTPFramework:
         test_sh = testcases / "test.sh"
         test_sh.write("#!/bin/bash\necho $1 $2\n")
 
-    def test_name(self, framework):
+    async def test_name(self, framework):
         """
         Test that name property is not empty.
         """

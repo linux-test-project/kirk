@@ -12,13 +12,13 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture
 async def sut():
-    sut = HostSUT()
-    sut.setup()
+    _sut = HostSUT()
+    _sut.setup()
 
-    yield sut
+    yield _sut
 
-    if await sut.is_running:
-        await sut.stop()
+    if await _sut.is_running:
+        await _sut.stop()
 
 
 class TestHostSUT(_TestSUT):

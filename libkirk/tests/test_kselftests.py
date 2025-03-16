@@ -76,7 +76,7 @@ class TestKselftestsFramework:
 
                 test_binfile.chmod(0o700)
 
-    def test_name(self, framework):
+    async def test_name(self, framework):
         """
         Test that name property is not empty.
         """

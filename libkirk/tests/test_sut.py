@@ -41,7 +41,7 @@ class _TestSUT:
 
     _logger = logging.getLogger("test.asyncsut")
 
-    def test_config_help(self, sut):
+    async def test_config_help(self, sut):
         """
         Test if config_help has the right type.
         """

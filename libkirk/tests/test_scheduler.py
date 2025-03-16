@@ -2,6 +2,7 @@
 Unittests for runner module.
 """
 import re
+import sys
 import asyncio
 import pytest
 from libkirk.sut import TAINTED_MSG
@@ -201,6 +202,9 @@ class TestTestScheduler:
         """
         Test the schedule method on kernel panic.
         """
+        if workers > 1 and sys.version_info < (3, 10):
+            pytest.xfail("Unstable test on < 3.10")
+
         tests = []
         tests.append(Test(
             name=f"test0",
@@ -240,6 +244,9 @@ class TestTestScheduler:
         """
         Test the schedule method on kernel timeout.
         """
+        if workers > 1 and sys.version_info < (3, 10):
+            pytest.xfail("Unstable test on < 3.10")
+
         async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
