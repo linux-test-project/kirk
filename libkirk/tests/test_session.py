@@ -144,7 +144,7 @@ class _TestSession:
         """
         Test run method when executing shuffled tests.
         """
-        num_of_suites = 5
+        num_of_suites = 50
 
         report = str(tmpdir / "report.json")
         await session.run(
