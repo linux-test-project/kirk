@@ -52,3 +52,19 @@ ltx = ["msgpack <= 1.1.0"]
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-v"
+testpaths = ["libkirk/tests"]
+filterwarnings = [
+        "ignore::DeprecationWarning",
+        "ignore::pytest.PytestCollectionWarning",
+]
+log_cli = "true"
+log_level = "DEBUG"
+markers = [
+        "ssh",
+        "qemu",
+        "ltx",
+]
