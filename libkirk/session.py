@@ -15,6 +15,7 @@ import libkirk
 import libkirk.data
 import libkirk.events
 from libkirk import KirkException
+from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
 from libkirk.results import TestResults
@@ -133,13 +134,13 @@ class Session:
 
         async def save_test_file(results: TestResults) -> None:
             epath = os.path.join(self._tmpdir.abspath, 'executed')
-            with open(epath, 'a+', encoding='utf-8') as efile:
-                efile.write(f"{self._curr_suite}::{results.test.name}\n")
+            async with AsyncFile(epath, 'a+') as efile:
+                await efile.write(f"{self._curr_suite}::{results.test.name}\n")
 
         libkirk.events.register("suite_started", save_suite_started)
         libkirk.events.register("test_completed", save_test_file)
 
-    def _read_restored_session(self, path: str) -> dict:
+    async def _read_restored_session(self, path: str) -> dict:
         """
         Read restored session.
         """
@@ -153,8 +154,8 @@ class Session:
 
         self._logger.info("Reading previous executed tests")
 
-        with open(epath, 'r', encoding='utf-8') as efile:
-            for line in efile:
+        async with AsyncFile(epath, 'r') as efile:
+            async for line in efile:
                 suite, test = line.split('::')
                 if not (suite and test):
                     continue
@@ -211,7 +212,7 @@ class Session:
         """
         Remove all tests but the one which need to be restored.
         """
-        restored = self._read_restored_session(restore)
+        restored = await self._read_restored_session(restore)
         if not restored:
             return
 

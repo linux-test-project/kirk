@@ -12,6 +12,7 @@ import asyncio
 import logging
 import contextlib
 from asyncio.subprocess import Process
+from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
 from libkirk.sut import SUTError
@@ -216,8 +217,8 @@ class HostSUT(SUT):
             retdata = bytes()
 
             try:
-                with open(target_path, 'rb') as ftarget:
-                    retdata = ftarget.read()
+                async with AsyncFile(target_path, 'rb') as ftarget:
+                    retdata = await ftarget.read()
             except IOError as err:
                 raise SUTError(err)
 

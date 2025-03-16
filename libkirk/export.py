@@ -9,6 +9,7 @@ import os
 import json
 import logging
 from libkirk import KirkException
+from libkirk.io import AsyncFile
 from libkirk.results import ResultStatus
 
 
@@ -113,7 +114,8 @@ class JSONExporter(Exporter):
             },
         }
 
-        with open(path, "w+", encoding='UTF-8') as outfile:
-            json.dump(data, outfile, indent=4)
+        async with AsyncFile(path, "w+") as outfile:
+            text = json.dumps(data, indent=4)
+            await outfile.write(text)
 
         self._logger.info("Report exported")

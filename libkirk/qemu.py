@@ -15,6 +15,7 @@ import secrets
 import logging
 import asyncio
 import contextlib
+from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
 from libkirk.sut import SUTError
@@ -543,13 +544,13 @@ class QemuSUT(SUT):
 
             retdata = bytes()
 
-            with open(transport_path, "rb") as transport:
+            async with AsyncFile(transport_path, "rb") as transport:
                 while not self._stop and self._last_pos < file_size:
-                    transport.seek(self._last_pos)
-                    data = transport.read(4096)
+                    await transport.seek(self._last_pos)
+                    data = await transport.read(4096)
                     retdata += data
 
-                    self._last_pos = transport.tell()
+                    self._last_pos = await transport.tell()
 
             self._logger.info("File downloaded")
 
