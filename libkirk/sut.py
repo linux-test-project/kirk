@@ -250,10 +250,8 @@ class SUT(Plugin):
             if ret["returncode"] != 0:
                 raise SUTError("Can't read tainted kernel information")
 
-            stdout = ret["stdout"].rstrip()
-
             tainted_num = len(TAINTED_MSG)
-            code = stdout.rstrip()
+            code = ret["stdout"].strip()
 
             # output is likely message in stderr
             if not code.isdigit():
