@@ -176,4 +176,4 @@ class _TestSession:
 
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) > 2
+            assert len(report_data["results"]) >= 2

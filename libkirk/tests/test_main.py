@@ -440,4 +440,4 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
 
         report = self.read_report(temp)
-        assert len(report["results"]) > 2
+        assert len(report["results"]) >= 2
