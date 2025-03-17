@@ -72,12 +72,12 @@ class AsyncFile:
         """
         return await libkirk.to_thread(self._file.tell)
 
-    async def read(self) -> str:
+    async def read(self, size: int = -1) -> str:
         """
         Asynchronous version of `read()`.
         :returns: data that has been read
         """
-        return await libkirk.to_thread(self._file.read)
+        return await libkirk.to_thread(self._file.read, size)
 
     async def readline(self) -> str:
         """
