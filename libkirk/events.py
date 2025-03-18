@@ -23,6 +23,23 @@ class Event:
         self._coros = []
         self._ordered = ordered
 
+    def remove(self, coro: typing.Coroutine) -> None:
+        """
+        Remove a specific coroutine associated to the event.
+        :param coro: coroutine to remove
+        :type coro: typing.Coroutine
+        """
+        for item in self._coros:
+            if item == coro:
+                self._coros.remove(coro)
+                break
+
+    def has_coros(self) -> bool:
+        """
+        Check if there are still available registrations.
+        """
+        return len(self._coros) > 0
+
     def register(self, coro: typing.Coroutine) -> None:
         """
         Register a new coroutine.
@@ -85,7 +102,11 @@ class EventsHandler:
         if not event_name:
             raise ValueError("event_name is empty")
 
-        return event_name in self._events
+        evt = self._get_event(event_name)
+        if not evt:
+            return False
+
+        return evt.has_coros()
 
     def register(self, event_name: str, coro: typing.Coroutine, ordered: bool = False) -> None:
         """
@@ -113,21 +134,30 @@ class EventsHandler:
 
         evt.register(coro)
 
-    def unregister(self, event_name: str) -> None:
+    def unregister(self, event_name: str, coro: typing.Coroutine = None) -> None:
         """
-        Unregister an event with ``event_name``.
+        Unregister a single event coroutine with event_name`. If `coro` is None,
+        all coroutines registered will be removed.
         :param event_name: name of the event
         :type event_name: str
+        :param coro: coroutine to unregister
+        :type coro: typing.Coroutine
         """
         if not event_name:
             raise ValueError("event_name is empty")
 
+        if not coro:
+            raise ValueError("coro is empty")
+
         if not self.is_registered(event_name):
             raise ValueError(f"{event_name} is not registered")
 
-        self._logger.info("Unregister event: %s", repr(event_name))
+        self._logger.info(
+            "Unregister event: %s -> %s", repr(event_name), repr(coro))
 
-        if event_name in self._events:
+        if coro:
+            self._events[event_name].remove(coro)
+        else:
             del self._events[event_name]
 
     async def fire(self, event_name: str, *args: list, **kwargs: dict) -> None:
