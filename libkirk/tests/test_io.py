@@ -75,3 +75,51 @@ async def test_readline(tmpdir):
         assert await fdata.readline() == "kirkdata\n"
         assert await fdata.readline() == "kirkdata\n"
         assert await fdata.readline() == ''
+
+
+async def test_file_no_open(tmpdir):
+    """
+    Test a file when it's not open.
+    """
+    myfile = tmpdir / "myfile"
+
+    with open(myfile, "w", encoding="utf-8") as fdata:
+        fdata.write("kirkdata")
+
+    fdata = AsyncFile(myfile, 'r')
+    await fdata.seek(4)
+    assert not await fdata.tell()
+    assert not await fdata.read()
+    assert not await fdata.readline()
+    await fdata.write("faaaa")
+    await fdata.close()
+    await fdata.close()
+    await fdata.close()
+
+
+async def test_open(tmpdir):
+    """
+    Test `open()` method.
+    """
+    myfile = tmpdir / "myfile"
+    fdata = AsyncFile(myfile, 'w')
+    await fdata.open()
+    await fdata.open()
+    try:
+        await fdata.write("ciao")
+    finally:
+        await fdata.close()
+        await fdata.close()
+
+
+async def test_mutliple_open_close(tmpdir):
+    """
+    Test `open()` and `close()` methods when open/close multiple times.
+    """
+    myfile = tmpdir / "myfile"
+    fdata = AsyncFile(myfile, 'w')
+    await fdata.open()
+    await fdata.open()
+    await fdata.open()
+    await fdata.close()
+    await fdata.close()
