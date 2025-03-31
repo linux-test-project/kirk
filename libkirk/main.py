@@ -18,8 +18,7 @@ from libkirk import __version__
 from libkirk import KirkException
 from libkirk.sut import SUT
 from libkirk.sut import SUTError
-from libkirk.framework import Framework
-from libkirk.framework import FrameworkError
+from libkirk.ltp import LTPFramework
 from libkirk.ui import SimpleUserInterface
 from libkirk.ui import VerboseUserInterface
 from libkirk.ui import ParallelUserInterface
@@ -28,9 +27,6 @@ from libkirk.tempfile import TempDir
 
 # runtime loaded SUT(s)
 LOADED_SUT = []
-
-# runtime loaded Framework(s)
-LOADED_FRAMEWORK = []
 
 # return codes of the application
 RC_OK = 0
@@ -109,13 +105,6 @@ def _sut_config(value: str) -> dict:
     return _dict_config("sut", LOADED_SUT, value)
 
 
-def _framework_config(value: str) -> dict:
-    """
-    Return a Framework configuration according with input string.
-    """
-    return _dict_config("framework", LOADED_FRAMEWORK, value)
-
-
 def _env_config(value: str) -> dict:
     """
     Return an environment configuration dictionary, parsing strings such as
@@ -184,14 +173,6 @@ def _discover_sut(path: str) -> None:
     LOADED_SUT.extend(objs)
 
 
-def _discover_frameworks(path: str) -> None:
-    """
-    Discover new Framework implementations.
-    """
-    objs = libkirk.plugin.discover(Framework, path)
-    LOADED_FRAMEWORK.extend(objs)
-
-
 def _get_plugin(plugins: list, name: str) -> object:
     """
     Return the Plugin object with given name.
@@ -255,35 +236,6 @@ def _get_sut(
     return sut
 
 
-def _get_framework(
-        args: argparse.Namespace,
-        parser: argparse.ArgumentParser) -> Framework:
-    """
-    Create and framework object.
-    """
-    fw_config = args.framework.copy()
-    if args.env:
-        fw_config['env'] = args.env.copy()
-
-    if args.exec_timeout:
-        fw_config['test_timeout'] = args.exec_timeout
-
-    if args.suite_timeout:
-        fw_config['suite_timeout'] = args.suite_timeout
-
-    fw_name = args.framework["name"]
-    framework = _get_plugin(LOADED_FRAMEWORK, fw_name)
-    if not framework:
-        parser.error(f"'{fw_name}' framework is not available")
-
-    try:
-        framework.setup(**fw_config)
-    except FrameworkError as err:
-        parser.error(str(err))
-
-    return framework
-
-
 # pylint: disable=too-many-statements
 def _start_session(
         args: argparse.Namespace,
@@ -315,9 +267,16 @@ def _start_session(
     else:
         tmpdir = TempDir("/tmp")
 
-    # create SUT and Framework objects
+    # create SUT based on configuration
     sut = _get_sut(args, parser, tmpdir)
-    framework = _get_framework(args, parser)
+
+    # create framework communication object
+    framework = LTPFramework(
+        root=args.ltp_root,
+        env=args.env,
+        max_runtime=args.threshold,
+        test_timeout=args.exec_timeout,
+    )
 
     # start session
     session = Session(
@@ -400,7 +359,6 @@ def run(cmd_args: list = None) -> None:
     """
     currdir = os.path.dirname(os.path.realpath(__file__))
     _discover_sut(currdir)
-    _discover_frameworks(currdir)
 
     parser = argparse.ArgumentParser(
         description='Kirk - All-in-one Linux Testing Framework')
@@ -508,6 +466,18 @@ def run(cmd_args: list = None) -> None:
         type=_time_config,
         default="0",
         help="Set for how long we want to run the session in seconds")
+    parser.add_argument(
+        "--threshold",
+        "-U",
+        type=float,
+        default="0.0",
+        help="Set the runtime threshold for tests in seconds. zero means infinite")
+    parser.add_argument(
+        "--ltp-root",
+        "-L",
+        type=str,
+        default="/opt/ltp",
+        help="Linux Test Project install directory")
 
     # session arguments
     parser.add_argument(
@@ -516,12 +486,6 @@ def run(cmd_args: list = None) -> None:
         default="host",
         type=_sut_config,
         help="System Under Test parameters. For help please use '-s help'")
-    parser.add_argument(
-        "--framework",
-        "-f",
-        default="ltp",
-        type=_framework_config,
-        help="Framework parameters. For help please use '-f help'")
 
     # output arguments
     parser.add_argument(
@@ -535,10 +499,6 @@ def run(cmd_args: list = None) -> None:
 
     if args.sut and "help" in args.sut:
         print(args.sut["help"])
-        parser.exit(RC_OK)
-
-    if args.framework and "help" in args.framework:
-        print(args.framework["help"])
         parser.exit(RC_OK)
 
     if args.json_report and os.path.exists(args.json_report):
