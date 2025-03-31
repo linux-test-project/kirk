@@ -1,11 +1,11 @@
 """
 Generic stuff for pytest.
 """
-import libkirk
 import pytest
+import libkirk
 from libkirk.results import TestResults
 from libkirk.sut import SUT
-from libkirk.framework import Framework
+from libkirk.ltp import Framework
 from libkirk.data import Suite
 from libkirk.data import Test
 
@@ -27,23 +27,13 @@ def event_loop():
 
 class DummyFramework(Framework):
     """
-    A generic framework created for testing.
+    Dummy framework created for testing purposes that replaces the
+    LTPFramework object.
     """
 
-    def __init__(self) -> None:
-        self._root = None
-
-    def setup(self, **kwargs: dict) -> None:
+    def __init__(self, **kwargs: dict) -> None:
         self._root = kwargs.get("root", "/")
         self._env = kwargs.get("env", None)
-
-    @property
-    def name(self) -> str:
-        return "dummy"
-
-    @property
-    def config_help(self) -> dict:
-        return {}
 
     async def get_suites(self, sut: SUT) -> list:
         return ["suite01", "suite02", "sleep", "environ", "kernel_panic"]
@@ -70,6 +60,7 @@ class DummyFramework(Framework):
                 parallelizable=False)
 
             return Suite(name, [test0, test1])
+
         if name == "suite02":
             test0 = Test(
                 name="test01",
@@ -88,7 +79,8 @@ class DummyFramework(Framework):
                 parallelizable=True)
 
             return Suite(name, [test0, test1])
-        elif name == "sleep":
+
+        if name == "sleep":
             test0 = Test(
                 name="test01",
                 cwd=self._root,
@@ -106,7 +98,8 @@ class DummyFramework(Framework):
                 parallelizable=False)
 
             return Suite(name, [test0, test1])
-        elif name == "environ":
+
+        if name == "environ":
             test0 = Test(
                 name="test01",
                 cwd=self._root,
@@ -116,7 +109,8 @@ class DummyFramework(Framework):
                 parallelizable=False)
 
             return Suite(name, [test0])
-        elif name == "kernel_panic":
+
+        if name == "kernel_panic":
             test0 = Test(
                 name="test01",
                 cwd=self._root,
@@ -179,10 +173,9 @@ class DummyFramework(Framework):
 
 
 @pytest.fixture
-def dummy_framework():
+def dummy_framework(tmpdir):
     """
     A fummy framework implementation used for testing.
     """
-    obj = DummyFramework()
-    obj.setup(root="/tmp")
+    obj = DummyFramework(root=str(tmpdir), env={"hello": "ciao"})
     yield obj

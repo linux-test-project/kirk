@@ -28,6 +28,11 @@ from libkirk.tempfile import TempDir
 # runtime loaded SUT(s)
 LOADED_SUT = []
 
+# framework object. This is here for debugging reasons
+# since testing can be quite challenging due to weird
+# mocking and pytest craziness
+FRAMEWORK = None
+
 # return codes of the application
 RC_OK = 0
 RC_ERROR = 1
@@ -271,17 +276,21 @@ def _start_session(
     sut = _get_sut(args, parser, tmpdir)
 
     # create framework communication object
-    framework = LTPFramework(
-        root=args.ltp_root,
-        env=args.env,
-        max_runtime=args.threshold,
-        test_timeout=args.exec_timeout,
-    )
+    # pylint: disable=global-statement
+    global FRAMEWORK
+
+    if not FRAMEWORK:
+        FRAMEWORK = LTPFramework(
+            root=args.ltp_root,
+            env=args.env,
+            max_runtime=args.threshold,
+            test_timeout=args.exec_timeout,
+        )
 
     # start session
     session = Session(
         sut=sut,
-        framework=framework,
+        framework=FRAMEWORK,
         tmpdir=tmpdir,
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
