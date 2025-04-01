@@ -418,136 +418,129 @@ def run(cmd_args: list = None) -> None:
     parser = argparse.ArgumentParser(
         description='Kirk - All-in-one Linux Testing Framework')
 
-    # generic arguments
-    parser.add_argument(
+    generic_opts = parser.add_argument_group('General options')
+    generic_opts.add_argument(
         "--version",
         "-V",
         action="version",
         version=f"%(prog)s, {__version__}")
-
-    # user interface arguments
-    parser.add_argument(
+    generic_opts.add_argument(
         "--verbose",
         "-v",
         action="store_true",
         help="Verbose mode")
-    parser.add_argument(
+    generic_opts.add_argument(
         "--no-colors",
         "-n",
         action="store_true",
         help="If defined, no colors are shown")
-
-    # generic directories arguments
-    parser.add_argument(
+    generic_opts.add_argument(
         "--tmp-dir",
         "-d",
         type=str,
         default="/tmp",
         help="Temporary directory")
-    parser.add_argument(
+    generic_opts.add_argument(
         "--restore",
-        "-R",
+        "-r",
         type=str,
         help="Restore a specific session")
-
-    # tests setup arguments
-    parser.add_argument(
-        "--env",
-        "-e",
-        type=_env_config,
-        help="List of key=value environment values separated by ':'")
-    parser.add_argument(
-        "--skip-tests",
-        "-k",
+    generic_opts.add_argument(
+        "--json-report",
+        "-o",
         type=str,
-        help="Skip specific tests")
-    parser.add_argument(
-        "--skip-file",
-        "-K",
-        type=str,
-        help="Skip specific tests using a skip file (newline separated item)")
-    parser.add_argument(
-        "--suite-timeout",
-        "-T",
-        type=_time_config,
-        default="1h",
-        help="Timeout before stopping the suite (default: 1h)")
-    parser.add_argument(
-        "--exec-timeout",
-        "-t",
-        type=_time_config,
-        default="1h",
-        help="Timeout before stopping a single execution (default: 1h)")
-    parser.add_argument(
-        "--suite-iterate",
-        "-I",
-        type=_iterate_config,
-        default=1,
-        help="Number of times to repeat testing suites")
-
-    # tests execution arguments
-    parser.add_argument(
-        "--run-suite",
-        "-r",
-        nargs="*",
-        help="List of suites to run")
-    parser.add_argument(
-        "--run-pattern",
-        "-S",
-        help="Run all tests matching the regex pattern")
-    parser.add_argument(
-        "--run-command",
-        "-c",
-        help="Command to run")
-    parser.add_argument(
-        "--workers",
-        "-w",
-        type=int,
-        default=1,
-        help="Number of workers to execute tests in parallel")
-    parser.add_argument(
-        "--force-parallel",
-        "-p",
-        action="store_true",
-        help="Force parallelization execution of all tests")
-    parser.add_argument(
-        "--randomize",
-        "-x",
-        action="store_true",
-        help="Force parallelization execution of all tests")
-    parser.add_argument(
-        "--runtime",
-        "-u",
-        type=_time_config,
-        default="0",
-        help="Set for how long we want to run the session in seconds")
-    parser.add_argument(
+        help="JSON output report")
+    generic_opts.add_argument(
         "--monitor",
         "-m",
         type=str,
         help="Location of the monitor file")
 
-    # session arguments
-    parser.add_argument(
+    conf_opts = parser.add_argument_group('Configuration options')
+    conf_opts.add_argument(
         "--sut",
-        "-s",
+        "-u",
         default="host",
         type=_sut_config,
-        help="System Under Test parameters. For help please use '-s help'")
-    parser.add_argument(
+        help="System Under Test parameters. For help please use '--sut help'")
+    conf_opts.add_argument(
         "--framework",
-        "-f",
+        "-U",
         default="ltp",
         type=_framework_config,
-        help="Framework parameters. For help please use '-f help'")
+        help="Framework parameters. For help please use '--framework help'")
+    conf_opts.add_argument(
+        "--env",
+        "-e",
+        type=_env_config,
+        help="List of key=value environment values separated by ':'")
+    conf_opts.add_argument(
+        "--skip-tests",
+        "-s",
+        type=str,
+        help="Skip specific tests")
+    conf_opts.add_argument(
+        "--skip-file",
+        "-S",
+        type=str,
+        help="Skip specific tests using a skip file (newline separated item)")
+
+    exec_opts = parser.add_argument_group('Execution options')
+    exec_opts.add_argument(
+        "--run-suite",
+        "-f",
+        nargs="*",
+        help="List of suites to run")
+    exec_opts.add_argument(
+        "--run-pattern",
+        "-p",
+        help="Run all tests matching the regex pattern")
+    exec_opts.add_argument(
+        "--run-command",
+        "-c",
+        help="Command to run")
+    exec_opts.add_argument(
+        "--suite-timeout",
+        "-T",
+        type=_time_config,
+        default="1h",
+        help="Timeout before stopping the suite (default: 1h)")
+    exec_opts.add_argument(
+        "--exec-timeout",
+        "-t",
+        type=_time_config,
+        default="1h",
+        help="Timeout before stopping a single execution (default: 1h)")
+    exec_opts.add_argument(
+        "--randomize",
+        "-R",
+        action="store_true",
+        help="Force parallelization execution of all tests")
+    exec_opts.add_argument(
+        "--runtime",
+        "-I",
+        type=_time_config,
+        default="0",
+        help="Set for how long we want to run the session in seconds")
+    exec_opts.add_argument(
+        "--suite-iterate",
+        "-i",
+        type=_iterate_config,
+        default=1,
+        help="Number of times to repeat testing suites")
+    exec_opts.add_argument(
+        "--workers",
+        "-w",
+        type=int,
+        default=1,
+        help="Number of workers to execute tests in parallel")
+    exec_opts.add_argument(
+        "--force-parallel",
+        "-F",
+        action="store_true",
+        help="Force parallelization execution of all tests")
 
     # output arguments
-    parser.add_argument(
-        "--json-report",
-        "-j",
-        type=str,
-        help="JSON output report")
-
     # parse comand line
     args = parser.parse_args(cmd_args)
 
