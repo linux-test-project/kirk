@@ -2,7 +2,7 @@ What is Kirk?
 =============
 
 Kirk application is a fork of [runltp-ng](https://github.com/linux-test-project/runltp-ng)
-and it aims to merge multiple Linux testing frameworks in one tool, providing
+and it's the official Linux Test Project runner, providing
 support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
 
     Host information
@@ -84,35 +84,31 @@ support. If no dependences are provided by the OS's package manager,
 Some basic commands are the following:
 
     # run LTP syscalls testing suite on host
-    ./kirk --framework ltp --run-suite syscalls
+    ./kirk --run-suite syscalls
 
     # run LTP syscalls testing suite on qemu VM
-    ./kirk --framework ltp \
-        --sut qemu:image=folder/image.qcow2:user=root:password=root \
+    ./kirk  --sut qemu:image=folder/image.qcow2:user=root:password=root \
         --run-suite syscalls
 
     # run LTP syscalls testing suite via SSH
-    ./kirk --framework ltp \
-        --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
+    ./kirk --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite syscalls
 
     # run LTP syscalls testing suite in parallel on host using 16 workers
-    ./kirk --framework ltp --run-suite syscalls --workers 16
+    ./kirk --run-suite syscalls --workers 16
 
     # run LTP syscalls testing suite in parallel via SSH using 16 workers
-    ./kirk --framework ltp \
-        --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
+    ./kirk --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
         --run-suite syscalls --workers 16
 
     # pass environment variables (list of key=value separated by ':')
-    ./kirk --framework ltp --run-suite net.features \
+    ./kirk --run-suite net.features \
         --env 'VIRT_PERF_THRESHOLD=180:LTP_NET_FEATURES_IGNORE_PERFORMANCE_FAILURE=1'
 
 It's possible to run a single command before running testing suites using
 `--run-command` option as following:
 
-    ./kirk --framework ltp \
-        --run-command /mnt/setup.sh \
+    ./kirk --run-command /mnt/setup.sh \
         --sut qemu:image=folder/image.qcow2:virtfs=/home/user/tests:user=root:password=root \
         --run-suite syscalls
 
@@ -124,8 +120,7 @@ In certain cases, `kirk` sessions can be restored. This can be really helpful
 when we need to restore the last session after a system crash:
 
     # restore the latest session
-    ./kirk --framework ltp \
-        --restore /tmp/kirk.<username>/latest \
+    ./kirk --restore /tmp/kirk.<username>/latest \
         --run-suite syscalls
 
 Setting up console for Qemu
@@ -154,16 +149,6 @@ or `ssh.py` implementations for more details.
 Once a new SUT class is implemented and placed inside the `libkirk` folder,
 `kirk -s help` command can be used to see if application correctly
 recognise it.
-
-Implementing Framework
-======================
-
-Every testing framework has it's own setup, defining tests folders, data and
-variables. For this reason, `Framework` class provides a generic API that, once
-implemented, permits to define a specific testing framework. The class 
-implementation must be included inside the `libkirk` folder and it will be
-used as an abstraction layer between `kirk` scheduler and the specific testing
-framework.
 
 Development
 ===========

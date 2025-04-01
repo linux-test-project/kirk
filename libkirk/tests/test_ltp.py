@@ -35,10 +35,7 @@ class TestLTPFramework:
         """
         LTP framework object.
         """
-        fw = LTPFramework()
-        fw.setup(root=str(tmpdir))
-
-        yield fw
+        yield LTPFramework(root=str(tmpdir))
 
     @pytest.fixture(autouse=True)
     def prepare_tmpdir(self, tmpdir):
@@ -63,7 +60,7 @@ class TestLTPFramework:
         for i in range(self.TESTS_NUM, self.TESTS_NUM * 2):
             content += f"slow_test0{i} sleep 0.05\n"
 
-        suite = runtest / f"slow_suite"
+        suite = runtest / "slow_suite"
         suite.write(content)
 
         tests = {}
@@ -79,13 +76,7 @@ class TestLTPFramework:
         test_sh = testcases / "test.sh"
         test_sh.write("#!/bin/bash\necho $1 $2\n")
 
-    async def test_name(self, framework):
-        """
-        Test that name property is not empty.
-        """
-        assert framework.name == "ltp"
-
-    async def test_get_suites(self, framework, sut, tmpdir):
+    async def test_get_suites(self, framework, sut):
         """
         Test get_suites method.
         """
@@ -148,8 +139,7 @@ class TestLTPFramework:
         """
         Test find_suite method when max_runtime is defined.
         """
-        framework = LTPFramework()
-        framework.setup(root=str(tmpdir), max_runtime=5)
+        framework = LTPFramework(root=str(tmpdir), max_runtime=5)
 
         suite = await framework.find_suite(sut, "slow_suite")
         assert len(suite.tests) == 0

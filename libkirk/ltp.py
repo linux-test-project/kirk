@@ -10,13 +10,77 @@ import re
 import json
 import shlex
 import logging
+from libkirk import KirkException
 from libkirk.results import TestResults
 from libkirk.results import ResultStatus
 from libkirk.sut import SUT
 from libkirk.data import Suite
 from libkirk.data import Test
-from libkirk.framework import Framework
-from libkirk.framework import FrameworkError
+
+
+class FrameworkError(KirkException):
+    """
+    A generic framework exception.
+    """
+
+
+class Framework:
+    """
+    This class abstract the testing framework communication.
+    """
+
+    async def get_suites(self, sut: SUT) -> list:
+        """
+        Return the list of available suites inside SUT.
+        :param sut: SUT object to communicate with
+        :type sut: SUT
+        :returns: list
+        """
+        raise NotImplementedError()
+
+    async def find_command(self, sut: SUT, command: str) -> Test:
+        """
+        Search for command inside Framework folder and, if it's not found,
+        search for command in the operating system. Then return a Test object
+        which can be used to execute command.
+        :param sut: SUT object to communicate with
+        :type sut: SUT
+        :param command: command to execute
+        :type command: str
+        :returns: Test
+        """
+        raise NotImplementedError()
+
+    async def find_suite(self, sut: SUT, name: str) -> Suite:
+        """
+        Search for suite with given name inside SUT.
+        :param sut: SUT object to communicate with
+        :type sut: SUT
+        :param suite: name of the suite
+        :type suite: str
+        :returns: Suite
+        """
+        raise NotImplementedError()
+
+    async def read_result(
+            self,
+            test: Test,
+            stdout: str,
+            retcode: int,
+            exec_t: float) -> TestResults:
+        """
+        Return test results accoding with runner output and Test definition.
+        :param test: Test definition object
+        :type test: Test
+        :param stdout: test stdout
+        :type stdout: str
+        :param retcode: test return code
+        :type retcode: int
+        :param exec_t: test execution time in seconds
+        :type exec_t: float
+        :returns: TestResults
+        """
+        raise NotImplementedError()
 
 
 class LTPFramework(Framework):
@@ -35,22 +99,22 @@ class LTPFramework(Framework):
         "max_runtime"
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: dict) -> None:
+        """
+        :param root: install folder
+        :type root: str
+        :param env: environment configuration
+        :type env: dict
+        :param max_runtime: filter out all tests above this time value
+        :type max_runtime: float
+        :param test_timeout: set a test timeout
+        :type test_timeout: int
+        """
         self._logger = logging.getLogger("libkirk.ltp")
-        self._root = None
-        self._env = None
-        self._max_runtime = None
-        self._tc_folder = None
-
-    @ property
-    def config_help(self) -> dict:
-        return {
-            "root": "LTP install folder",
-            "max_runtime": "filter out all tests above this time value",
-        }
-
-    def setup(self, **kwargs: dict) -> None:
-        self._root = "/opt/ltp"
+        self._root = kwargs.get("root", "/opt/ltp")
+        self._tc_folder = os.path.join(self._root, "testcases", "bin")
+        self._runtest_folder = os.path.join(self._root, "runtest")
+        self._max_runtime = kwargs.get("max_runtime", 0.0)
         self._env = {
             "LTPROOT": self._root,
             "TMPDIR": "/tmp",
@@ -65,23 +129,6 @@ class LTPFramework(Framework):
         if timeout:
             self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
-        root = kwargs.get("root", None)
-        if root:
-            self._root = root
-            self._env["LTPROOT"] = self._root
-
-        self._tc_folder = os.path.join(self._root, "testcases", "bin")
-
-        runtime = kwargs.get("max_runtime", None)
-
-        if runtime:
-            try:
-                runtime = float(runtime)
-            except TypeError:
-                raise FrameworkError("max_runtime must be an integer")
-
-            self._max_runtime = runtime
-
     async def _read_path(self, sut: SUT) -> dict:
         """
         Read PATH and initialize it with testcases folder as well.
@@ -94,8 +141,7 @@ class LTPFramework(Framework):
             if ret["returncode"] != 0:
                 raise FrameworkError("Can't read PATH variable")
 
-            tcases = os.path.join(self._root, "testcases", "bin")
-            env["PATH"] = ret["stdout"].strip() + f":{tcases}"
+            env["PATH"] = ret["stdout"].strip() + f":{self._tc_folder}"
 
         self._logger.debug("PATH=%s", env["PATH"])
 
@@ -109,7 +155,7 @@ class LTPFramework(Framework):
         addable = True
 
         # filter out max_runtime tests when required
-        if self._max_runtime:
+        if self._max_runtime > 0:
             runtime = test_params.get("max_runtime")
             if runtime:
                 try:
@@ -217,10 +263,6 @@ class LTPFramework(Framework):
 
         return suite
 
-    @property
-    def name(self) -> str:
-        return "ltp"
-
     async def get_suites(self, sut: SUT) -> list:
         if not sut:
             raise ValueError("SUT is None")
@@ -229,12 +271,13 @@ class LTPFramework(Framework):
         if ret["returncode"] != 0:
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
-        runtest_dir = os.path.join(self._root, "runtest")
-        ret = await sut.run_command(f"test -d {runtest_dir}")
+        ret = await sut.run_command(f"test -d {self._runtest_folder}")
         if ret["returncode"] != 0:
-            raise FrameworkError(f"'{runtest_dir}' doesn't exist inside SUT")
+            raise FrameworkError(
+                f"'{self._runtest_folder}' doesn't exist inside SUT")
 
-        ret = await sut.run_command(f"ls --format=single-column {runtest_dir}")
+        ret = await sut.run_command(
+            f"ls --format=single-column {self._runtest_folder}")
         stdout = ret["stdout"]
         if ret["returncode"] != 0:
             raise FrameworkError(f"command failed with: {stdout}")
@@ -279,7 +322,7 @@ class LTPFramework(Framework):
         if ret["returncode"] != 0:
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
-        suite_path = os.path.join(self._root, "runtest", name)
+        suite_path = os.path.join(self._runtest_folder, name)
 
         ret = await sut.run_command(f"test -f {suite_path}")
         if ret["returncode"] != 0:
