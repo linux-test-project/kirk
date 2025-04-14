@@ -382,6 +382,7 @@ def _start_session(
                 await monitor.stop()
 
     loop = libkirk.get_event_loop()
+    exit_code = RC_OK
 
     try:
         loop.run_until_complete(
@@ -398,6 +399,7 @@ def _start_session(
         try:
             # at this point loop has been closed, so we can collect all
             # tasks and cancel them
+            loop.run_until_complete(session.stop())
             libkirk.cancel_tasks(loop)
         except KeyboardInterrupt:
             pass
