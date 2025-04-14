@@ -126,11 +126,11 @@ class TestScheduler(Scheduler):
         self._timeout = max(kwargs.get("timeout", 3600.0), 0.0)
         self._max_workers = kwargs.get("max_workers", 1)
         self._force_parallel = kwargs.get("force_parallel", False)
-        self._lock = asyncio.Lock()
         self._results = []
         self._stop = False
         self._stopped = False
-        self._tasks = []
+        self._running_tests_sem = asyncio.Semaphore(1)
+        self._schedule_lock = asyncio.Lock()
 
         if not self._sut:
             raise ValueError("SUT object is empty")
@@ -176,36 +176,35 @@ class TestScheduler(Scheduler):
         return self._stopped
 
     async def stop(self) -> None:
-        if not self._tasks:
-            return
-
         self._logger.info("Stopping tests execution")
-
         self._stop = True
+
         try:
-            for task in self._tasks:
-                if not task.cancelled():
-                    task.cancel()
+            # we enter in the semaphore queue in order to get highest
+            # priority in the tests queue and wait for the running tests
+            # to be completed
+            async with self._running_tests_sem:
+                pass
 
-            # wait until all tasks have been cancelled
-            await asyncio.gather(*self._tasks, return_exceptions=True)
+            self._logger.info("Wait for running tests to be completed")
 
-            async with self._lock:
+            async with self._schedule_lock:
                 pass
         finally:
             self._stop = False
             self._stopped = True
 
-        self._logger.info("Tests execution has stopped")
+        self._logger.info("All tests have been completed")
 
     # pylint: disable=too-many-statements
     # pylint: disable=too-many-locals
-    async def _run_test(self, test: Test, sem: asyncio.Semaphore) -> None:
+    async def _run_test(self, test: Test) -> None:
         """
         Run a single test and populate the results array.
         """
-        async with sem:
+        async with self._running_tests_sem:
             if self._stop:
+                self._logger.info("Test '%s' has been stopped", test.name)
                 return None
 
             self._logger.info("Running test %s", test.name)
@@ -308,15 +307,12 @@ class TestScheduler(Scheduler):
         if not tests:
             return
 
-        sem = asyncio.Semaphore(1)
-
         self._logger.info("Scheduling %d tests on single worker", len(tests))
 
-        for test in tests:
-            task = libkirk.create_task(self._run_test(test, sem))
-            self._tasks.append(task)
+        self._running_tests_sem = asyncio.Semaphore(1)
 
-            await task
+        for test in tests:
+            await self._run_test(test)
 
     async def _run_parallel(self, tests: list) -> None:
         """
@@ -325,16 +321,15 @@ class TestScheduler(Scheduler):
         if not tests:
             return
 
-        sem = asyncio.Semaphore(self._max_workers)
-        tasks = [asyncio.Task(self._run_test(test, sem)) for test in tests]
+        self._running_tests_sem = asyncio.Semaphore(self._max_workers)
+        coros = [self._run_test(test) for test in tests]
 
         self._logger.info(
             "Scheduling %d tests on %d workers",
-            len(tasks),
+            len(coros),
             self._max_workers)
 
-        self._tasks.extend(tasks)
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*coros)
 
     async def schedule(self, jobs: list) -> None:
         if not jobs:
@@ -344,45 +339,35 @@ class TestScheduler(Scheduler):
             if not isinstance(job, Test):
                 raise ValueError("jobs must be a list of Test")
 
-        async with self._lock:
+        async with self._schedule_lock:
             self._logger.info("Check what tests can be run in parallel")
 
-            self._tasks.clear()
             self._results.clear()
 
             try:
                 if self._force_parallel:
                     await self._run_parallel(jobs)
                 else:
-                    await self._run_parallel([
-                        test for test in jobs if test.parallelizable
-                    ])
-                    await self._run_and_wait([
-                        test for test in jobs if not test.parallelizable
-                    ])
+                    if self._max_workers > 1:
+                        await self._run_parallel([
+                            test for test in jobs if test.parallelizable
+                        ])
+                        await self._run_and_wait([
+                            test for test in jobs if not test.parallelizable
+                        ])
+                    else:
+                        await self._run_and_wait(jobs)
             except KirkException as err:
-                self._logger.info(
-                    "%s caught. Cancel tasks",
-                    err.__class__.__name__)
+                exc_name = err.__class__.__name__
+                self._logger.info("%s caught during tests execution", exc_name)
 
-                self._logger.error(err)
+                raise_exc = not self._stop
+                async with self._running_tests_sem:
+                    pass
 
-                for task in self._tasks:
-                    self._logger.info("Cancelling %d tasks", len(self._tasks))
-
-                    if not task.done() and not task.cancelled():
-                        task.cancel()
-
-                self._logger.info("Wait for tasks to be done")
-                await asyncio.gather(*self._tasks, return_exceptions=True)
-
-                if not self._stop:
+                if raise_exc:
+                    self._logger.info("Propagating %s exception", exc_name)
                     raise err
-            except asyncio.CancelledError as err:
-                if not self._stop:
-                    raise err
-            finally:
-                self._tasks.clear()
 
 
 class SuiteScheduler(Scheduler):
@@ -415,7 +400,9 @@ class SuiteScheduler(Scheduler):
         self._results = []
         self._stop = False
         self._stopped = False
-        self._lock = asyncio.Lock()
+        self._schedule_lock = asyncio.Lock()
+        self._reboot_lock = asyncio.Lock()
+        self._sut_rebooted = False
 
         if not self._sut:
             raise ValueError("SUT is an empty object")
@@ -442,16 +429,13 @@ class SuiteScheduler(Scheduler):
         return self._stopped
 
     async def stop(self) -> None:
-        if not self._lock.locked():
-            return
-
         self._logger.info("Stopping suites execution")
 
         self._stop = True
         try:
             await self._scheduler.stop()
 
-            async with self._lock:
+            async with self._schedule_lock:
                 pass
         finally:
             self._stop = False
@@ -463,17 +447,18 @@ class SuiteScheduler(Scheduler):
         """
         Reboot the SUT.
         """
-        self._logger.info("Rebooting SUT")
+        async with self._reboot_lock:
+            self._logger.info("Rebooting SUT")
 
-        await libkirk.events.fire("sut_restart", self._sut.name)
+            await libkirk.events.fire("sut_restart", self._sut.name)
 
-        iobuffer = RedirectSUTStdout(self._sut)
+            iobuffer = RedirectSUTStdout(self._sut)
 
-        await self._scheduler.stop()
-        await self._sut.stop(iobuffer=iobuffer)
-        await self._sut.ensure_communicate(iobuffer=iobuffer)
+            await self._scheduler.stop()
+            await self._sut.stop(iobuffer=iobuffer)
+            await self._sut.ensure_communicate(iobuffer=iobuffer)
 
-        self._logger.info("SUT rebooted")
+            self._logger.info("SUT rebooted")
 
     async def _run_suite(self, suite: Suite) -> None:
         """
@@ -490,6 +475,7 @@ class SuiteScheduler(Scheduler):
         exec_times = []
         tests_results = []
         tests_left = list(suite.tests)
+        reboot_event = asyncio.Event()
 
         try:
             while not self._stop and tests_left:
@@ -513,8 +499,12 @@ class SuiteScheduler(Scheduler):
                 except (KernelPanicError,
                         KernelTaintedError,
                         KernelTimeoutError):
-                    # once we catch a kernel error, restart the SUT
-                    await self._restart_sut()
+                    if self._reboot_lock.locked():
+                        self._logger.info("SUT is rebooting. Waiting...")
+                        await reboot_event.wait()
+                    else:
+                        await self._restart_sut()
+                        reboot_event.set()
                 finally:
                     tests_results.extend(self._scheduler.results)
 
@@ -585,8 +575,8 @@ class SuiteScheduler(Scheduler):
             if not isinstance(job, Suite):
                 raise ValueError("jobs must be a list of Suite")
 
-        async with self._lock:
+        async with self._schedule_lock:
             self._results.clear()
 
             for suite in jobs:
-                await libkirk.create_task(self._run_suite(suite))
+                await self._run_suite(suite)
