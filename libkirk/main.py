@@ -399,7 +399,12 @@ def _start_session(
         try:
             # at this point loop has been closed, so we can collect all
             # tasks and cancel them
-            loop.run_until_complete(session.stop())
+            loop.run_until_complete(
+                asyncio.gather(*[
+                    session.stop(),
+                    libkirk.events.stop(),
+                ])
+            )
             libkirk.cancel_tasks(loop)
         except KeyboardInterrupt:
             pass
