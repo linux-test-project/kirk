@@ -165,6 +165,9 @@ class SSHSUT(SUT):
         self._key_file = kwargs.get("key_file", None)
         self._known_hosts = kwargs.get("known_hosts", "~/.ssh/known_hosts")
 
+        if self._known_hosts == "/dev/null":
+            self._known_hosts = None
+
         try:
             self._port = int(kwargs.get("port", "22"))
 
