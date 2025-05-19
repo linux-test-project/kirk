@@ -219,9 +219,9 @@ class SSHSUT(SUT):
 
             self._logger.info("Maximum SSH sessions: %d", max_sessions)
             self._session_sem = asyncio.Semaphore(max_sessions)
-        except asyncssh.misc.ChannelOpenError as err:
+        except asyncssh.misc.Error as err:
             if not self._stop:
-                raise SUTError(err)
+                raise SUTError(err) from err
 
     async def stop(self, iobuffer: IOBuffer = None) -> None:
         if not await self.is_running:
@@ -263,7 +263,7 @@ class SSHSUT(SUT):
         try:
             await self._conn.run("test .", check=True)
         except asyncssh.Error as err:
-            raise SUTError(err)
+            raise SUTError(err) from err
 
         end_t = time.time() - start_t
 
@@ -343,6 +343,6 @@ class SSHSUT(SUT):
             data = ret.stdout
         except asyncssh.Error as err:
             if not self._stop:
-                raise SUTError(err)
+                raise SUTError(err) from err
 
         return data
