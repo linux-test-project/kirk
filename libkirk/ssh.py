@@ -163,7 +163,7 @@ class SSHSUT(SUT):
         self._user = kwargs.get("user", "root")
         self._password = kwargs.get("password", None)
         self._key_file = kwargs.get("key_file", None)
-        self._known_hosts = kwargs.get("known_hosts", None)
+        self._known_hosts = kwargs.get("known_hosts", "~/.ssh/known_hosts")
 
         try:
             self._port = int(kwargs.get("port", "22"))
