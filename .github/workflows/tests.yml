@@ -4,7 +4,7 @@ name: "Test packages"
 on: [push, pull_request]
 
 env:
-  PYTHON_PKGS: pytest pytest-asyncio build
+  PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 build
 
 jobs:
   python3-deprecated:
