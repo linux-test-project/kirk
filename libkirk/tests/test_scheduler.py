@@ -44,7 +44,7 @@ class MockTestScheduler(TestScheduler):
     and it doesn't write into /dev/kmsg
     """
 
-    async def _write_kmsg(self, test) -> None:
+    async def _write_kmsg(self, test, results) -> None:
         pass
 
 

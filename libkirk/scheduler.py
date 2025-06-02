@@ -151,7 +151,7 @@ class TestScheduler(Scheduler):
 
         return code, messages
 
-    async def _write_kmsg(self, test: Test) -> None:
+    async def _write_kmsg(self, test: Test, results: TestResults) -> None:
         """
         If root, we write test information on /dev/kmsg.
         """
@@ -162,8 +162,13 @@ class TestScheduler(Scheduler):
             self._logger.info("Can't write on /dev/kmsg from user")
             return
 
-        message = f'{sys.argv[0]}[{os.getpid()}]: ' \
-            f'starting test {test.name} ({test.full_command})\n'
+        if results:
+            message = f'{sys.argv[0]}[{os.getpid()}]: ' \
+                f'{test.name}: end (returncode: {results.return_code})\n'
+        else:
+
+            message = f'{sys.argv[0]}[{os.getpid()}]: ' \
+                f'{test.name}: start (command: {test.full_command})\n'
 
         await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
 
@@ -211,7 +216,7 @@ class TestScheduler(Scheduler):
             self._logger.debug(test)
 
             await libkirk.events.fire("test_started", test)
-            await self._write_kmsg(test)
+            await self._write_kmsg(test, None)
 
             iobuffer = RedirectTestStdout(test)
             cmd = test.full_command
@@ -296,6 +301,7 @@ class TestScheduler(Scheduler):
                 raise KernelTimeoutError()
 
             await libkirk.events.fire("test_completed", results)
+            await self._write_kmsg(test, results)
 
             self._logger.info("Test completed: %s", test.name)
             self._logger.debug(results)
