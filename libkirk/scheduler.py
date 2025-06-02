@@ -471,6 +471,7 @@ class SuiteScheduler(Scheduler):
 
         info = await self._sut.get_info()
 
+        start_t = None
         timed_out = False
         exec_times = []
         tests_results = []
@@ -485,7 +486,6 @@ class SuiteScheduler(Scheduler):
                         self._scheduler.schedule(tests_left),
                         timeout=self._suite_timeout
                     )
-                    exec_times.append(time.time() - start_t)
                 except asyncio.TimeoutError:
                     self._logger.info(
                         "Testing suite timed out: %s", suite.name)
@@ -506,6 +506,7 @@ class SuiteScheduler(Scheduler):
                         await self._restart_sut()
                         reboot_event.set()
                 finally:
+                    exec_times.append(time.time() - start_t)
                     tests_results.extend(self._scheduler.results)
 
                 # tests_left array will be populated when SUT is
@@ -542,9 +543,9 @@ class SuiteScheduler(Scheduler):
                     tests_left.clear()
                     break
         finally:
-            suite_exec_time = sum(exec_times)
-            if not exec_times:
-                suite_exec_time = self._suite_timeout
+            suite_exec_time = self._suite_timeout
+            if exec_times:
+                suite_exec_time = sum(exec_times)
 
             suite_results = SuiteResults(
                 suite=suite,
