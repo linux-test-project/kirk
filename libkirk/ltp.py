@@ -50,7 +50,7 @@ class LTPFramework(Framework):
         }
 
     def setup(self, **kwargs: dict) -> None:
-        self._root = "/opt/ltp"
+        self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._env = {
             "LTPROOT": self._root,
             "TMPDIR": "/tmp",
