@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+import sys
 import platform
 import traceback
 import libkirk
@@ -49,6 +50,7 @@ class ConsoleUserInterface:
         libkirk.events.register("suite_timeout", self.suite_timeout)
         libkirk.events.register("session_warning", self.session_warning)
         libkirk.events.register("session_error", self.session_error)
+        libkirk.events.register("session_completed", self.session_completed)
         libkirk.events.register("internal_error", self.internal_error)
 
         # we register a special event 'printf' with ordered coroutines,
@@ -102,16 +104,14 @@ class ConsoleUserInterface:
 
     async def session_started(self, tmpdir: str) -> None:
         uname = platform.uname()
-        message = "Host information\n\n"
-        message += f"\tSystem: {uname.system}\n"
-        message += f"\tNode: {uname.node}\n"
-        message += f"\tKernel Release: {uname.release}\n"
-        message += f"\tKernel Version: {uname.version}\n"
-        message += f"\tMachine Architecture: {uname.machine}\n"
-        message += f"\tProcessor: {uname.processor}\n"
-        message += f"\n\tTemporary directory: {tmpdir}\n"
 
-        await self._print(message)
+        message = []
+        message.append("Host information\n")
+        message.append(f"\tHostname:   {uname.node}")
+        message.append(f"\tPython:     {sys.version}")
+        message.append(f"\tDirectory:  {tmpdir}\n")
+
+        await self._print('\n'.join(message))
 
     async def session_stopped(self) -> None:
         await self._print("Session stopped")
@@ -139,7 +139,7 @@ class ConsoleUserInterface:
         await self._print(f"\nExit code: {returncode}\n")
 
     async def suite_started(self, suite: Suite) -> None:
-        await self._print(f"Starting suite: {suite.name}")
+        await self._print(f"\nStarting suite: {suite.name}")
 
     async def suite_completed(
             self,
@@ -148,27 +148,25 @@ class ConsoleUserInterface:
         duration = self._user_friendly_duration(results.exec_time)
         exec_time_uf = self._user_friendly_duration(exec_time)
 
-        message = "\n"
-        message += " " * 128 + "\n"
-        message += f"Execution time: {exec_time_uf}\n"
-        message += "\n"
-        message += f"Suite Name: {results.suite.name}\n"
-        message += f"Total Run: {len(results.suite.tests)}\n"
-        message += f"Total Runtime: {duration}\n"
-        message += f"Passed Tests: {results.passed}\n"
-        message += f"Failed Tests: {results.failed}\n"
-        message += f"Skipped Tests: {results.skipped}\n"
-        message += f"Broken Tests: {results.broken}\n"
-        message += f"Warnings: {results.warnings}\n"
-        message += f"Kernel Version: {results.kernel}\n"
-        message += f"CPU: {results.cpu}\n"
-        message += f"Machine Architecture: {results.arch}\n"
-        message += f"RAM: {results.ram}\n"
-        message += f"Swap memory: {results.swap}\n"
-        message += f"Distro: {results.distro}\n"
-        message += f"Distro Version: {results.distro_ver}\n"
+        message = []
+        message.append(" " * 128)
+        message.append(f"Execution time: {exec_time_uf}\n")
+        message.append(f"\tSuite:       {results.suite.name}")
+        message.append(f"\tTotal runs:  {len(results.suite.tests)}")
+        message.append(f"\tRuntime:     {duration}")
+        message.append(f"\tPassed:      {results.passed}")
+        message.append(f"\tFailed:      {results.failed}")
+        message.append(f"\tSkipped:     {results.skipped}")
+        message.append(f"\tBroken:      {results.broken}")
+        message.append(f"\tWarnings:    {results.warnings}")
+        message.append(f"\tKernel:      {results.kernel}")
+        message.append(f"\tMachine:     {results.cpu}")
+        message.append(f"\tArch:        {results.arch}")
+        message.append(f"\tRAM:         {results.ram}")
+        message.append(f"\tSwap:        {results.swap}")
+        message.append(f"\tDistro:      {results.distro} {results.distro_ver}")
 
-        await self._print(message)
+        await self._print('\n'.join(message))
 
     async def suite_timeout(self, suite: Suite, timeout: float) -> None:
         await self._print(
@@ -180,6 +178,43 @@ class ConsoleUserInterface:
 
     async def session_error(self, error: str) -> None:
         await self._print(f"Error: {error}", color=self.RED)
+
+    async def session_completed(self, results: list) -> None:
+        if len(results) < 2:
+            return
+
+        data = {
+            'num_runs': 0,
+            'passed': 0,
+            'failed': 0,
+            'skipped': 0,
+            'broken': 0,
+            'warnings': 0,
+            'exec_time': 0,
+        }
+
+        for result in results:
+            data['num_runs'] += len(result.tests_results)
+            data['passed'] += result.passed
+            data['failed'] += result.failed
+            data['skipped'] += result.skipped
+            data['broken'] += result.broken
+            data['warnings'] += result.warnings
+            data['exec_time'] += result.exec_time
+
+        exec_time_uf = self._user_friendly_duration(data.get('exec_time'))
+
+        message = []
+        message.append(f"\nSuites completed: {len(results)}\n")
+        message.append(f"\tTotal runs:  {data.get('num_runs')}")
+        message.append(f"\tRuntime:    {exec_time_uf}")
+        message.append(f"\tPassed:     {data.get('passed')}")
+        message.append(f"\tFailed:     {data.get('failed')}")
+        message.append(f"\tSkipped:    {data.get('skipped')}")
+        message.append(f"\tBroken:     {data.get('broken')}")
+        message.append(f"\tWarnings:   {data.get('warnings')}")
+
+        await self._print('\n'.join(message))
 
     async def internal_error(self, exc: BaseException, func_name: str) -> None:
         await self._print(
@@ -295,21 +330,25 @@ class VerboseUserInterface(ConsoleUserInterface):
         await self._print(test.full_command)
 
     async def test_completed(self, results: TestResults) -> None:
+        message = []
+
         if self._timed_out:
             await self._print("Test timed out", color=self.RED)
 
         self._timed_out = False
 
         if "Summary:" not in results.stdout:
-            await self._print("\nSummary:")
-            await self._print(f"passed    {results.passed}")
-            await self._print(f"failed    {results.failed}")
-            await self._print(f"broken    {results.broken}")
-            await self._print(f"skipped   {results.skipped}")
-            await self._print(f"warnings  {results.warnings}")
+            message.append("\nSummary:")
+            message.append(f"passed    {results.passed}")
+            message.append(f"failed    {results.failed}")
+            message.append(f"broken    {results.broken}")
+            message.append(f"skipped   {results.skipped}")
+            message.append(f"warnings  {results.warnings}")
 
         uf_time = self._user_friendly_duration(results.exec_time)
-        await self._print(f"\nDuration: {uf_time}\n")
+        message.append(f"\nDuration: {uf_time}\n")
+
+        await self._print('\n'.join(message))
 
     async def test_stdout(self, _: Test, data: str) -> None:
         await self._print(data, end='')
