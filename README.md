@@ -2,55 +2,52 @@ What is Kirk?
 =============
 
 Kirk application is a fork of [runltp-ng](https://github.com/linux-test-project/runltp-ng)
-and it aims to merge multiple Linux testing frameworks in one tool, providing
-support for remote testing via Qemu, SSH, LTX, parallel execution and much more.
+and it's the official [LTP](https://github.com/linux-test-project) tests
+executor. It provides support for remote testing via Qemu, SSH, LTX, parallel
+execution and much more.
 
     Host information
 
-            System: Linux
-            Node: susy
-            Kernel Release: 5.14.21-150400.24.60-default
-            Kernel Version: #1 SMP PREEMPT_DYNAMIC Wed Apr 12 12:13:32 UTC 2023 (93dbe2e)
-            Machine Architecture: x86_64
-            Processor: x86_64
-
-            Temporary directory: /tmp/kirk.acer/tmpz49sip95
+            Hostname:   susy
+            Python:     3.6.15 (default, Sep 23 2021, 15:41:43) [GCC]
+            Directory:  /tmp/kirk.acer/tmpw4hr1wla
 
     Connecting to SUT: host
+
     Starting suite: math
-    abs01: pass | tainted  (0.001s)
-    atof01: pass | tainted  (0.002s)
-    float_bessel: pass | tainted  (0.673s)
-    float_exp_log: pass | tainted  (0.667s)
-    float_iperb: pass | tainted  (0.252s)
-    float_power: pass | tainted  (0.562s)
-    float_trigo: pass | tainted  (0.646s)
-    fptest01: pass | tainted  (0.002s)
-    fptest02: pass | tainted  (0.003s)
-    nextafter01: pass | tainted  (0.002s)
+    abs01: pass (0.012s)
+    atof01: pass (0.005s)
+    float_bessel: pass (1.154s)
+    float_exp_log: pass (1.392s)
+    float_iperb: pass (0.508s)
+    float_power: pass (1.158s)
+    float_trigo: pass (1.189s)
+    fptest01: pass (0.013s)
+    fptest02: pass (0.007s)
+    nextafter01: pass (0.002s)
+                                                                                                                                    
+    Execution time: 5.939s
 
-    Suite Name: math
-    Total Run: 10
-    Elapsed Time: 3.039s
-    Passed Tests: 22
-    Failed Tests: 0
-    Skipped Tests: 0
-    Broken Tests: 0
-    Warnings: 0
-    Kernel Version: Linux 5.14.21-150400.24.60-default #1 SMP PREEMPT_DYNAMIC Wed Apr 12 12:13:32 UTC 2023 (93dbe2e)
-    CPU: x86_64
-    Machine Architecture: x86_64
-    RAM: 15569424 kB
-    Swap memory: 2095424 kB
-    Distro: opensuse-leap
-    Distro Version: 15.4
-
+            Suite:       math
+            Total runs:  10
+            Runtime:     5.441s
+            Passed:      22
+            Failed:      0
+            Skipped:     0
+            Broken:      0
+            Warnings:    0
+            Kernel:      Linux 6.4.0-150600.23.50-default #1 SMP PREEMPT_DYNAMIC Fri May  9 22:09:52 UTC 2025 (dee422c)
+            Machine:     x86_64
+            Arch:        x86_64
+            RAM:         15573136 kB
+            Swap:        2095424 kB
+            Distro:      opensuse-leap 15.6
 
     Disconnecting from SUT: host
 
 
 Quickstart
-==========
+----------
 
 The tool works out of the box by running `kirk` script.
 Minimum python requirement is 3.6+ and *optional* dependences are the following:
@@ -129,19 +126,19 @@ when we need to restore the last session after a system crash:
         --run-suite syscalls
 
 Setting up console for Qemu
-===========================
+---------------------------
 
 To enable console on a tty device for a VM do:
 
-* open `/etc/default/grub`
-* add `console=$tty_name, console=tty0` to `GRUB_CMDLINE_LINUX`
-* run `grub-mkconfig -o /boot/grub/grub.cfg`
+- open `/etc/default/grub`
+- add `console=$tty_name, console=tty0` to `GRUB_CMDLINE_LINUX`
+- run `grub-mkconfig -o /boot/grub/grub.cfg`
 
 Where `$tty_name` should be `ttyS0`, unless virtio serial type is used (i.e.
 if you set the `serial=virtio` backend option, then use `hvc0`)
 
 Implementing SUT
-================
+----------------
 
 Sometimes we need to cover complex testing scenarios, where the SUT uses
 particular protocols and infrastructures, in order to communicate with our
@@ -156,7 +153,7 @@ Once a new SUT class is implemented and placed inside the `libkirk` folder,
 recognise it.
 
 Implementing Framework
-======================
+----------------------
 
 Every testing framework has it's own setup, defining tests folders, data and
 variables. For this reason, `Framework` class provides a generic API that, once
@@ -166,7 +163,7 @@ used as an abstraction layer between `kirk` scheduler and the specific testing
 framework.
 
 Development
-===========
+-----------
 
 The application is validated using `pytest` and `pylint`.
 To run unittests:
