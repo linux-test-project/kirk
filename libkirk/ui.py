@@ -24,6 +24,7 @@ class ConsoleUserInterface:
     Console based user interface.
     """
 
+    WHITE = "\033[1;37m"
     GREEN = "\033[1;32m"
     YELLOW = "\033[1;33m"
     RED = "\033[1;31m"
@@ -139,7 +140,13 @@ class ConsoleUserInterface:
         await self._print(f"\nExit code: {returncode}\n")
 
     async def suite_started(self, suite: Suite) -> None:
-        await self._print(f"\nStarting suite: {suite.name}")
+        suite_msg = f"\nStarting suite: {suite.name}"
+
+        message = []
+        message.append(suite_msg)
+        message.append("-" * len(suite_msg))
+
+        await self._print('\n'.join(message))
 
     async def suite_completed(
             self,
@@ -263,7 +270,7 @@ class SimpleUserInterface(ConsoleUserInterface):
         await self._print("timed out", color=self.RED)
 
     async def test_started(self, test: Test) -> None:
-        await self._print(f"{test.name}: ", end="")
+        await self._print(f"{test.name}: ", color=self.WHITE, end="")
 
     async def test_completed(self, results: TestResults) -> None:
         if self._timed_out or self._sut_not_responding or self._kernel_panic:
