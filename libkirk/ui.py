@@ -374,30 +374,15 @@ class ParallelUserInterface(ConsoleUserInterface):
         self._kernel_panic = False
         self._kernel_tainted = None
         self._timed_out = False
-        self._running = []
+        self._pl_total = 0
+        self._pl_done = 0
 
         libkirk.events.register("sut_not_responding", self.sut_not_responding)
         libkirk.events.register("kernel_panic", self.kernel_panic)
         libkirk.events.register("kernel_tainted", self.kernel_tainted)
+        libkirk.events.register("suite_started", self.print_parallel)
         libkirk.events.register("test_timed_out", self.test_timed_out)
-        libkirk.events.register("test_started", self.test_started)
         libkirk.events.register("test_completed", self.test_completed)
-
-    async def _refresh_running_tests(self) -> None:
-        tests_num = len(self._running)
-
-        await self._print(" " * 64, end='\r')
-        await self._print("")
-        await self._print(f"*** {tests_num} background test(s) ***")
-
-        for test_name in self._running:
-            await self._print(f"- {test_name}", end='')
-            await self._print(" " * 32)
-
-        # move back at the very beginning so the next time
-        # we will override current running tests status
-        for _ in range(tests_num + 2):
-            await self._print(self.LINE_UP, end='')
 
     async def sut_not_responding(self) -> None:
         self._sut_not_responding = True
@@ -411,12 +396,29 @@ class ParallelUserInterface(ConsoleUserInterface):
     async def test_timed_out(self, _: Test, timeout: int) -> None:
         self._timed_out = True
 
-    async def test_started(self, test: Test) -> None:
-        self._running.append(test.name)
-        await self._refresh_running_tests()
+    async def print_parallel(self, suite: Suite) -> None:
+        msg = []
+
+        for test in suite.tests:
+            if not test.parallelizable:
+                continue
+
+            self._pl_total += 1
+            msg.append(f"- {test.name}")
+
+        if msg:
+            await self._print("Following tests will run in parallel:")
+            await self._print("\n".join(msg), end="\n\n")
 
     async def test_completed(self, results: TestResults) -> None:
-        await self._print(f"{results.test.name}: ", end="")
+        if results.test.parallelizable:
+            self._pl_done += 1
+
+            await self._print(
+                f"{results.test.name} ({self._pl_done}/{self._pl_total}): ",
+                end="")
+        else:
+            await self._print(f"{results.test.name}: ", end="")
 
         if self._timed_out:
             await self._print("timed out", color=self.RED)
@@ -447,14 +449,9 @@ class ParallelUserInterface(ConsoleUserInterface):
                 await self._print("tainted", color=self.YELLOW, end="")
 
             uf_time = self._user_friendly_duration(results.exec_time)
-            await self._print(f"  ({uf_time})", end='')
-            # cleanup message that was there before
-            await self._print(" " * 16)
+            await self._print(f"  ({uf_time})")
 
         self._sut_not_responding = False
         self._kernel_panic = False
         self._kernel_tainted = None
         self._timed_out = False
-
-        self._running.remove(results.test.name)
-        await self._refresh_running_tests()
