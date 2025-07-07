@@ -44,6 +44,7 @@ class Session:
     The session runner.
     """
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, **kwargs) -> None:
         """
         :param tmpdir: temporary directory
@@ -66,6 +67,7 @@ class Session:
         self._framework = kwargs.get("framework", None)
         self._sut = kwargs.get("sut", None)
         self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
+        self._force_parallel = kwargs.get("force_parallel", False)
         self._stop = False
         self._exec_lock = asyncio.Lock()
         self._run_lock = asyncio.Lock()
@@ -82,15 +84,13 @@ class Session:
 
         suite_timeout = kwargs.get("suite_timeout", 3600.0)
         workers = kwargs.get("workers", 1)
-        force_parallel = kwargs.get("force_parallel", False)
 
         self._scheduler = SuiteScheduler(
             sut=self._sut,
             framework=self._framework,
             suite_timeout=suite_timeout,
             exec_timeout=self._exec_timeout,
-            max_workers=workers,
-            force_parallel=force_parallel)
+            max_workers=workers)
 
         self._curr_suite = ''
         self._setup_debug_log()
@@ -297,6 +297,11 @@ class Session:
 
         if num_tests == 0:
             raise KirkException("No tests selected")
+
+        if self._force_parallel:
+            for suite in suites_obj:
+                for test in suite.tests:
+                    test.force_parallel()
 
         return suites_obj
 
