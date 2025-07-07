@@ -117,15 +117,12 @@ class TestScheduler(Scheduler):
         :type timeout: float
         :param max_workers: maximum number of workers to schedule jobs
         :type max_workers: int
-        :param force_parallel: Force parallel execution of all tests
-        :type force_parallel: bool
         """
         self._logger = logging.getLogger("kirk.test_scheduler")
         self._sut = kwargs.get("sut", None)
         self._framework = kwargs.get("framework", None)
         self._timeout = max(kwargs.get("timeout", 3600.0), 0.0)
         self._max_workers = kwargs.get("max_workers", 1)
-        self._force_parallel = kwargs.get("force_parallel", False)
         self._results = []
         self._stop = False
         self._stopped = False
@@ -351,18 +348,15 @@ class TestScheduler(Scheduler):
             self._results.clear()
 
             try:
-                if self._force_parallel:
-                    await self._run_parallel(jobs)
+                if self._max_workers > 1:
+                    await self._run_parallel([
+                        test for test in jobs if test.parallelizable
+                    ])
+                    await self._run_and_wait([
+                        test for test in jobs if not test.parallelizable
+                    ])
                 else:
-                    if self._max_workers > 1:
-                        await self._run_parallel([
-                            test for test in jobs if test.parallelizable
-                        ])
-                        await self._run_and_wait([
-                            test for test in jobs if not test.parallelizable
-                        ])
-                    else:
-                        await self._run_and_wait(jobs)
+                    await self._run_and_wait(jobs)
             except KirkException as err:
                 exc_name = err.__class__.__name__
                 self._logger.info("%s caught during tests execution", exc_name)
@@ -396,8 +390,6 @@ class SuiteScheduler(Scheduler):
         :type exec_timeout: float
         :param max_workers: maximum number of workers to schedule jobs
         :type max_workers: int
-        :param force_parallel: Force parallel execution of all tests
-        :type force_parallel: bool
         """
         self._logger = logging.getLogger("kirk.suite_scheduler")
         self._sut = kwargs.get("sut", None)
@@ -416,15 +408,13 @@ class SuiteScheduler(Scheduler):
         if not self._framework:
             raise ValueError("Framework object is empty")
 
-        force_parallel = kwargs.get("force_parallel", False)
         exec_timeout = max(kwargs.get("exec_timeout", 3600.0), 0.0)
 
         self._scheduler = TestScheduler(
             sut=self._sut,
             framework=self._framework,
             timeout=exec_timeout,
-            max_workers=kwargs.get("max_workers", 1),
-            force_parallel=force_parallel)
+            max_workers=kwargs.get("max_workers", 1))
 
     @property
     def results(self) -> list:
