@@ -146,3 +146,9 @@ class Test:
             cmd += ' '.join(self.arguments)
 
         return cmd
+
+    def force_parallel(self):
+        """
+        Force test to be parallelizable.
+        """
+        self._parallelizable = True
