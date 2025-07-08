@@ -42,7 +42,7 @@ class LTPFramework(Framework):
         self._max_runtime = None
         self._tc_folder = None
 
-    @ property
+    @property
     def config_help(self) -> dict:
         return {
             "root": "LTP install folder",
@@ -154,7 +154,9 @@ class LTPFramework(Framework):
 
             self._logger.debug("Test declaration: %s", line)
 
-            parts = shlex.split(line)
+            lexer = shlex.shlex(line, posix=False, punctuation_chars=True)
+
+            parts = list(lexer)
             if len(parts) < 2:
                 raise FrameworkError(
                     "runtest file is not defining test command")
