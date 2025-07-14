@@ -8,7 +8,6 @@
 import os
 import re
 import json
-import shlex
 import logging
 from libkirk.results import TestResults
 from libkirk.results import ResultStatus
@@ -41,6 +40,7 @@ class LTPFramework(Framework):
         self._env = None
         self._max_runtime = None
         self._tc_folder = None
+        self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
 
     @property
     def config_help(self) -> dict:
@@ -126,6 +126,20 @@ class LTPFramework(Framework):
 
         return addable
 
+    def _get_cmd_args(self, line: str) -> list:
+        """
+        Return a command with arguments inside a list(str).
+        The command can have the following syntax:
+            1. cmd
+            2. cmd -t myarg1 ..
+            3. cmd myfolder=$TMPDIR/folder -t myarg1 ..
+            4. cmd -c "cmd2 -g arg1 -t arg2" ..
+        """
+        matches = self._cmd_matcher.findall(line)
+        parts = [match for match in matches if match]
+
+        return parts
+
     # pylint: disable=too-many-locals
     async def _read_runtest(
             self,
@@ -149,14 +163,12 @@ class LTPFramework(Framework):
         lines = content.split('\n')
 
         for line in lines:
-            if not line.strip() or line.strip().startswith("#"):
+            parts = self._get_cmd_args(line)
+            if not parts:
                 continue
 
             self._logger.debug("Test declaration: %s", line)
 
-            lexer = shlex.shlex(line, posix=False, punctuation_chars=True)
-
-            parts = list(lexer)
             if len(parts) < 2:
                 raise FrameworkError(
                     "runtest file is not defining test command")
@@ -251,7 +263,7 @@ class LTPFramework(Framework):
         if not command:
             raise ValueError("command is empty")
 
-        cmd_args = shlex.split(command)
+        cmd_args = self._get_cmd_args(command)
         cwd = None
         env = None
 
