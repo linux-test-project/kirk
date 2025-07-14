@@ -163,11 +163,12 @@ class LTPFramework(Framework):
         lines = content.split('\n')
 
         for line in lines:
-            parts = self._get_cmd_args(line)
-            if not parts:
+            if not line.strip() or line.strip().startswith("#"):
                 continue
 
             self._logger.debug("Test declaration: %s", line)
+
+            parts = self._get_cmd_args(line)
 
             if len(parts) < 2:
                 raise FrameworkError(
