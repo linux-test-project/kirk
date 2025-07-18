@@ -50,3 +50,8 @@ execution and much more.
 
     Disconnecting from SUT: host
 
+Some references:
+
+* `Documentation <https://kirk.readthedocs.io/en/latest/>`_
+* `Source code <https://github.com/linux-test-project/kirk>`_
+* `Releases <https://github.com/linux-test-project/kirk/releases>`_
