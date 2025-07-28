@@ -350,8 +350,9 @@ class ParallelUserInterface(ConsoleUserInterface):
 
         # move back at the very beginning so the next time
         # we will override current running tests status
-        for _ in range(tests_num + 2):
-            await self._print(self.LINE_UP, end='')
+        if not self._no_colors:
+            for _ in range(tests_num + 2):
+                await self._print(self.LINE_UP, end='')
 
     async def sut_not_responding(self) -> None:
         self._sut_not_responding = True
