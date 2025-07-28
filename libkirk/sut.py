@@ -63,6 +63,13 @@ class SUT(Plugin):
     machine instance, etc.
     """
 
+    FAULT_INJECTION_FILES = [
+        "fail_io_timeout",
+        "fail_make_request",
+        "fail_page_alloc",
+        "failslab"
+    ]
+
     @property
     def parallel_execution(self) -> bool:
         """
@@ -272,3 +279,57 @@ class SUT(Plugin):
             await self._tainted_status.put((code, messages))
 
             return code, messages
+
+    async def logged_as_root(self) -> bool:
+        """
+        Return True if we are logged as root inside the SUT. False otherwise.
+        """
+        ret = await self.run_command("id -u")
+        if ret["returncode"] != 0:
+            raise SUTError("Can't determine if we are running as root")
+
+        val = ret["stdout"].rstrip()
+        user_id = 100
+        try:
+            user_id = int(val)
+        except ValueError as exc:
+            raise SUTError(f"'id -u' returned {val}") from exc
+
+        return user_id == 0
+
+    async def is_fault_injection_enabled(self) -> bool:
+        """
+        Return True if fault injection is enabled in the kernel.
+        False otherwise.
+        """
+        for ftype in self.FAULT_INJECTION_FILES:
+            ret = await self.run_command(f"test -d /sys/kernel/debug/{ftype}")
+            if ret["returncode"] != 0:
+                return False
+
+        return True
+
+    async def setup_fault_injection(self, prob) -> None:
+        """
+        Configure kernel fault injection. When `prob` is zero, the fault
+        injection is set to default values.
+        :param prob: Fault probabilty in between 0-100
+        """
+        interval = 1 if prob == 0 else 100
+        times = 1 if prob == 0 else -1
+
+        async def _set_value(value, path):
+            """
+            Set the value to the path
+            """
+            ret = await self.run_command(f"echo {value} > {path}")
+            if ret["returncode"] != 0:
+                raise SUTError(f"Can't setup {path}. {ret['stdout']}")
+
+        for ftype in self.FAULT_INJECTION_FILES:
+            path = f"/sys/kernel/debug/{ftype}"
+
+            await _set_value(0, f"{path}/space")
+            await _set_value(times, f"{path}/times")
+            await _set_value(interval, f"{path}/interval")
+            await _set_value(prob, f"{path}/probability")
