@@ -365,7 +365,6 @@ class ParallelUserInterface(ConsoleUserInterface):
     """
     Console based user interface for parallel execution of the tests.
     """
-    LINE_UP = '\033[1A'
 
     def __init__(self, no_colors: bool = False) -> None:
         super().__init__(no_colors=no_colors)
