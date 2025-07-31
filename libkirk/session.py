@@ -407,6 +407,27 @@ class Session:
         except asyncio.TimeoutError:
             await self._scheduler.stop()
 
+    async def _apply_fault_injection(self, fault_prob) -> None:
+        """
+        Check if we can apply fault injection configuration
+        and eventually does it.
+        """
+        warn_msg = ""
+
+        if not await self._sut.logged_as_root():
+            if fault_prob != 0:
+                warn_msg = "Run as root to use kernel fault injection"
+        else:
+            if await self._sut.is_fault_injection_enabled():
+                await self._sut.setup_fault_injection(fault_prob)
+            else:
+                if fault_prob != 0:
+                    warn_msg = "Fault injection is not enabled. Running tests normally"
+
+        if warn_msg:
+            self._logger.info(warn_msg)
+            await libkirk.events.fire("session_warning", warn_msg)
+
     async def run(self, **kwargs: dict) -> None:
         """
         Run a new session and store results inside a JSON file.
@@ -428,6 +449,8 @@ class Session:
         :type randomize: bool
         :param runtime: for how long we want to run the session
         :type runtime: int
+        :param fault_prob: fault injection probability
+        :type fault_prob: int
         """
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
@@ -437,12 +460,17 @@ class Session:
                     "session_warning",
                     "SUT doesn't support parallel execution")
 
+            fault_prob = kwargs.get("fault_prob", 0)
+
             try:
                 await self._start_sut()
 
                 command = kwargs.get("command", None)
                 if command:
                     await self._exec_command(command)
+
+                if fault_prob != 0:
+                    await self._apply_fault_injection(fault_prob)
 
                 suites = kwargs.get("suites", None)
                 if suites:
@@ -470,6 +498,10 @@ class Session:
                     raise err
             finally:
                 try:
+                    # configure fault injection to the original values
+                    if fault_prob != 0:
+                        await self._apply_fault_injection(0)
+
                     if self._results:
                         exporter = JSONExporter()
 
