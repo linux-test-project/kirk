@@ -177,6 +177,28 @@ def _time_config(data: str) -> int:
     return value
 
 
+def _finjection_config(value: str) -> int:
+    """
+    Return probability of fault injection.
+    """
+    if not value:
+        return 0
+
+    ret = 0
+    try:
+        ret = int(value)
+    except TypeError as err:
+        raise argparse.ArgumentTypeError("Invalid number") from err
+
+    if ret < 0:
+        return 0
+
+    if ret > 100:
+        return 100
+
+    return ret
+
+
 def _discover_sut(path: str) -> None:
     """
     Discover new SUT implementations.
@@ -373,6 +395,7 @@ def _start_session(
                 skip_tests=skip_tests,
                 randomize=args.randomize,
                 runtime=args.runtime,
+                fault_prob=args.fault_injection,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -541,9 +564,15 @@ def run(cmd_args: list = None) -> None:
         help="Number of workers to execute tests in parallel")
     exec_opts.add_argument(
         "--force-parallel",
-        "-F",
+        "-W",
         action="store_true",
         help="Force parallelization execution of all tests")
+    exec_opts.add_argument(
+        "--fault-injection",
+        "-F",
+        type=_finjection_config,
+        default=0,
+        help="Probability of failure (0-100)")
 
     # output arguments
     # parse comand line
