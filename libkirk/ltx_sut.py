@@ -28,8 +28,8 @@ class LTXSUT(SUT):
         self._logger = logging.getLogger("kirk.ltx")
         self._release_lock = asyncio.Lock()
         self._fetch_lock = asyncio.Lock()
-        self._stdout = ''
-        self._stdin = ''
+        self._outfile = ''
+        self._infile = ''
         self._tmpdir = None
         self._ltx = None
         self._slots = []
@@ -41,8 +41,8 @@ class LTXSUT(SUT):
     @property
     def config_help(self) -> dict:
         return {
-            "stdin": "transport stdin file",
-            "stdout": "transport stdout file",
+            "infile": "file where ltx is reading data",
+            "outfile": "file where ltx is writing data",
         }
 
     def setup(self, **kwargs: dict) -> None:
@@ -52,14 +52,14 @@ class LTXSUT(SUT):
         self._logger.info("Initialize SUT")
 
         self._tmpdir = kwargs.get("tmpdir", None)
-        self._stdin = kwargs.get("stdin", None)
-        self._stdout = kwargs.get("stdout", None)
+        self._infile = kwargs.get("infile", None)
+        self._outfile = kwargs.get("outfile", None)
 
-        if not os.path.exists(self._stdin):
-            raise SUTError(f"'{self._stdin}' stdin file doesn't exist")
+        if not self._infile or not os.path.exists(self._infile):
+            raise SUTError(f"'{self._infile}' input file doesn't exist")
 
-        if not os.path.exists(self._stdout):
-            raise SUTError(f"'{self._stdout}' stdout file doesn't exist")
+        if not self._outfile or not os.path.exists(self._outfile):
+            raise SUTError(f"'{self._outfile}' output file doesn't exist")
 
     @property
     def parallel_execution(self) -> bool:
@@ -146,7 +146,7 @@ class LTXSUT(SUT):
         if await self.is_running:
             raise SUTError("SUT is already running")
 
-        self._ltx = LTX(self._stdin, self._stdout)
+        self._ltx = LTX(self._infile, self._outfile)
 
         try:
             await self._ltx.connect()

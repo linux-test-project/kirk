@@ -31,14 +31,14 @@ class TestLTX:
         """
         LTX handler.
         """
-        stdin_path = str(tmpdir / 'transport.in')
-        stdout_path = str(tmpdir / 'transport.out')
+        infile = str(tmpdir / 'transport.in')
+        outfile = str(tmpdir / 'transport.out')
 
-        os.mkfifo(stdin_path)
-        os.mkfifo(stdout_path)
+        os.mkfifo(infile)
+        os.mkfifo(outfile)
 
-        stdin = os.open(stdin_path, os.O_RDWR | os.O_NONBLOCK)
-        stdout = os.open(stdout_path, os.O_RDWR)
+        stdin = os.open(infile, os.O_RDWR | os.O_NONBLOCK)
+        stdout = os.open(outfile, os.O_RDWR)
 
         proc = await asyncio.subprocess.create_subprocess_shell(
             TEST_LTX_BINARY,
@@ -46,7 +46,7 @@ class TestLTX:
             stdout=stdout)
 
         try:
-            async with LTX(stdin_path, stdout_path) as handle:
+            async with LTX(infile, outfile) as handle:
                 yield handle
         finally:
             proc.kill()
@@ -267,14 +267,14 @@ async def sut(tmpdir):
     """
     LTXSUT instance object.
     """
-    stdin_path = str(tmpdir / 'transport.in')
-    stdout_path = str(tmpdir / 'transport.out')
+    infile = str(tmpdir / 'transport.in')
+    outfile = str(tmpdir / 'transport.out')
 
-    os.mkfifo(stdin_path)
-    os.mkfifo(stdout_path)
+    os.mkfifo(infile)
+    os.mkfifo(outfile)
 
-    stdin = os.open(stdin_path, os.O_RDONLY | os.O_NONBLOCK)
-    stdout = os.open(stdout_path, os.O_RDWR)
+    stdin = os.open(infile, os.O_RDONLY | os.O_NONBLOCK)
+    stdout = os.open(outfile, os.O_RDWR)
 
     proc = await asyncio.subprocess.create_subprocess_shell(
         TEST_LTX_BINARY,
@@ -285,8 +285,8 @@ async def sut(tmpdir):
     sut.setup(
         cwd=str(tmpdir),
         env=dict(HELLO="WORLD"),
-        stdin=stdin_path,
-        stdout=stdout_path)
+        infile=infile,
+        outfile=outfile)
 
     yield sut
 

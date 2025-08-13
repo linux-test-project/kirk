@@ -443,7 +443,7 @@ class LTX:
     This class communicates with LTX by processing given requests.
     Typical usage is the following:
     ```
-    async with LTX(stdin, stdout) as ltx:
+    async with LTX(infile, outfile) as ltx:
         # create requests
         request1 = Requests.execute("echo 'hello world' > myfile")
         request2 = Requests.get_file("myfile")
@@ -461,12 +461,12 @@ class LTX:
     """
     BUFFSIZE = 1 << 21
 
-    def __init__(self, stdin: str, stdout: str) -> None:
+    def __init__(self, infile: str, outfile: str) -> None:
         self._logger = logging.getLogger("ltx")
         self._requests = []
         self._stop = False
-        self._stdin = stdin
-        self._stdout = stdout
+        self._infile = infile
+        self._outfile = outfile
         self._lock = asyncio.Lock()
         self._task = None
         self._messages = asyncio.Queue()
@@ -555,7 +555,7 @@ class LTX:
             data = [await req.pack() for req in requests]
             tosend = b''.join(data)
 
-            async with AsyncFile(self._stdin, 'wb') as afile:
+            async with AsyncFile(self._infile, 'wb') as afile:
                 await afile.write(tosend)
 
     async def gather(self, requests: list) -> dict:
@@ -588,11 +588,11 @@ class LTX:
     # pylint: disable=too-many-nested-blocks
     async def _polling(self) -> None:
         """
-        Read and process messages coming from LTX stdout.
+        Read and process messages coming from LTX.
         """
         self._logger.info("Starting producer")
 
-        with open(self._stdout, 'rb', buffering=0) as afile:
+        with open(self._outfile, 'rb', buffering=0) as afile:
             # force utf-8 encoding by using raw=False
             unpacker = msgpack.Unpacker(raw=False)
 
