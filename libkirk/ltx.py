@@ -469,7 +469,7 @@ class LTX:
         self._stdout_fd = stdout_fd
         self._lock = asyncio.Lock()
         self._task = None
-        self._messages = []
+        self._messages = asyncio.Queue()
         self._exception = None
 
     async def __aenter__(self) -> None:
@@ -504,8 +504,6 @@ class LTX:
 
         self._logger.info("Connecting to LTX")
 
-        os.set_blocking(self._stdout_fd, False)
-
         self._exception = None
         self._task = libkirk.create_task(self._polling())
 
@@ -523,6 +521,9 @@ class LTX:
 
         self._logger.info("Disconnecting")
         self._stop = True
+
+        # send the stop message
+        await self._messages.put(None)
 
         while self.connected:
             await asyncio.sleep(0.005)
@@ -583,20 +584,6 @@ class LTX:
 
         return replies
 
-    async def _read(self, size: int) -> bytes:
-        """
-        Blocking I/O method to read from stdout.
-        """
-        data = None
-        try:
-            data = await libkirk.to_thread(os.read, self._stdout_fd, size)
-        except BlockingIOError:
-            # we ensure other threads will take action if reading
-            # procedure is too fast for this process
-            os.sched_yield()
-
-        return data
-
     async def _write(self, data: bytes) -> None:
         """
         Blocking I/O method to write on stdin.
@@ -620,11 +607,21 @@ class LTX:
         # force utf-8 encoding by using raw=False
         unpacker = msgpack.Unpacker(raw=False)
 
+        def _read() -> None:
+            """
+            Read the last available data.
+            """
+            data = os.read(self._stdout_fd, self.BUFFSIZE)
+            self._messages.put_nowait(data)
+
+        loop = libkirk.get_event_loop()
+        loop.add_reader(self._stdout_fd, _read)
+
         try:
             while not self._stop:
-                data = await self._read(self.BUFFSIZE)
+                data = await self._messages.get()
                 if not data:
-                    continue
+                    break
 
                 self._logger.debug("Unpacking bytes: %s", data)
 
