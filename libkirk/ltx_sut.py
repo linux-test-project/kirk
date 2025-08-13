@@ -30,8 +30,6 @@ class LTXSUT(SUT):
         self._fetch_lock = asyncio.Lock()
         self._stdout = ''
         self._stdin = ''
-        self._stdout_fd = -1
-        self._stdin_fd = -1
         self._tmpdir = None
         self._ltx = None
         self._slots = []
@@ -92,22 +90,10 @@ class LTXSUT(SUT):
         try:
             await self._ltx.disconnect()
         except LTXError as err:
-            raise SUTError(err)
+            raise SUTError(err) from err
 
         while await self.is_running:
             await asyncio.sleep(1e-2)
-
-        try:
-            if self._stdin_fd != -1:
-                os.close(self._stdin_fd)
-
-            if self._stdout_fd != -1:
-                os.close(self._stdout_fd)
-        except OSError as err:
-            # LTX can exit before we close file, so we skip
-            # 'Bad file descriptor' error message
-            if err.errno == 9:
-                pass
 
     async def _send_requests(self, requests: list) -> list:
         """
@@ -117,7 +103,7 @@ class LTXSUT(SUT):
         try:
             reply = await self._ltx.gather(requests)
         except LTXError as err:
-            raise SUTError(err)
+            raise SUTError(err) from err
 
         return reply
 
@@ -160,15 +146,12 @@ class LTXSUT(SUT):
         if await self.is_running:
             raise SUTError("SUT is already running")
 
-        self._stdin_fd = os.open(self._stdin, os.O_WRONLY)
-        self._stdout_fd = os.open(self._stdout, os.O_RDONLY)
-
-        self._ltx = LTX(self._stdin_fd, self._stdout_fd)
+        self._ltx = LTX(self._stdin, self._stdout)
 
         try:
             await self._ltx.connect()
         except LTXError as err:
-            raise SUTError(err)
+            raise SUTError(err) from err
 
         await self._send_requests([Requests.version()])
 

@@ -5,11 +5,11 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import os
 import asyncio
 import logging
 import typing
 import libkirk
+from libkirk.io import AsyncFile
 
 try:
     import msgpack
@@ -443,7 +443,7 @@ class LTX:
     This class communicates with LTX by processing given requests.
     Typical usage is the following:
     ```
-    async with LTX(stdin_fd, stdout_fd) as ltx:
+    async with LTX(stdin, stdout) as ltx:
         # create requests
         request1 = Requests.execute("echo 'hello world' > myfile")
         request2 = Requests.get_file("myfile")
@@ -461,12 +461,12 @@ class LTX:
     """
     BUFFSIZE = 1 << 21
 
-    def __init__(self, stdin_fd: int, stdout_fd: int) -> None:
+    def __init__(self, stdin: str, stdout: str) -> None:
         self._logger = logging.getLogger("ltx")
         self._requests = []
         self._stop = False
-        self._stdin_fd = stdin_fd
-        self._stdout_fd = stdout_fd
+        self._stdin = stdin
+        self._stdout = stdout
         self._lock = asyncio.Lock()
         self._task = None
         self._messages = asyncio.Queue()
@@ -555,7 +555,8 @@ class LTX:
             data = [await req.pack() for req in requests]
             tosend = b''.join(data)
 
-            await self._write(bytes(tosend))
+            async with AsyncFile(self._stdin, 'wb') as afile:
+                await afile.write(tosend)
 
     async def gather(self, requests: list) -> dict:
         """
@@ -584,19 +585,6 @@ class LTX:
 
         return replies
 
-    async def _write(self, data: bytes) -> None:
-        """
-        Blocking I/O method to write on stdin.
-        """
-        towrite = len(data)
-        try:
-            wrote = await libkirk.to_thread(os.write, self._stdin_fd, data)
-
-            if towrite != wrote:
-                raise LTXError(f"Wrote {wrote} bytes but expected {towrite}")
-        except BrokenPipeError:
-            pass
-
     # pylint: disable=too-many-nested-blocks
     async def _polling(self) -> None:
         """
@@ -604,49 +592,50 @@ class LTX:
         """
         self._logger.info("Starting producer")
 
-        # force utf-8 encoding by using raw=False
-        unpacker = msgpack.Unpacker(raw=False)
+        with open(self._stdout, 'rb', buffering=0) as afile:
+            # force utf-8 encoding by using raw=False
+            unpacker = msgpack.Unpacker(raw=False)
 
-        def _read() -> None:
-            """
-            Read the last available data.
-            """
-            data = os.read(self._stdout_fd, self.BUFFSIZE)
-            self._messages.put_nowait(data)
+            def _read() -> None:
+                """
+                Read the last available data.
+                """
+                data = afile.read(self.BUFFSIZE)
+                self._messages.put_nowait(data)
 
-        loop = libkirk.get_event_loop()
-        loop.add_reader(self._stdout_fd, _read)
+            loop = libkirk.get_event_loop()
+            loop.add_reader(afile.fileno(), _read)
 
-        try:
-            while not self._stop:
-                data = await self._messages.get()
-                if not data:
-                    break
-
-                self._logger.debug("Unpacking bytes: %s", data)
-
-                unpacker.feed(data)
-
-                while True:
-                    try:
-                        msg = unpacker.unpack()
-                        if not msg:
-                            continue
-
-                        self._logger.info("Received message: %s", msg)
-                        if not isinstance(msg, list):
-                            raise LTXError("Message must be an array")
-
-                        if msg[0] == Request.ERROR:
-                            raise LTXError(msg[1])
-
-                        await self._feed_requests(msg)
-                    except msgpack.OutOfData:
+            try:
+                while not self._stop:
+                    data = await self._messages.get()
+                    if not data:
                         break
-        except LTXError as err:
-            self._exception = err
-        finally:
-            self._logger.info("Producer has stopped")
+
+                    self._logger.debug("Unpacking bytes: %s", data)
+
+                    unpacker.feed(data)
+
+                    while True:
+                        try:
+                            msg = unpacker.unpack()
+                            if not msg:
+                                continue
+
+                            self._logger.info("Received message: %s", msg)
+                            if not isinstance(msg, list):
+                                raise LTXError("Message must be an array")
+
+                            if msg[0] == Request.ERROR:
+                                raise LTXError(msg[1])
+
+                            await self._feed_requests(msg)
+                        except msgpack.OutOfData:
+                            break
+            except LTXError as err:
+                self._exception = err
+            finally:
+                self._logger.info("Producer has stopped")
 
     async def _feed_requests(self, data: list) -> None:
         """

@@ -46,7 +46,7 @@ class TestLTX:
             stdout=stdout)
 
         try:
-            async with LTX(stdin, stdout) as handle:
+            async with LTX(stdin_path, stdout_path) as handle:
                 yield handle
         finally:
             proc.kill()
