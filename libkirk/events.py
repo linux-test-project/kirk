@@ -196,15 +196,15 @@ class EventsHandler:
             await task
         except asyncio.CancelledError:
             pass
-        except Exception as exc:
+        except Exception as err:
             if "internal_error" not in self._events:
                 return
 
             self._logger.info("Exception catched")
-            self._logger.error(exc)
+            self._logger.error(err)
 
             ievt = self._get_event("internal_error")
-            ievt.create_tasks(exc, task.get_name())
+            ievt.create_tasks(err, task.get_name())
             if ievt:
                 await asyncio.gather(*ievt)
         finally:

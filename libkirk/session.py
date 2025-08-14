@@ -14,13 +14,13 @@ import asyncio
 import libkirk
 import libkirk.data
 import libkirk.events
-from libkirk import KirkException
 from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
 from libkirk.results import TestResults
 from libkirk.export import JSONExporter
 from libkirk.scheduler import SuiteScheduler
+from libkirk.errors import KirkException
 
 
 class RedirectSUTStdout(IOBuffer):

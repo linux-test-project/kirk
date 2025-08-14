@@ -18,8 +18,8 @@ import contextlib
 from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
-from libkirk.sut import SUTError
-from libkirk.sut import KernelPanicError
+from libkirk.errors import SUTError
+from libkirk.errors import KernelPanicError
 
 
 # pylint: disable=too-many-instance-attributes
@@ -254,7 +254,7 @@ class QemuSUT(SUT):
             self._proc.stdin.write(wdata)
         except BrokenPipeError as err:
             if not self._stop:
-                raise SUTError(err)
+                raise SUTError(err) from err
 
     async def _wait_for(self, message: str, iobuffer: IOBuffer) -> str:
         """

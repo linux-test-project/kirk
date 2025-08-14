@@ -7,20 +7,9 @@
 """
 import re
 import asyncio
-from libkirk import KirkException
 from libkirk.plugin import Plugin
-
-
-class SUTError(KirkException):
-    """
-    Raised when an error occurs in SUT.
-    """
-
-
-class KernelPanicError(SUTError):
-    """
-    Raised during kernel panic.
-    """
+from libkirk.errors import SUTError
+from libkirk.errors import KirkException
 
 
 class IOBuffer:
@@ -292,8 +281,8 @@ class SUT(Plugin):
         user_id = 100
         try:
             user_id = int(val)
-        except ValueError as exc:
-            raise SUTError(f"'id -u' returned {val}") from exc
+        except ValueError as err:
+            raise SUTError(f"'id -u' returned {val}") from err
 
         return user_id == 0
 

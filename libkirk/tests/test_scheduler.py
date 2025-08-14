@@ -11,9 +11,9 @@ from libkirk.data import Suite
 from libkirk.host import HostSUT
 from libkirk.scheduler import TestScheduler
 from libkirk.scheduler import SuiteScheduler
-from libkirk.scheduler import KernelTaintedError
-from libkirk.scheduler import KernelTimeoutError
-from libkirk.scheduler import KernelPanicError
+from libkirk.errors import KernelTaintedError
+from libkirk.errors import KernelTimeoutError
+from libkirk.errors import KernelPanicError
 
 pytestmark = pytest.mark.asyncio
 

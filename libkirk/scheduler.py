@@ -12,26 +12,16 @@ import asyncio
 import logging
 import libkirk
 import libkirk.data
-from libkirk import KirkException
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
-from libkirk.sut import KernelPanicError
 from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.results import TestResults
 from libkirk.results import SuiteResults
-
-
-class KernelTaintedError(KirkException):
-    """
-    Raised when kernel is tainted.
-    """
-
-
-class KernelTimeoutError(KirkException):
-    """
-    Raised when kernel is not replying anymore.
-    """
+from libkirk.errors import KirkException
+from libkirk.errors import KernelPanicError
+from libkirk.errors import KernelTaintedError
+from libkirk.errors import KernelTimeoutError
 
 
 class Scheduler:
@@ -242,7 +232,7 @@ class TestScheduler(Scheduler):
 
                     tainted_msg = tainted_msg2
                     status = self.KERNEL_TAINTED
-            except libkirk.sut.KernelPanicError:
+            except KernelPanicError:
                 exec_time = time.time() - start_t
 
                 self._logger.info("Recognised Kernel panic")

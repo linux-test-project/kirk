@@ -4,7 +4,7 @@ Test SUT implementations.
 import os
 import pytest
 from libkirk.qemu import QemuSUT
-from libkirk.sut import KernelPanicError
+from libkirk.errors import KernelPanicError
 from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_sut import Printer
 from libkirk.tests.test_session import _TestSession

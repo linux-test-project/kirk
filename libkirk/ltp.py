@@ -15,7 +15,7 @@ from libkirk.sut import SUT
 from libkirk.data import Suite
 from libkirk.data import Test
 from libkirk.framework import Framework
-from libkirk.framework import FrameworkError
+from libkirk.errors import FrameworkError
 
 
 class LTPFramework(Framework):

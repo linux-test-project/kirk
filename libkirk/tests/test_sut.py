@@ -8,7 +8,7 @@ import logging
 import pytest
 import libkirk
 from libkirk.sut import IOBuffer
-from libkirk.sut import SUTError
+from libkirk.errors import SUTError
 
 
 pytestmark = pytest.mark.asyncio

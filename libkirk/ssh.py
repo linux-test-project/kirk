@@ -11,9 +11,9 @@ import logging
 import importlib
 import contextlib
 from libkirk.sut import SUT
-from libkirk.sut import SUTError
 from libkirk.sut import IOBuffer
-from libkirk.sut import KernelPanicError
+from libkirk.errors import SUTError
+from libkirk.errors import KernelPanicError
 
 try:
     import asyncssh

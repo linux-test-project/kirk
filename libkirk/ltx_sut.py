@@ -11,12 +11,12 @@ import asyncio
 import logging
 import importlib
 from libkirk.sut import SUT
-from libkirk.sut import SUTError
 from libkirk.sut import IOBuffer
 from libkirk.ltx import Request
 from libkirk.ltx import Requests
 from libkirk.ltx import LTX
-from libkirk.ltx import LTXError
+from libkirk.errors import LTXError
+from libkirk.errors import SUTError
 
 
 class LTXSUT(SUT):

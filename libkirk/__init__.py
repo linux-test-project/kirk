@@ -16,14 +16,6 @@ from libkirk.events import EventsHandler
 __version__ = '2.1'
 
 
-class KirkException(Exception):
-    """
-    The most generic exception that is raised by any module when
-    something bad happens.
-    """
-    pass
-
-
 events = EventsHandler()
 
 
@@ -119,7 +111,6 @@ def to_thread(callback: callable, *args: typing.Any) -> typing.Any:
 
 
 __all__ = [
-    "KirkException",
     "events",
     "get_event_loop",
 ]

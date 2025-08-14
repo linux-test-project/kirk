@@ -8,15 +8,9 @@
 import os
 import json
 import logging
-from libkirk import KirkException
 from libkirk.io import AsyncFile
 from libkirk.results import ResultStatus
-
-
-class ExporterError(KirkException):
-    """
-    Raised when an error occurs during Exporter operations.
-    """
+from libkirk.errors import ExporterError
 
 
 class Exporter:

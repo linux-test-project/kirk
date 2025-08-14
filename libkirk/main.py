@@ -15,17 +15,17 @@ import libkirk.data
 import libkirk.events
 import libkirk.plugin
 from libkirk import __version__
-from libkirk import KirkException
 from libkirk.sut import SUT
-from libkirk.sut import SUTError
 from libkirk.framework import Framework
-from libkirk.framework import FrameworkError
 from libkirk.ui import SimpleUserInterface
 from libkirk.ui import VerboseUserInterface
 from libkirk.ui import ParallelUserInterface
 from libkirk.session import Session
 from libkirk.tempfile import TempDir
 from libkirk.monitor import JSONFileMonitor
+from libkirk.errors import SUTError
+from libkirk.errors import FrameworkError
+from libkirk.errors import KirkException
 
 # runtime loaded SUT(s)
 LOADED_SUT = []

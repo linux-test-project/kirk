@@ -15,8 +15,8 @@ from asyncio.subprocess import Process
 from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
-from libkirk.sut import SUTError
-from libkirk.sut import KernelPanicError
+from libkirk.errors import SUTError
+from libkirk.errors import KernelPanicError
 
 
 class HostSUT(SUT):
@@ -220,7 +220,7 @@ class HostSUT(SUT):
                 async with AsyncFile(target_path, 'rb') as ftarget:
                     retdata = await ftarget.read()
             except IOError as err:
-                raise SUTError(err)
+                raise SUTError(err) from err
 
             self._logger.info("File copied")
 

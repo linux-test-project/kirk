@@ -10,17 +10,12 @@ import logging
 import typing
 import libkirk
 from libkirk.io import AsyncFile
+from libkirk.errors import LTXError
 
 try:
     import msgpack
 except ModuleNotFoundError:
     pass
-
-
-class LTXError(Exception):
-    """
-    Raised when an error occurs during LTX execution.
-    """
 
 
 class Request:
