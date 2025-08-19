@@ -8,6 +8,7 @@
 import json
 import asyncio
 import logging
+import typing
 import libkirk
 from libkirk.io import AsyncFile
 from libkirk.data import Test
@@ -34,7 +35,7 @@ class JSONFileMonitor:
         self._lock = asyncio.Lock()
 
         self._path = path
-        self._events = {
+        self._events: dict[str, typing.Any] = {
             "session_restore": self.session_restore,
             "session_started": self.session_started,
             "session_stopped": self.session_stopped,
@@ -76,7 +77,7 @@ class JSONFileMonitor:
         for name, coro in self._events.items():
             libkirk.events.unregister(name, coro)
 
-    async def _write(self, msg_type: str, msg: str) -> None:
+    async def _write(self, msg_type: str, msg: dict) -> None:
         """
         Write a message to the JSON file.
         """
@@ -113,10 +114,10 @@ class JSONFileMonitor:
         """
         data = {
             "name": suite.name,
-            "tests": {}
+            "tests": []
         }
 
-        tests = []
+        tests: list[dict] = []
         for test in suite.tests:
             tests.append(self._test_to_dict(test))
 
