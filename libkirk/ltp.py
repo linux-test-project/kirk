@@ -9,6 +9,8 @@ import os
 import re
 import json
 import logging
+from typing import Optional
+import libkirk.types
 from libkirk.results import TestResults
 from libkirk.results import ResultStatus
 from libkirk.sut import SUT
@@ -36,10 +38,10 @@ class LTPFramework(Framework):
 
     def __init__(self) -> None:
         self._logger = logging.getLogger("libkirk.ltp")
-        self._root = None
-        self._env = None
-        self._max_runtime = None
-        self._tc_folder = None
+        self._root = ""
+        self._env = {}
+        self._max_runtime = 0.0
+        self._tc_folder = ""
         self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
 
     @property
@@ -57,28 +59,27 @@ class LTPFramework(Framework):
             "LTP_COLORIZE_OUTPUT": "1",
         }
 
-        env = kwargs.get("env", None)
+        env = libkirk.types.dict_item(kwargs, "env", dict)
         if env:
             self._env.update(env)
 
-        timeout = kwargs.get("test_timeout", None)
+        timeout = libkirk.types.dict_item(kwargs, "test_timeout", float)
         if timeout:
             self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
-        root = kwargs.get("root", None)
+        root = libkirk.types.dict_item(kwargs, "root", str)
         if root:
             self._root = root
             self._env["LTPROOT"] = self._root
 
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
 
-        runtime = kwargs.get("max_runtime", None)
-
+        runtime = libkirk.types.dict_item(kwargs, "max_runtime", float)
         if runtime:
             try:
                 runtime = float(runtime)
-            except TypeError:
-                raise FrameworkError("max_runtime must be an integer")
+            except TypeError as err:
+                raise FrameworkError("max_runtime must be an integer") from err
 
             self._max_runtime = runtime
 
@@ -91,7 +92,7 @@ class LTPFramework(Framework):
             env["PATH"] = env["PATH"] + f":{self._tc_folder}"
         else:
             ret = await sut.run_command("echo -n $PATH")
-            if ret["returncode"] != 0:
+            if not ret or ret["returncode"] != 0:
                 raise FrameworkError("Can't read PATH variable")
 
             tcases = os.path.join(self._root, "testcases", "bin")
@@ -109,7 +110,7 @@ class LTPFramework(Framework):
         addable = True
 
         # filter out max_runtime tests when required
-        if self._max_runtime:
+        if self._max_runtime > 0:
             runtime = test_params.get("max_runtime")
             if runtime:
                 try:
@@ -146,7 +147,7 @@ class LTPFramework(Framework):
             sut: SUT,
             suite_name: str,
             content: str,
-            metadata: dict = None) -> Suite:
+            metadata: Optional[dict] = None) -> Suite:
         """
         It reads a runtest file content and it returns a Suite object.
         """
@@ -241,17 +242,20 @@ class LTPFramework(Framework):
             raise ValueError("SUT is None")
 
         ret = await sut.run_command(f"test -d {self._root}")
-        if ret["returncode"] != 0:
+        if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         runtest_dir = os.path.join(self._root, "runtest")
         ret = await sut.run_command(f"test -d {runtest_dir}")
-        if ret["returncode"] != 0:
+        if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"'{runtest_dir}' doesn't exist inside SUT")
 
         ret = await sut.run_command(f"ls --format=single-column {runtest_dir}")
+        if not ret:
+            raise FrameworkError("Can't communicate with SUT")
+
         stdout = ret["stdout"]
-        if ret["returncode"] != 0:
+        if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"command failed with: {stdout}")
 
         suites = [line for line in stdout.split('\n') if line]
@@ -265,18 +269,19 @@ class LTPFramework(Framework):
             raise ValueError("command is empty")
 
         cmd_args = self._get_cmd_args(command)
+        args = cmd_args[1:] if cmd_args else None
         cwd = None
         env = None
 
         ret = await sut.run_command(f"test -d {self._tc_folder}")
-        if ret["returncode"] == 0:
+        if ret and ret["returncode"] == 0:
             cwd = self._tc_folder
             env = await self._read_path(sut)
 
         test = Test(
             name=cmd_args[0],
             cmd=cmd_args[0],
-            args=cmd_args[1:] if len(cmd_args) > 0 else None,
+            args=args,
             cwd=cwd,
             env=env,
             parallelizable=False)
@@ -291,13 +296,13 @@ class LTPFramework(Framework):
             raise ValueError("name is empty")
 
         ret = await sut.run_command(f"test -d {self._root}")
-        if ret["returncode"] != 0:
+        if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         suite_path = os.path.join(self._root, "runtest", name)
 
         ret = await sut.run_command(f"test -f {suite_path}")
-        if ret["returncode"] != 0:
+        if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"'{name}' suite doesn't exist")
 
         runtest_data = await sut.fetch_file(suite_path)
@@ -310,7 +315,7 @@ class LTPFramework(Framework):
         )
         metadata_dict = None
         ret = await sut.run_command(f"test -f {metadata_path}")
-        if ret["returncode"] == 0:
+        if ret and ret["returncode"] == 0:
             metadata_data = await sut.fetch_file(metadata_path)
             metadata_dict = json.loads(metadata_data)
 
