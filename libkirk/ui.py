@@ -8,6 +8,7 @@
 import sys
 import platform
 import traceback
+from typing import Optional
 import libkirk
 from libkirk.data import Test
 from libkirk.data import Suite
@@ -58,7 +59,7 @@ class ConsoleUserInterface:
         # other and user interface will be printed in the correct way
         libkirk.events.register("printf", self.print_message, ordered=True)
 
-    async def _print(self, msg: str, color: str = None, end: str = "\n"):
+    async def _print(self, msg: str, color: Optional[str] = None, end: str = "\n"):
         """
         Fire a `printf` event.
         """
@@ -189,36 +190,34 @@ class ConsoleUserInterface:
         if len(results) < 2:
             return
 
-        data = {
-            'num_runs': 0,
-            'passed': 0,
-            'failed': 0,
-            'skipped': 0,
-            'broken': 0,
-            'warnings': 0,
-            'exec_time': 0,
-        }
+        num_runs = 0
+        passed = 0
+        failed = 0
+        skipped = 0
+        broken = 0
+        warnings = 0
+        exec_time = 0.0
 
         for result in results:
-            data['num_runs'] += len(result.tests_results)
-            data['passed'] += result.passed
-            data['failed'] += result.failed
-            data['skipped'] += result.skipped
-            data['broken'] += result.broken
-            data['warnings'] += result.warnings
-            data['exec_time'] += result.exec_time
+            num_runs += len(result.tests_results)
+            passed += result.passed
+            failed += result.failed
+            skipped += result.skipped
+            broken += result.broken
+            warnings += result.warnings
+            exec_time += result.exec_time
 
-        exec_time_uf = self._user_friendly_duration(data.get('exec_time'))
+        exec_time_uf = self._user_friendly_duration(exec_time)
 
         message = []
         message.append(f"\nSuites completed: {len(results)}\n")
-        message.append(f"\tTotal runs:  {data.get('num_runs')}")
+        message.append(f"\tTotal runs:  {num_runs}")
         message.append(f"\tRuntime:    {exec_time_uf}")
-        message.append(f"\tPassed:     {data.get('passed')}")
-        message.append(f"\tFailed:     {data.get('failed')}")
-        message.append(f"\tSkipped:    {data.get('skipped')}")
-        message.append(f"\tBroken:     {data.get('broken')}")
-        message.append(f"\tWarnings:   {data.get('warnings')}")
+        message.append(f"\tPassed:     {passed}")
+        message.append(f"\tFailed:     {failed}")
+        message.append(f"\tSkipped:    {skipped}")
+        message.append(f"\tBroken:     {broken}")
+        message.append(f"\tWarnings:   {warnings}")
 
         await self._print('\n'.join(message))
 
@@ -240,7 +239,7 @@ class SimpleUserInterface(ConsoleUserInterface):
 
         self._sut_not_responding = False
         self._kernel_panic = False
-        self._kernel_tainted = None
+        self._kernel_tainted: Optional[str] = None
         self._timed_out = False
 
         libkirk.events.register("sut_not_responding", self.sut_not_responding)
@@ -370,7 +369,7 @@ class ParallelUserInterface(ConsoleUserInterface):
 
         self._sut_not_responding = False
         self._kernel_panic = False
-        self._kernel_tainted = None
+        self._kernel_tainted: Optional[str] = None
         self._timed_out = False
         self._pl_total = 0
         self._pl_done = 0
