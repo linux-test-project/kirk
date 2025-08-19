@@ -7,6 +7,7 @@
 """
 import re
 import asyncio
+from typing import Optional
 from libkirk.plugin import Plugin
 from libkirk.errors import SUTError
 from libkirk.errors import KirkException
@@ -81,7 +82,7 @@ class SUT(Plugin):
         """
         raise NotImplementedError()
 
-    async def communicate(self, iobuffer: IOBuffer = None) -> None:
+    async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         """
         Start communicating with the SUT.
         :param iobuffer: buffer used to write SUT stdout
@@ -89,7 +90,7 @@ class SUT(Plugin):
         """
         raise NotImplementedError()
 
-    async def stop(self, iobuffer: IOBuffer = None) -> None:
+    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
         """
         Stop the current SUT session.
         :param iobuffer: buffer used to write SUT stdout
@@ -100,9 +101,9 @@ class SUT(Plugin):
     async def run_command(
             self,
             command: str,
-            cwd: str = None,
-            env: dict = None,
-            iobuffer: IOBuffer = None) -> dict:
+            cwd: Optional[str] = None,
+            env: Optional[dict] = None,
+            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
         """
         Coroutine to run command on target.
         :param command: command to execute
@@ -137,7 +138,7 @@ class SUT(Plugin):
 
     async def ensure_communicate(
             self,
-            iobuffer: IOBuffer = None,
+            iobuffer: Optional[IOBuffer],
             retries: int = 10) -> None:
         """
         Ensure that `communicate` is completed, retrying as many times we
@@ -184,13 +185,14 @@ class SUT(Plugin):
             stdout = "unknown"
             try:
                 ret = await asyncio.wait_for(self.run_command(cmd), 1.5)
-                if ret["returncode"] == 0:
+                if ret and ret["returncode"] == 0:
                     stdout = ret["stdout"].rstrip()
             except asyncio.TimeoutError:
                 pass
 
             return stdout
 
+        # pyrefly: ignore[bad-unpacking]
         distro, \
             distro_ver, \
             kernel, \
@@ -206,7 +208,7 @@ class SUT(Plugin):
             ])
 
         memory = "unknown"
-        swap = "unkown"
+        swap = "unknown"
 
         if meminfo:
             mem_m = re.search(r'MemTotal:\s+(?P<memory>\d+\s+kB)', meminfo)
@@ -243,7 +245,7 @@ class SUT(Plugin):
 
         async with self._tainted_lock:
             ret = await self.run_command("cat /proc/sys/kernel/tainted")
-            if ret["returncode"] != 0:
+            if not ret or ret["returncode"] != 0:
                 raise SUTError("Can't read tainted kernel information")
 
             tainted_num = len(TAINTED_MSG)
@@ -274,7 +276,7 @@ class SUT(Plugin):
         Return True if we are logged as root inside the SUT. False otherwise.
         """
         ret = await self.run_command("id -u")
-        if ret["returncode"] != 0:
+        if not ret or ret["returncode"] != 0:
             raise SUTError("Can't determine if we are running as root")
 
         val = ret["stdout"].rstrip()
@@ -293,7 +295,7 @@ class SUT(Plugin):
         """
         for ftype in self.FAULT_INJECTION_FILES:
             ret = await self.run_command(f"test -d /sys/kernel/debug/{ftype}")
-            if ret["returncode"] != 0:
+            if ret and ret["returncode"] != 0:
                 return False
 
         return True
@@ -312,7 +314,7 @@ class SUT(Plugin):
             Set the value to the path
             """
             ret = await self.run_command(f"echo {value} > {path}")
-            if ret["returncode"] != 0:
+            if ret and ret["returncode"] != 0:
                 raise SUTError(f"Can't setup {path}. {ret['stdout']}")
 
         for ftype in self.FAULT_INJECTION_FILES:
