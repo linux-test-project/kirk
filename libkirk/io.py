@@ -5,6 +5,8 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+from typing import Union
+from typing import Optional
 import libkirk
 
 
@@ -84,7 +86,7 @@ class AsyncFile:
 
         await libkirk.to_thread(self._file.seek, pos)
 
-    async def tell(self) -> int:
+    async def tell(self) -> Optional[int]:
         """
         Asynchronous version of `tell()`.
         :returns: current file position or None if file is not open.
@@ -94,7 +96,7 @@ class AsyncFile:
 
         return await libkirk.to_thread(self._file.tell)
 
-    async def read(self, size: int = -1) -> str:
+    async def read(self, size: int = -1) -> Optional[Union[str, bytes]]:
         """
         Asynchronous version of `read()`.
         :returns: data that has been read or None if file is not open.
@@ -104,7 +106,7 @@ class AsyncFile:
 
         return await libkirk.to_thread(self._file.read, size)
 
-    async def readline(self) -> str:
+    async def readline(self) -> Optional[Union[str, bytes]]:
         """
         Asynchronous version of `readline()`.
         :returns: data that has been read or None if file is not open.
@@ -114,7 +116,7 @@ class AsyncFile:
 
         return await libkirk.to_thread(self._file.readline)
 
-    async def write(self, data: str) -> None:
+    async def write(self, data: Union[str, bytes]) -> None:
         """
         Asynchronous version of `write()`.
         :param data: data to write inside file
