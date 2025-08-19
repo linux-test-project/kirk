@@ -59,6 +59,9 @@ def discover(mytype: type, folder: str) -> list:
             continue
 
         spec = importlib.util.spec_from_file_location('obj', path)
+        if not spec or not spec.loader:
+            continue
+
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
