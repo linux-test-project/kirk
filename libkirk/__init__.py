@@ -20,7 +20,7 @@ __version__ = '2.2'
 events = EventsHandler()
 
 
-def get_event_loop() -> asyncio.BaseEventLoop:
+def get_event_loop() -> asyncio.AbstractEventLoop:
     """
     Return the current asyncio event loop.
     """
@@ -54,7 +54,7 @@ def create_task(coro: typing.Coroutine) -> asyncio.Task:
     return task
 
 
-def all_tasks(loop: asyncio.AbstractEventLoop) -> list:
+def all_tasks(loop: asyncio.AbstractEventLoop) -> set:
     """
     Return the list of all running tasks for the specific loop.
     """
@@ -103,7 +103,7 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
             })
 
 
-def to_thread(callback: callable, *args: typing.Any) -> typing.Any:
+def to_thread(callback: Callable, *args: typing.Any) -> typing.Any:
     """
     Run callback inside a thread. This is useful for blocking I/O operations.
     """
