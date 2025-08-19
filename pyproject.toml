@@ -68,3 +68,7 @@ markers = [
         "qemu",
         "ltx",
 ]
+
+[tool.pyrefly]
+project-includes = ["**/*"]
+project-excludes = ["**/*venv/**/*"]
