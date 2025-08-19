@@ -13,7 +13,6 @@ import logging
 import asyncio
 import libkirk
 import libkirk.data
-import libkirk.events
 from libkirk.io import AsyncFile
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer

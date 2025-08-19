@@ -9,7 +9,6 @@ import sys
 import platform
 import traceback
 import libkirk
-import libkirk.events
 from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.results import TestResults
