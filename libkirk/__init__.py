@@ -9,7 +9,8 @@ import sys
 import signal
 import typing
 import asyncio
-from libkirk.events import EventsHandler
+from typing import Callable
+from libkirk.evt import EventsHandler
 
 
 # Kirk version

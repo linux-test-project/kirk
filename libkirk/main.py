@@ -12,7 +12,6 @@ import argparse
 import libkirk
 import libkirk.sut
 import libkirk.data
-import libkirk.events
 import libkirk.plugin
 from libkirk import __version__
 from libkirk.sut import SUT
