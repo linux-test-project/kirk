@@ -11,6 +11,9 @@ import signal
 import asyncio
 import logging
 import contextlib
+from typing import Any
+from typing import Dict
+from typing import Optional
 from asyncio.subprocess import Process
 from libkirk.io import AsyncFile
 from libkirk.sut import SUT
@@ -81,17 +84,20 @@ class HostSUT(SUT):
             raise SUTError("SUT is not running")
 
         ret = await self.run_command("test .")
+        if not ret:
+            raise SUTError("Can't ping SUT")
+
         reply_t = ret["exec_time"]
 
         return reply_t
 
-    async def communicate(self, iobuffer: IOBuffer = None) -> None:
+    async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if await self.is_running:
             raise SUTError("SUT is running")
 
         self._running = True
 
-    async def stop(self, iobuffer: IOBuffer = None) -> None:
+    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if not await self.is_running:
             return
 
@@ -114,7 +120,7 @@ class HostSUT(SUT):
                 self._logger.info("Process(es) terminated")
 
             if self._fetch_lock.locked():
-                self._logging.info("Terminating data fetch")
+                self._logger.info("Terminating data fetch")
 
                 async with self._fetch_lock:
                     pass
@@ -126,9 +132,9 @@ class HostSUT(SUT):
     async def run_command(
             self,
             command: str,
-            cwd: str = None,
-            env: dict = None,
-            iobuffer: IOBuffer = None) -> dict:
+            cwd: Optional[str] = None,
+            env: Optional[dict] = None,
+            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -143,10 +149,10 @@ class HostSUT(SUT):
         stdout = ""
 
         try:
-            kwargs = {
+            kwargs: Dict[str, Any] = {
                 "stdout": asyncio.subprocess.PIPE,
                 "stderr": asyncio.subprocess.STDOUT,
-                "cwd": cwd,
+                "cwd": cwd if cwd else None,
                 "start_new_session": True
             }
 
@@ -156,6 +162,8 @@ class HostSUT(SUT):
                 kwargs["env"] = env
 
             proc = await asyncio.create_subprocess_shell(command, **kwargs)
+            if not proc or not proc.stdout:
+                raise SUTError(f"Can't create any subprocess for '{command}'")
 
             self._procs.append(proc)
 
@@ -218,7 +226,10 @@ class HostSUT(SUT):
 
             try:
                 async with AsyncFile(target_path, 'rb') as ftarget:
-                    retdata = await ftarget.read()
+                    data = await ftarget.read()
+                    if data:
+                        assert isinstance(data, bytes)
+                        retdata = data
             except IOError as err:
                 raise SUTError(err) from err
 
