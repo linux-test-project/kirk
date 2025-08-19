@@ -5,9 +5,11 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import typing
 import logging
 import asyncio
+from typing import Any
+from typing import Callable
+from typing import Optional
 
 
 class Event:
@@ -23,11 +25,11 @@ class Event:
         self._coros = []
         self._ordered = ordered
 
-    def remove(self, coro: typing.Coroutine) -> None:
+    def remove(self, coro: Callable) -> None:
         """
-        Remove a specific coroutine associated to the event.
-        :param coro: coroutine to remove
-        :type coro: typing.Coroutine
+        Remove a specific Callable associated to the event.
+        :param coro: Callable to remove
+        :type coro: Callable
         """
         for item in self._coros:
             if item == coro:
@@ -40,9 +42,9 @@ class Event:
         """
         return len(self._coros) > 0
 
-    def register(self, coro: typing.Coroutine) -> None:
+    def register(self, coro: Callable) -> None:
         """
-        Register a new coroutine.
+        Register a new Callable.
         """
         self._coros.append(coro)
 
@@ -72,14 +74,14 @@ class EventsHandler:
         self._logger = logging.getLogger("kirk.events")
         self._tasks = asyncio.Queue()
         self._lock = asyncio.Lock()
-        self._events = {}
+        self._events: dict[str, Event] = {}
         self._stop = False
 
         # register a default event used to notify internal
         # errors in the our application
         self._events["internal_error"] = Event()
 
-    def _get_event(self, name: str) -> Event:
+    def _get_event(self, name: str) -> Optional[Event]:
         """
         Return an event according to its `name`.
         """
@@ -108,13 +110,13 @@ class EventsHandler:
 
         return evt.has_coros()
 
-    def register(self, event_name: str, coro: typing.Coroutine, ordered: bool = False) -> None:
+    def register(self, event_name: str, coro: Callable, ordered: bool = False) -> None:
         """
         Register an event with ``event_name``.
         :param event_name: name of the event
         :type event_name: str
-        :param coro: coroutine associated with ``event_name``
-        :type coro: Coroutine
+        :param coro: Callable associated with ``event_name``
+        :type coro: Callable
         :param ordered: if True, the event will raise coroutines in the order
             they arrive
         :type ordered: bool
@@ -134,14 +136,14 @@ class EventsHandler:
 
         evt.register(coro)
 
-    def unregister(self, event_name: str, coro: typing.Coroutine = None) -> None:
+    def unregister(self, event_name: str, coro: Optional[Callable] = None) -> None:
         """
-        Unregister a single event coroutine with event_name`. If `coro` is None,
+        Unregister a single event Callable with event_name`. If `coro` is None,
         all coroutines registered will be removed.
         :param event_name: name of the event
         :type event_name: str
-        :param coro: coroutine to unregister
-        :type coro: typing.Coroutine
+        :param coro: Callable to unregister
+        :type coro: Callable
         """
         if not event_name:
             raise ValueError("event_name is empty")
@@ -160,16 +162,16 @@ class EventsHandler:
         else:
             del self._events[event_name]
 
-    async def fire(self, event_name: str, *args: list, **kwargs: dict) -> None:
+    async def fire(self, event_name: str, *args: Any, **kwargs: Any) -> None:
         """
         Fire a specific event.
         :param event_name: name of the event
         :type event_name: str
         :param args: Arguments to be passed to callback functions execution.
-        :type args: list
+        :type args: Any
         :param kwargs: Keyword arguments to be passed to callback functions
             execution.
-        :type kwargs: dict
+        :type kwargs: Any
         """
         if not event_name:
             raise ValueError("event_name is empty")
@@ -204,9 +206,9 @@ class EventsHandler:
             self._logger.error(err)
 
             ievt = self._get_event("internal_error")
-            ievt.create_tasks(err, task.get_name())
             if ievt:
-                await asyncio.gather(*ievt)
+                tasks = ievt.create_tasks([err], task.get_name())
+                await asyncio.gather(*tasks)
         finally:
             self._tasks.task_done()
 
