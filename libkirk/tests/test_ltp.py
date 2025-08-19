@@ -158,7 +158,7 @@ class TestLTPFramework:
         """
         Test read_result method when test passes.
         """
-        test = Test(name="test", cmd="echo", args="ciao")
+        test = Test(name="test", cmd="echo", args=["ciao"])
         result = await framework.read_result(test, 'ciao\n', 0, 0.1)
         assert result.passed == 1
         assert result.failed == 0

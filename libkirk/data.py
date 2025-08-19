@@ -6,6 +6,7 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 import logging
+from typing import Optional
 
 LOGGER = logging.getLogger("kirk.data")
 
@@ -31,14 +32,14 @@ class Suite:
             f"tests: {self._tests}"
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Name of the testing suite.
         """
         return self._name
 
     @name.setter
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         """
         Set the suite name.
         """
@@ -48,7 +49,7 @@ class Suite:
         self._name = value
 
     @property
-    def tests(self):
+    def tests(self) -> list:
         """
         Tests definitions.
         """
@@ -60,7 +61,15 @@ class Test:
     Test definition class.
     """
 
-    def __init__(self, **kwargs: dict) -> None:
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
+    def __init__(self,
+                 name: str,
+                 cmd: str,
+                 cwd: Optional[str] = None,
+                 env: Optional[dict] = None,
+                 args: Optional[list] = None,
+                 parallelizable: bool = False) -> None:
         """
         :param name: name of the test
         :type name: str
@@ -75,12 +84,18 @@ class Test:
         :param parallelizable: if True, test can be run in parallel
         :type parallelizable: bool
         """
-        self._name = kwargs.get("name", None)
-        self._cmd = kwargs.get("cmd", None)
-        self._args = kwargs.get("args", [])
-        self._cwd = kwargs.get("cwd", None)
-        self._env = kwargs.get("env", {})
-        self._parallelizable = kwargs.get("parallelizable", False)
+        if not name:
+            raise ValueError("Test must have a name")
+
+        if not cmd:
+            raise ValueError("Test must have a command")
+
+        self._name = name
+        self._cmd = cmd
+        self._cwd = cwd
+        self._args = args if args else []
+        self._env = env if env else {}
+        self._parallelizable = parallelizable
 
     def __repr__(self) -> str:
         return \
@@ -92,62 +107,62 @@ class Test:
             f"parallelizable: {self._parallelizable}"
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Name of the test.
         """
         return self._name
 
     @property
-    def command(self):
+    def command(self) -> str:
         """
         Command to execute test.
         """
         return self._cmd
 
     @property
-    def arguments(self):
+    def arguments(self) -> list:
         """
         Arguments of the command.
         """
         return self._args
 
     @property
-    def parallelizable(self):
+    def parallelizable(self) -> bool:
         """
         If True, test can be run in parallel.
         """
         return self._parallelizable
 
     @property
-    def cwd(self):
+    def cwd(self) -> Optional[str]:
         """
         Current working directory.
         """
         return self._cwd
 
     @property
-    def env(self):
+    def env(self) -> dict:
         """
         Environment variables
         """
         return self._env
 
     @property
-    def full_command(self):
+    def full_command(self) -> str:
         """
         Return the full command, with arguments as well.
         For example, if `command="ls"` and `arguments="-l -a"`,
         `full_command="ls -l -a"`.
         """
-        cmd = self.command
+        cmd = self.command if self.command else ''
         if len(self.arguments) > 0:
             cmd += ' '
             cmd += ' '.join(self.arguments)
 
         return cmd
 
-    def force_parallel(self):
+    def force_parallel(self) -> None:
         """
         Force test to be parallelizable.
         """
