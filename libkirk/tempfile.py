@@ -10,6 +10,7 @@ import pwd
 import shutil
 import pathlib
 import tempfile
+from typing import Optional
 
 
 class TempDir:
@@ -19,7 +20,7 @@ class TempDir:
     SYMLINK_NAME = "latest"
     FOLDER_PREFIX = "kirk."
 
-    def __init__(self, root: str = None, max_rotate: int = 5) -> None:
+    def __init__(self, root: Optional[str], max_rotate: int = 5) -> None:
         """
         :param root: root directory (i.e. /tmp). If None, TempDir will handle
             requests without adding any file or directory.
@@ -113,7 +114,7 @@ class TempDir:
         dpath = os.path.join(self._folder, path)
         os.mkdir(dpath)
 
-    def mkfile(self, path: str, content: bytes) -> None:
+    def mkfile(self, path: str, content: str) -> None:
         """
         Create a file inside temporary directory.
         :param path: path of the file
