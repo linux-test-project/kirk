@@ -9,11 +9,13 @@ import os
 import re
 import asyncio
 import argparse
+from typing import Optional
 import libkirk
 import libkirk.sut
 import libkirk.data
 import libkirk.plugin
 from libkirk import __version__
+from libkirk.plugin import Plugin
 from libkirk.sut import SUT
 from libkirk.framework import Framework
 from libkirk.ui import SimpleUserInterface
@@ -116,7 +118,7 @@ def _framework_config(value: str) -> dict:
     return _dict_config("framework", LOADED_FRAMEWORK, value)
 
 
-def _env_config(value: str) -> dict:
+def _env_config(value: str) -> Optional[dict]:
     """
     Return an environment configuration dictionary, parsing strings such as
     "key=value:key=value:key=value".
@@ -214,7 +216,7 @@ def _discover_frameworks(path: str) -> None:
     LOADED_FRAMEWORK.extend(objs)
 
 
-def _get_plugin(plugins: list, name: str) -> object:
+def _get_plugin(plugins: list, name: str) -> Optional[Plugin]:
     """
     Return the Plugin object with given name.
     """
@@ -270,10 +272,12 @@ def _get_sut(
         parser.error(f"'{sut_name}' SUT is not available")
 
     try:
+        # pyrefly: ignore[missing-attribute]
         sut.setup(**sut_config)
     except SUTError as err:
         parser.error(str(err))
 
+    # pyrefly: ignore[bad-return]
     return sut
 
 
@@ -299,10 +303,12 @@ def _get_framework(
         parser.error(f"'{fw_name}' framework is not available")
 
     try:
+        # pyrefly: ignore[missing-attribute]
         framework.setup(**fw_config)
     except FrameworkError as err:
         parser.error(str(err))
 
+    # pyrefly: ignore[bad-return]
     return framework
 
 
@@ -389,7 +395,7 @@ def _start_session(
                 suites=args.run_suite,
                 pattern=run_pattern,
                 report_path=args.json_report,
-                restore=restore_dir,
+                restore_path=restore_dir,
                 suite_iterate=args.suite_iterate,
                 skip_tests=skip_tests,
                 randomize=args.randomize,
@@ -434,7 +440,7 @@ def _start_session(
     parser.exit(exit_code)
 
 
-def run(cmd_args: list = None) -> None:
+def run(cmd_args: Optional[list] = None) -> None:
     """
     Entry point of the application.
     """
