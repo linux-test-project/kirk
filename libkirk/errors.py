@@ -54,3 +54,9 @@ class LTXError(KirkException):
     """
     Raised when an error occurs during LTX execution.
     """
+
+
+class SchedulerError(KirkException):
+    """
+    Raised when an error occurs during Scheduler operations.
+    """

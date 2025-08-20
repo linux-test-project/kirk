@@ -10,6 +10,8 @@ import sys
 import time
 import asyncio
 import logging
+from typing import Any
+from typing import Optional
 import libkirk
 import libkirk.data
 from libkirk.sut import SUT
@@ -18,7 +20,9 @@ from libkirk.data import Test
 from libkirk.data import Suite
 from libkirk.results import TestResults
 from libkirk.results import SuiteResults
+from libkirk.framework import Framework
 from libkirk.errors import KirkException
+from libkirk.errors import SchedulerError
 from libkirk.errors import KernelPanicError
 from libkirk.errors import KernelTaintedError
 from libkirk.errors import KernelTimeoutError
@@ -97,7 +101,12 @@ class TestScheduler(Scheduler):
     KERNEL_TAINTED = 3
     KERNEL_TIMEOUT = 4
 
-    def __init__(self, **kwargs: dict) -> None:
+    def __init__(
+            self,
+            sut: SUT,
+            framework: Framework,
+            timeout: float = 0.0,
+            max_workers: int = 1) -> None:
         """
         :param sut: object to communicate with SUT
         :type sut: SUT
@@ -108,22 +117,22 @@ class TestScheduler(Scheduler):
         :param max_workers: maximum number of workers to schedule jobs
         :type max_workers: int
         """
+        if not sut:
+            raise ValueError("SUT object is empty")
+
+        if not framework:
+            raise ValueError("Framework object is empty")
+
         self._logger = logging.getLogger("kirk.test_scheduler")
-        self._sut = kwargs.get("sut", None)
-        self._framework = kwargs.get("framework", None)
-        self._timeout = max(kwargs.get("timeout", 3600.0), 0.0)
-        self._max_workers = kwargs.get("max_workers", 1)
+        self._sut = sut
+        self._framework = framework
+        self._timeout = 0.0 if timeout < 0.0 else timeout
+        self._max_workers = 1 if max_workers < 1 else max_workers
         self._results = []
         self._stop = False
         self._stopped = False
         self._running_tests_sem = asyncio.Semaphore(1)
         self._schedule_lock = asyncio.Lock()
-
-        if not self._sut:
-            raise ValueError("SUT object is empty")
-
-        if not self._framework:
-            raise ValueError("Framework object is empty")
 
     async def _get_tainted_status(self) -> tuple:
         """
@@ -138,14 +147,17 @@ class TestScheduler(Scheduler):
 
         return code, messages
 
-    async def _write_kmsg(self, test: Test, results: TestResults) -> None:
+    async def _write_kmsg(
+            self,
+            test: Test,
+            results: Optional[TestResults] = None) -> None:
         """
         If root, we write test information on /dev/kmsg.
         """
         self._logger.info("Writing test information on /dev/kmsg")
 
         ret = await self._sut.run_command("id -u")
-        if ret["stdout"] != "0\n":
+        if not ret or ret["stdout"] != "0\n":
             self._logger.info("Can't write on /dev/kmsg from user")
             return
 
@@ -153,7 +165,6 @@ class TestScheduler(Scheduler):
             message = f'{sys.argv[0]}[{os.getpid()}]: ' \
                 f'{test.name}: end (returncode: {results.return_code})\n'
         else:
-
             message = f'{sys.argv[0]}[{os.getpid()}]: ' \
                 f'{test.name}: start (command: {test.full_command})\n'
 
@@ -209,13 +220,14 @@ class TestScheduler(Scheduler):
             cmd = test.full_command
             start_t = time.time()
             exec_time = 0
-            test_data = None
+            test_data: dict[str, Any] = {}
             tainted_msg = None
             status = self.STATUS_OK
 
             try:
                 tainted_code1, _ = await self._get_tainted_status()
 
+                # pyrefly: ignore[bad-assignment]
                 test_data = await asyncio.wait_for(self._sut.run_command(
                     cmd,
                     cwd=test.cwd,
@@ -223,6 +235,9 @@ class TestScheduler(Scheduler):
                     iobuffer=iobuffer),
                     timeout=self._timeout
                 )
+
+                if test_data is None:
+                    raise SchedulerError("Test command return None")
 
                 tainted_code2, tainted_msg2 = await self._get_tainted_status()
                 if tainted_code2 != tainted_code1:
@@ -368,7 +383,15 @@ class SuiteScheduler(Scheduler):
     (i.e. kernel panic).
     """
 
-    def __init__(self, **kwargs: dict) -> None:
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
+    def __init__(
+            self,
+            sut: SUT,
+            framework: Framework,
+            suite_timeout: float = 0.0,
+            exec_timeout: float = 0.0,
+            max_workers: int = 1) -> None:
         """
         :param sut: object used to communicate with SUT
         :type sut: SUT
@@ -381,30 +404,32 @@ class SuiteScheduler(Scheduler):
         :param max_workers: maximum number of workers to schedule jobs
         :type max_workers: int
         """
+        if not sut:
+            raise ValueError("SUT is an empty object")
+
+        if not framework:
+            raise ValueError("Framework object is empty")
+
+        suite_timeout = 0.0 if suite_timeout < 0.0 else suite_timeout
+        exec_timeout = 0.0 if exec_timeout < 0.0 else exec_timeout
+        max_workers = 1 if max_workers < 1 else max_workers
+
         self._logger = logging.getLogger("kirk.suite_scheduler")
-        self._sut = kwargs.get("sut", None)
-        self._framework = kwargs.get("framework", None)
-        self._suite_timeout = max(kwargs.get("suite_timeout", 3600.0), 0.0)
+        self._sut = sut
+        self._framework = framework
         self._results = []
         self._stop = False
         self._stopped = False
         self._schedule_lock = asyncio.Lock()
         self._reboot_lock = asyncio.Lock()
         self._sut_rebooted = False
-
-        if not self._sut:
-            raise ValueError("SUT is an empty object")
-
-        if not self._framework:
-            raise ValueError("Framework object is empty")
-
-        exec_timeout = max(kwargs.get("exec_timeout", 3600.0), 0.0)
+        self._suite_timeout = suite_timeout
 
         self._scheduler = TestScheduler(
             sut=self._sut,
             framework=self._framework,
             timeout=exec_timeout,
-            max_workers=kwargs.get("max_workers", 1))
+            max_workers=max_workers)
 
     @property
     def results(self) -> list:
@@ -457,7 +482,7 @@ class SuiteScheduler(Scheduler):
 
         info = await self._sut.get_info()
 
-        start_t = None
+        start_t = 0.0
         timed_out = False
         exec_times = []
         tests_results = []
