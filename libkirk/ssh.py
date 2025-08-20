@@ -8,8 +8,10 @@
 import time
 import asyncio
 import logging
-import importlib
 import contextlib
+import importlib.util
+from typing import Optional
+import libkirk.types
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
 from libkirk.errors import SUTError
@@ -25,11 +27,12 @@ try:
         and to check if Kernel Panic has occured in the system.
         """
 
-        def __init__(self, iobuffer: IOBuffer):
+        def __init__(self, iobuffer: Optional[IOBuffer] = None):
             self._output = []
             self._iobuffer = iobuffer
             self._panic = False
 
+        # pyrefly: ignore[bad-override]
         def data_received(self, data, _) -> None:
             """
             Override default data_received callback, storing stdout/stderr inside
@@ -38,6 +41,7 @@ try:
             self._output.append(data)
 
             if self._iobuffer:
+                # pyrefly: ignore[unused-coroutine]
                 asyncio.ensure_future(self._iobuffer.write(data))
 
             if "Kernel panic" in data:
@@ -66,19 +70,17 @@ class SSHSUT(SUT):
 
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.ssh")
-        self._tmpdir = None
-        self._host = None
-        self._port = None
-        self._reset_cmd = None
-        self._user = None
-        self._password = None
-        self._key_file = None
+        self._host = ""
+        self._port = 22
+        self._reset_cmd = ""
+        self._user = ""
+        self._password = ""
+        self._key_file = ""
         self._sudo = False
-        self._known_hosts = None
-        self._session_sem = None
+        self._known_hosts: Optional[str] = None
+        self._session_sem = asyncio.Semaphore()
         self._stop = False
         self._conn = None
-        self._downloader = None
         self._channels = []
 
     @property
@@ -98,7 +100,7 @@ class SSHSUT(SUT):
             "known_hosts": "path to custom known_hosts file (optional)",
         }
 
-    async def _reset(self, iobuffer: IOBuffer = None) -> None:
+    async def _reset(self, iobuffer: Optional[IOBuffer] = None) -> None:
         """
         Run the reset command on host.
         """
@@ -111,6 +113,9 @@ class SSHSUT(SUT):
             self._reset_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE)
+
+        if not proc or not proc.stdout:
+            raise SUTError("Can't communicate with the host shell")
 
         while True:
             line = await proc.stdout.read(1024)
@@ -129,7 +134,11 @@ class SSHSUT(SUT):
 
         self._logger.info("Reset command has been executed")
 
-    def _create_command(self, cmd: str, cwd: str, env: dict) -> str:
+    def _create_command(
+            self,
+            cmd: str,
+            cwd: Optional[str],
+            env: Optional[dict]) -> str:
         """
         Create command to send to SSH client.
         """
@@ -156,30 +165,37 @@ class SSHSUT(SUT):
 
         self._logger.info("Initialize SUT")
 
-        self._tmpdir = kwargs.get("tmpdir", None)
-        self._host = kwargs.get("host", "localhost")
-        self._port = kwargs.get("port", 22)
-        self._reset_cmd = kwargs.get("reset_cmd", None)
-        self._user = kwargs.get("user", "root")
-        self._password = kwargs.get("password", None)
-        self._key_file = kwargs.get("key_file", None)
-        self._known_hosts = kwargs.get("known_hosts", "~/.ssh/known_hosts")
+        self._host = libkirk.types.dict_item(
+            kwargs, "host", str, default="localhost")
+        self._reset_cmd = libkirk.types.dict_item(
+            kwargs, "reset_cmd", str, default=None)
+        self._user = libkirk.types.dict_item(
+            kwargs, "user", str, default="root")
+        self._password = libkirk.types.dict_item(
+            kwargs, "password", str, default=None)
+        self._key_file = libkirk.types.dict_item(
+            kwargs, "key_file", str, default=None)
+        self._known_hosts = libkirk.types.dict_item(
+            kwargs, "known_hosts", str, default="~/.ssh/known_hosts")
 
         if self._known_hosts == "/dev/null":
             self._known_hosts = None
 
         try:
-            self._port = int(kwargs.get("port", "22"))
+            self._port = int(libkirk.types.dict_item(
+                kwargs, "port", str, default="22"))
 
             if 1 > self._port > 65535:
                 raise ValueError()
-        except ValueError:
-            raise SUTError("'port' must be an integer between 1-65535")
+        except ValueError as err:
+            raise SUTError(
+                "'port' must be an integer between 1-65535") from err
 
         try:
-            self._sudo = int(kwargs.get("sudo", 0)) == 1
-        except ValueError:
-            raise SUTError("'sudo' must be 0 or 1")
+            self._sudo = int(libkirk.types.dict_item(
+                kwargs, "sudo", str, default="0")) == 1
+        except ValueError as err:
+            raise SUTError("'sudo' must be 0 or 1") from err
 
     @property
     def parallel_execution(self) -> bool:
@@ -189,15 +205,15 @@ class SSHSUT(SUT):
     async def is_running(self) -> bool:
         return self._conn is not None
 
-    async def communicate(self, iobuffer: IOBuffer = None) -> None:
+    async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if await self.is_running:
             raise SUTError("SUT is already running")
 
         try:
-            self._conn = None
             if self._key_file:
                 priv_key = asyncssh.read_private_key(self._key_file)
 
+                # pyrefly: ignore[bad-assignment]
                 self._conn = await asyncssh.connect(
                     host=self._host,
                     port=self._port,
@@ -205,6 +221,7 @@ class SSHSUT(SUT):
                     client_keys=[priv_key],
                     known_hosts=self._known_hosts)
             else:
+                # pyrefly: ignore[bad-assignment]
                 self._conn = await asyncssh.connect(
                     host=self._host,
                     port=self._port,
@@ -212,6 +229,7 @@ class SSHSUT(SUT):
                     password=self._password,
                     known_hosts=self._known_hosts)
 
+            # pyrefly: ignore[missing-attribute]
             # read maximum number of sessions and limit `run_command`
             # concurrent calls to that by using a semaphore
             ret = await self._conn.run(
@@ -226,7 +244,7 @@ class SSHSUT(SUT):
             if not self._stop:
                 raise SUTError(err) from err
 
-    async def stop(self, iobuffer: IOBuffer = None) -> None:
+    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if not await self.is_running:
             return
 
@@ -242,11 +260,10 @@ class SSHSUT(SUT):
 
                 self._channels.clear()
 
-            if self._downloader:
-                await self._downloader.close()
-
             self._logger.info("Closing connection")
+            # pyrefly: ignore[missing-attribute]
             self._conn.close()
+            # pyrefly: ignore[missing-attribute]
             await self._conn.wait_closed()
             self._logger.info("Connection closed")
 
@@ -264,6 +281,7 @@ class SSHSUT(SUT):
         self._logger.info("Ping %s:%d", self._host, self._port)
 
         try:
+            # pyrefly: ignore[missing-attribute]
             await self._conn.run("test .", check=True)
         except asyncssh.Error as err:
             raise SUTError(err) from err
@@ -277,9 +295,9 @@ class SSHSUT(SUT):
     async def run_command(
             self,
             command: str,
-            cwd: str = None,
-            env: dict = None,
-            iobuffer: IOBuffer = None) -> dict:
+            cwd: Optional[str] = None,
+            env: Optional[dict] = None,
+            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -298,6 +316,7 @@ class SSHSUT(SUT):
             try:
                 self._logger.info("Running command: %s", repr(command))
 
+                # pyrefly: ignore[missing-attribute]
                 channel, session = await self._conn.create_session(
                     lambda: MySSHClientSession(iobuffer),
                     cmd
@@ -336,14 +355,15 @@ class SSHSUT(SUT):
         if not await self.is_running:
             raise SUTError("SSH connection is not present")
 
-        data = None
+        data = bytes()
         try:
+            # pyrefly: ignore[missing-attribute]
             ret = await self._conn.run(
                 f"cat {target_path}",
                 check=True,
                 encoding=None)
 
-            data = ret.stdout
+            data = bytes(ret.stdout)
         except asyncssh.Error as err:
             if not self._stop:
                 raise SUTError(err) from err

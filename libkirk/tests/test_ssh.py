@@ -144,7 +144,7 @@ def config_password(tmpdir):
     return dict(
         tmpdir=str(tmpdir),
         host="localhost",
-        port=22,
+        port="22",
         user=TEST_SSH_USERNAME,
         password=TEST_SSH_PASSWORD)
 
@@ -157,7 +157,7 @@ def config_keyfile(tmpdir):
     return dict(
         tmpdir=str(tmpdir),
         host="localhost",
-        port=22,
+        port="22",
         user=TEST_SSH_USERNAME,
         key_file=TEST_SSH_KEY_FILE)
 
