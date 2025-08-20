@@ -7,7 +7,9 @@
 """
 import asyncio
 import logging
-import typing
+from typing import Any
+from typing import Optional
+from typing import Callable
 import libkirk
 from libkirk.io import AsyncFile
 from libkirk.errors import LTXError
@@ -51,15 +53,15 @@ class Request:
         """
         return self._completed
 
-    def add_done_coro(self, coro: typing.Coroutine) -> None:
+    def add_done_coro(self, coro: Callable) -> None:
         """
         Add done event to request.
         :param coro: called when request is done
-        :type coro: Coroutine
+        :type coro: Callable
         """
         self._done_coro.append(coro)
 
-    async def _raise_complete(self, *args) -> None:
+    async def _raise_complete(self, *args: Any) -> None:
         """
         Raise the complete callback with given data.
         """
@@ -99,7 +101,11 @@ class Requests:
         """
 
         async def pack(self) -> bytes:
-            return msgpack.packb([self.VERSION])
+            pkg = msgpack.packb([self.VERSION])
+            if not pkg:
+                raise LTXError("Can't pack VERSION request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -121,7 +127,11 @@ class Requests:
             self._echoed = False
 
         async def pack(self) -> bytes:
-            return msgpack.packb([self.PING])
+            pkg = msgpack.packb([self.PING])
+            if not pkg:
+                raise LTXError("Can't pack PING request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -171,12 +181,17 @@ class Requests:
             self._value = value
 
         async def pack(self) -> bytes:
-            return msgpack.packb([
+            pkg = msgpack.packb([
                 self.ENV,
                 self._slot_id,
                 self._key,
                 self._value
             ])
+
+            if not pkg:
+                raise LTXError("Can't pack ENV request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -218,11 +233,16 @@ class Requests:
             self._path = path
 
         async def pack(self) -> bytes:
-            return msgpack.packb([
+            pkg = msgpack.packb([
                 self.CWD,
                 self._slot_id,
                 self._path,
             ])
+
+            if not pkg:
+                raise LTXError("Can't pack CWD request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -254,10 +274,15 @@ class Requests:
             self._data = []
 
         async def pack(self) -> bytes:
-            return msgpack.packb([
+            pkg = msgpack.packb([
                 self.GET_FILE,
                 self._path,
             ])
+
+            if not pkg:
+                raise LTXError("Can't pack GET_FILE request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -294,11 +319,16 @@ class Requests:
             self._data = data
 
         async def pack(self) -> bytes:
-            return msgpack.packb([
+            pkg = msgpack.packb([
                 self.SET_FILE,
                 self._path,
                 self._data,
             ])
+
+            if not pkg:
+                raise LTXError("Can't pack SET_FILE request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -317,14 +347,14 @@ class Requests:
                 self,
                 slot_id: int,
                 command: str,
-                stdout_coro: typing.Coroutine = None) -> None:
+                stdout_coro: Optional[Callable] = None) -> None:
             """
             :param slot_id: command table ID
             :type slot_id: int
             :param command: command to run
             :type command: str
             :param stdout_coro: called when new data arrives in stdout
-            :type stdout_coro: callable
+            :type stdout_coro: Callable
             """
             super().__init__()
 
@@ -344,11 +374,16 @@ class Requests:
             self._echoed = False
 
         async def pack(self) -> bytes:
-            return msgpack.packb([
+            pkg = msgpack.packb([
                 self.EXEC,
                 self._slot_id,
                 self._command,
             ])
+
+            if not pkg:
+                raise LTXError("Can't pack EXEC request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -416,10 +451,15 @@ class Requests:
             self._slot_id = slot_id
 
         async def pack(self) -> bytes:
-            return msgpack.packb([
+            pkg = msgpack.packb([
                 self.KILL,
                 self._slot_id,
             ])
+
+            if not pkg:
+                raise LTXError("Can't pack KILL request")
+
+            return pkg
 
         async def feed(self, message: list) -> None:
             if self.completed:
@@ -463,11 +503,11 @@ class LTX:
         self._infile = infile
         self._outfile = outfile
         self._lock = asyncio.Lock()
-        self._task = None
+        self._task: Optional[asyncio.Task] = None
         self._messages = asyncio.Queue()
-        self._exception = None
+        self._exception: Optional[Exception] = None
 
-    async def __aenter__(self) -> None:
+    async def __aenter__(self) -> Any:
         """
         Connect to the LTX service.
         """
@@ -591,7 +631,7 @@ class LTX:
             # force utf-8 encoding by using raw=False
             unpacker = msgpack.Unpacker(raw=False)
 
-            def _read() -> None:
+            def _read() -> Any:
                 """
                 Read the last available data.
                 """
@@ -599,6 +639,7 @@ class LTX:
                 self._messages.put_nowait(data)
 
             loop = libkirk.get_event_loop()
+            # pyrefly: ignore[bad-argument-type]
             loop.add_reader(afile.fileno(), _read)
 
             try:
