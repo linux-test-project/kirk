@@ -1,6 +1,7 @@
 """
 Unittest for monitor module.
 """
+
 import json
 import asyncio
 import pytest
@@ -21,7 +22,7 @@ async def monitor(tmpdir):
     fpath = tmpdir / MONITOR_FILE
 
     # fill the file with garbage data before writing
-    with open(fpath, 'w', encoding="utf-8") as data:
+    with open(fpath, "w", encoding="utf-8") as data:
         data.write("garbage")
 
     obj = JSONFileMonitor(fpath)
@@ -36,6 +37,7 @@ async def run_events():
     Run kirk events at the beginning of the test
     and stop it at the end of the test.
     """
+
     async def start():
         await libkirk.events.start()
 
@@ -52,7 +54,7 @@ async def read_monitor(tmpdir):
     fpath = tmpdir / MONITOR_FILE
 
     async def _read():
-        async with AsyncFile(fpath, 'r') as fdata:
+        async with AsyncFile(fpath, "r") as fdata:
             data = None
             while not data:
                 data = await fdata.readline()
@@ -74,10 +76,7 @@ async def test_single_write(read_monitor):
     Test if a single event will cause to write inside the monitor file
     only once.
     """
-    msg = json.dumps({
-        'type': "session_stopped",
-        'message': {}
-    })
+    msg = json.dumps({"type": "session_stopped", "message": {}})
 
     for _ in range(1, 10):
         await libkirk.events.fire("session_stopped")
@@ -93,9 +92,6 @@ async def test_override_events(tmpdir, read_monitor):
     await libkirk.events.fire("kernel_panic")
     await libkirk.events.fire("session_stopped")
 
-    msg = json.dumps({
-        'type': "session_stopped",
-        'message': {}
-    })
+    msg = json.dumps({"type": "session_stopped", "message": {}})
 
     await read_monitor(3, msg)

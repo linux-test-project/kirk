@@ -1,6 +1,7 @@
 """
 Test SUT implementations.
 """
+
 import os
 import pytest
 from libkirk.qemu import QemuSUT
@@ -18,16 +19,13 @@ TEST_QEMU_KERNEL = os.environ.get("TEST_QEMU_KERNEL", None)
 TEST_QEMU_BUSYBOX = os.environ.get("TEST_QEMU_BUSYBOX", None)
 
 if not TEST_QEMU_IMAGE:
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_QEMU_IMAGE not defined"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_QEMU_IMAGE not defined"))
 
 if not TEST_QEMU_USERNAME:
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_QEMU_USERNAME not defined"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_QEMU_USERNAME not defined"))
 
 if not TEST_QEMU_PASSWORD:
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_QEMU_PASSWORD not defined"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_QEMU_PASSWORD not defined"))
 
 
 class _TestQemuSUT(_TestSUT):
@@ -44,12 +42,11 @@ class _TestQemuSUT(_TestSUT):
         await sut.communicate(iobuffer=iobuff)
         await sut.run_command(
             "echo 'Kernel panic\nThis is a generic message' > /tmp/panic.txt",
-            iobuffer=iobuff)
+            iobuffer=iobuff,
+        )
 
         with pytest.raises(KernelPanicError):
-            await sut.run_command(
-                "cat /tmp/panic.txt",
-                iobuffer=iobuff)
+            await sut.run_command("cat /tmp/panic.txt", iobuffer=iobuff)
 
     async def test_fetch_file_stop(self):
         pytest.skip(reason="Coroutines don't support I/O file handling")
@@ -68,7 +65,8 @@ async def sut_isa(tmpdir):
         image=TEST_QEMU_IMAGE,
         user=TEST_QEMU_USERNAME,
         password=TEST_QEMU_PASSWORD,
-        serial="isa")
+        serial="isa",
+    )
 
     yield runner
 
@@ -87,7 +85,8 @@ async def sut_virtio(tmpdir):
         image=TEST_QEMU_IMAGE,
         user=TEST_QEMU_USERNAME,
         password=TEST_QEMU_PASSWORD,
-        serial="virtio")
+        serial="virtio",
+    )
 
     yield runner
 
@@ -135,12 +134,8 @@ class TestSessionQemuVirtIO(_TestSession):
         yield sut_virtio
 
 
-@pytest.mark.skipif(
-    not TEST_QEMU_KERNEL,
-    reason="TEST_QEMU_KERNEL not defined")
-@pytest.mark.skipif(
-    not TEST_QEMU_BUSYBOX,
-    reason="TEST_QEMU_BUSYBOX not defined")
+@pytest.mark.skipif(not TEST_QEMU_KERNEL, reason="TEST_QEMU_KERNEL not defined")
+@pytest.mark.skipif(not TEST_QEMU_BUSYBOX, reason="TEST_QEMU_BUSYBOX not defined")
 class TestQemuSUTBusybox(_TestQemuSUT):
     """
     Test QemuSUT implementation using kernel/initrd functionality with
@@ -157,7 +152,8 @@ class TestQemuSUTBusybox(_TestQemuSUT):
             tmpdir=str(tmpdir),
             kernel=TEST_QEMU_KERNEL,
             initrd=TEST_QEMU_BUSYBOX,
-            prompt="/ #")
+            prompt="/ #",
+        )
 
         yield runner
 

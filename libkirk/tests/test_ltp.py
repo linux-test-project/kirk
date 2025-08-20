@@ -1,6 +1,7 @@
 """
 Test Framework implementations.
 """
+
 import os
 import json
 import pytest
@@ -15,6 +16,7 @@ class TestLTPFramework:
     """
     Inherit this class to implement framework tests.
     """
+
     TESTS_NUM = 6
     SUITES_NUM = 3
 
@@ -120,10 +122,7 @@ class TestLTPFramework:
                 assert test.name == f"test0{j}"
                 assert test.command == "echo"
                 assert test.arguments == ["ciao"]
-                assert test.cwd == os.path.join(
-                    str(tmpdir),
-                    "testcases",
-                    "bin")
+                assert test.cwd == os.path.join(str(tmpdir), "testcases", "bin")
                 assert not test.parallelizable
                 assert "LTPROOT" in test.env
                 assert "TMPDIR" in test.env
@@ -135,10 +134,7 @@ class TestLTPFramework:
         for test in suite.tests:
             assert test.command == "sleep"
             assert test.arguments == ["0.05"]
-            assert test.cwd == os.path.join(
-                str(tmpdir),
-                "testcases",
-                "bin")
+            assert test.cwd == os.path.join(str(tmpdir), "testcases", "bin")
             assert not test.parallelizable
             assert "LTPROOT" in test.env
             assert "TMPDIR" in test.env
@@ -159,7 +155,7 @@ class TestLTPFramework:
         Test read_result method when test passes.
         """
         test = Test(name="test", cmd="echo", args=["ciao"])
-        result = await framework.read_result(test, 'ciao\n', 0, 0.1)
+        result = await framework.read_result(test, "ciao\n", 0, 0.1)
         assert result.passed == 1
         assert result.failed == 0
         assert result.broken == 0
@@ -175,7 +171,7 @@ class TestLTPFramework:
         Test read_result method when test fails.
         """
         test = Test(name="test", cmd="echo")
-        result = await framework.read_result(test, '', 1, 0.1)
+        result = await framework.read_result(test, "", 1, 0.1)
         assert result.passed == 0
         assert result.failed == 1
         assert result.broken == 0
@@ -191,7 +187,7 @@ class TestLTPFramework:
         Test read_result method when test is broken.
         """
         test = Test(name="test", cmd="echo")
-        result = await framework.read_result(test, '', -1, 0.1)
+        result = await framework.read_result(test, "", -1, 0.1)
         assert result.passed == 0
         assert result.failed == 0
         assert result.broken == 1
@@ -207,8 +203,7 @@ class TestLTPFramework:
         Test read_result method when test has skip.
         """
         test = Test(name="test", cmd="echo")
-        result = await framework.read_result(
-            test, "mydata", 32, 0.1)
+        result = await framework.read_result(test, "mydata", 32, 0.1)
         assert result.passed == 0
         assert result.failed == 0
         assert result.broken == 0

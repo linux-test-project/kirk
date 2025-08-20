@@ -1,6 +1,7 @@
 """
 Unittest for types module.
 """
+
 import pytest
 import libkirk.types
 

@@ -1,6 +1,7 @@
 """
 Unittests for ltx module.
 """
+
 import os
 import time
 import signal
@@ -17,8 +18,7 @@ pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
 TEST_LTX_BINARY = os.environ.get("TEST_LTX_BINARY", None)
 
 if not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY):
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_LTX_BINARY doesn't exist"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_LTX_BINARY doesn't exist"))
 
 
 class TestLTX:
@@ -31,8 +31,8 @@ class TestLTX:
         """
         LTX handler.
         """
-        infile = str(tmpdir / 'transport.in')
-        outfile = str(tmpdir / 'transport.out')
+        infile = str(tmpdir / "transport.in")
+        outfile = str(tmpdir / "transport.out")
 
         os.mkfifo(infile)
         os.mkfifo(outfile)
@@ -41,9 +41,8 @@ class TestLTX:
         stdout = os.open(outfile, os.O_RDWR)
 
         proc = await asyncio.subprocess.create_subprocess_shell(
-            TEST_LTX_BINARY,
-            stdin=stdin,
-            stdout=stdout)
+            TEST_LTX_BINARY, stdin=stdin, stdout=stdout
+        )
 
         try:
             async with LTX(infile, outfile) as handle:
@@ -82,7 +81,7 @@ class TestLTX:
         replies = await ltx.gather([req])
         reply = replies[req]
 
-        assert ''.join(stdout) == "Linux\n"
+        assert "".join(stdout) == "Linux\n"
         assert start_t < reply[0] * 1e-9 < time.monotonic()
         assert reply[1] == 1
         assert reply[2] == 0
@@ -98,12 +97,11 @@ class TestLTX:
             stdout.append(data)
 
         start_t = time.monotonic()
-        req = Requests.execute(
-            0, "echo -n ciao", stdout_coro=_stdout_coro)
+        req = Requests.execute(0, "echo -n ciao", stdout_coro=_stdout_coro)
         replies = await ltx.gather([req])
         reply = replies[req]
 
-        assert ''.join(stdout) == "ciao"
+        assert "".join(stdout) == "ciao"
         assert start_t < reply[0] * 1e-9 < time.monotonic()
         assert reply[1] == 1
         assert reply[2] == 0
@@ -121,10 +119,7 @@ class TestLTX:
 
         req = []
         for slot in range(times):
-            req.append(Requests.execute(
-                slot,
-                "echo -n ciao",
-                stdout_coro=_stdout_coro))
+            req.append(Requests.execute(slot, "echo -n ciao", stdout_coro=_stdout_coro))
 
         start_t = time.monotonic()
         replies = await ltx.gather(req)
@@ -143,8 +138,8 @@ class TestLTX:
         """
         Test set_file request.
         """
-        data = b'AaXa\x00\x01\x02Zz' * 1024
-        pfile = tmp_path / 'file.bin'
+        data = b"AaXa\x00\x01\x02Zz" * 1024
+        pfile = tmp_path / "file.bin"
 
         req = Requests.set_file(str(pfile), data)
         await ltx.gather([req])
@@ -155,8 +150,8 @@ class TestLTX:
         """
         Test get_file request.
         """
-        pfile = tmp_path / 'file.bin'
-        pfile.write_bytes(b'AaXa\x00\x01\x02Zz' * 1024)
+        pfile = tmp_path / "file.bin"
+        pfile.write_bytes(b"AaXa\x00\x01\x02Zz" * 1024)
 
         req = Requests.get_file(str(pfile))
         replies = await ltx.gather([req])
@@ -247,8 +242,8 @@ class TestLTX:
         """
         Test all requests together.
         """
-        data = b'AaXa\x00\x01\x02Zz' * 1024
-        pfile = tmp_path / 'file.bin'
+        data = b"AaXa\x00\x01\x02Zz" * 1024
+        pfile = tmp_path / "file.bin"
 
         requests = []
         requests.append(Requests.version())
@@ -267,8 +262,8 @@ async def sut(tmpdir):
     """
     LTXSUT instance object.
     """
-    infile = str(tmpdir / 'transport.in')
-    outfile = str(tmpdir / 'transport.out')
+    infile = str(tmpdir / "transport.in")
+    outfile = str(tmpdir / "transport.out")
 
     os.mkfifo(infile)
     os.mkfifo(outfile)
@@ -277,16 +272,11 @@ async def sut(tmpdir):
     stdout = os.open(outfile, os.O_RDWR)
 
     proc = await asyncio.subprocess.create_subprocess_shell(
-        TEST_LTX_BINARY,
-        stdin=stdin,
-        stdout=stdout)
+        TEST_LTX_BINARY, stdin=stdin, stdout=stdout
+    )
 
     sut = LTXSUT()
-    sut.setup(
-        cwd=str(tmpdir),
-        env=dict(HELLO="WORLD"),
-        infile=infile,
-        outfile=outfile)
+    sut.setup(cwd=str(tmpdir), env=dict(HELLO="WORLD"), infile=infile, outfile=outfile)
 
     yield sut
 

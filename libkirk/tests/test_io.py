@@ -1,6 +1,7 @@
 """
 Unittests for io module.
 """
+
 import pytest
 from libkirk.io import AsyncFile
 
@@ -16,7 +17,7 @@ async def test_seek(tmpdir):
     with open(myfile, "w", encoding="utf-8") as fdata:
         fdata.write("kirkdata")
 
-    async with AsyncFile(myfile, 'r') as fdata:
+    async with AsyncFile(myfile, "r") as fdata:
         await fdata.seek(4)
         assert await fdata.read() == "data"
 
@@ -30,7 +31,7 @@ async def test_tell(tmpdir):
     with open(myfile, "w", encoding="utf-8") as fdata:
         fdata.write("kirkdata")
 
-    async with AsyncFile(myfile, 'r') as fdata:
+    async with AsyncFile(myfile, "r") as fdata:
         await fdata.seek(4)
         assert await fdata.tell() == 4
 
@@ -44,7 +45,7 @@ async def test_read(tmpdir):
     with open(myfile, "w", encoding="utf-8") as fdata:
         fdata.write("kirkdata")
 
-    async with AsyncFile(myfile, 'r') as fdata:
+    async with AsyncFile(myfile, "r") as fdata:
         assert await fdata.read() == "kirkdata"
 
 
@@ -71,10 +72,10 @@ async def test_readline(tmpdir):
         fdata.write("kirkdata\n")
         fdata.write("kirkdata\n")
 
-    async with AsyncFile(myfile, 'r') as fdata:
+    async with AsyncFile(myfile, "r") as fdata:
         assert await fdata.readline() == "kirkdata\n"
         assert await fdata.readline() == "kirkdata\n"
-        assert await fdata.readline() == ''
+        assert await fdata.readline() == ""
 
 
 async def test_file_no_open(tmpdir):
@@ -86,7 +87,7 @@ async def test_file_no_open(tmpdir):
     with open(myfile, "w", encoding="utf-8") as fdata:
         fdata.write("kirkdata")
 
-    fdata = AsyncFile(myfile, 'r')
+    fdata = AsyncFile(myfile, "r")
     await fdata.seek(4)
     assert not await fdata.tell()
     assert not await fdata.read()
@@ -102,7 +103,7 @@ async def test_open(tmpdir):
     Test `open()` method.
     """
     myfile = tmpdir / "myfile"
-    fdata = AsyncFile(myfile, 'w')
+    fdata = AsyncFile(myfile, "w")
     await fdata.open()
     await fdata.open()
     try:
@@ -117,7 +118,7 @@ async def test_mutliple_open_close(tmpdir):
     Test `open()` and `close()` methods when open/close multiple times.
     """
     myfile = tmpdir / "myfile"
-    fdata = AsyncFile(myfile, 'w')
+    fdata = AsyncFile(myfile, "w")
     await fdata.open()
     await fdata.open()
     await fdata.open()

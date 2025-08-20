@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import os
 import time
 import asyncio
@@ -31,8 +32,8 @@ class LTXSUT(SUT):
         self._release_lock = asyncio.Lock()
         self._fetch_lock = asyncio.Lock()
         self._ltx: Optional[LTX] = None
-        self._outfile = ''
-        self._infile = ''
+        self._outfile = ""
+        self._infile = ""
         self._slots = []
 
     @property
@@ -47,7 +48,7 @@ class LTXSUT(SUT):
         }
 
     def setup(self, **kwargs: dict) -> None:
-        if not importlib.util.find_spec('msgpack'):
+        if not importlib.util.find_spec("msgpack"):
             raise SUTError("'msgpack' library is not available")
 
         self._logger.info("Initialize SUT")
@@ -158,11 +159,12 @@ class LTXSUT(SUT):
         await self._send_requests([Requests.version()])
 
     async def run_command(
-            self,
-            command: str,
-            cwd: Optional[str] = None,
-            env: Optional[dict] = None,
-            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
+        self,
+        command: str,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        iobuffer: Optional[IOBuffer] = None,
+    ) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -189,10 +191,7 @@ class LTXSUT(SUT):
                 if iobuffer:
                     await iobuffer.write(data)
 
-            exec_req = Requests.execute(
-                slot_id,
-                command,
-                stdout_coro=_stdout_coro)
+            exec_req = Requests.execute(slot_id, command, stdout_coro=_stdout_coro)
 
             requests.append(exec_req)
             replies = await self._send_requests(requests)

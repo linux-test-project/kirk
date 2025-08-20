@@ -1,6 +1,7 @@
 """
 Unittests for main module.
 """
+
 import os
 import sys
 import pwd
@@ -31,7 +32,7 @@ class TestMain:
 
         # read report and check if all suite's tests have been executed
         report_d = None
-        with open(report, 'r', encoding="utf-8") as report_f:
+        with open(report, "r", encoding="utf-8") as report_f:
             report_d = json.loads(report_f.read())
 
         return report_d
@@ -40,9 +41,7 @@ class TestMain:
         """
         Test wrong options.
         """
-        cmd_args = [
-            "--run-command1234", "ls"
-        ]
+        cmd_args = ["--run-command1234", "ls"]
 
         with pytest.raises(SystemExit) as excinfo:
             libkirk.main.run(cmd_args=cmd_args)
@@ -54,10 +53,7 @@ class TestMain:
         Test --run-command option.
         """
         temp = tmpdir.mkdir("temp")
-        cmd_args = [
-            "--tmp-dir", str(temp),
-            "--run-command", "ls"
-        ]
+        cmd_args = ["--tmp-dir", str(temp), "--run-command", "ls"]
 
         with pytest.raises(SystemExit) as excinfo:
             libkirk.main.run(cmd_args=cmd_args)
@@ -71,9 +67,12 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--run-command", "ls",
-            "--exec-timeout", "0"
+            "--tmp-dir",
+            str(temp),
+            "--run-command",
+            "ls",
+            "--exec-timeout",
+            "0",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -87,9 +86,12 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01"
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -106,10 +108,14 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--suite-timeout", "0"
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--suite-timeout",
+            "0",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -133,9 +139,12 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
             "--verbose",
         ]
 
@@ -154,9 +163,12 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
             "--no-colors",
         ]
 
@@ -176,9 +188,12 @@ class TestMain:
 
         # run a normal session
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01"
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -192,10 +207,15 @@ class TestMain:
         # restore session
         name = pwd.getpwuid(os.getuid()).pw_name
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--restore", f"{str(temp)}/kirk.{name}/latest",
-            "--framework", "dummy",
-            "--run-suite", "suite01", "environ"
+            "--tmp-dir",
+            str(temp),
+            "--restore",
+            f"{str(temp)}/kirk.{name}/latest",
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "environ",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -213,10 +233,14 @@ class TestMain:
         temp = tmpdir.mkdir("temp")
         report = str(tmpdir / "report.json")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--json-report", report
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--json-report",
+            report,
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -229,7 +253,7 @@ class TestMain:
         assert len(report_a["results"]) == 2
 
         report_b = None
-        with open(report, 'r', encoding="utf-8") as report_f:
+        with open(report, "r", encoding="utf-8") as report_f:
             report_b = json.loads(report_f.read())
 
         assert report_a == report_b
@@ -240,10 +264,14 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--skip-tests", "test0[23]"
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--skip-tests",
+            "test0[23]",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -263,10 +291,14 @@ class TestMain:
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--skip-file", str(skipfile)
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--skip-file",
+            str(skipfile),
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -286,11 +318,16 @@ class TestMain:
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--skip-tests", "test01",
-            "--skip-file", str(skipfile)
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--skip-tests",
+            "test01",
+            "--skip-file",
+            str(skipfile),
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -309,10 +346,14 @@ class TestMain:
 
         # run on multiple workers
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--workers", str(os.cpu_count()),
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--workers",
+            str(os.cpu_count()),
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -327,9 +368,7 @@ class TestMain:
         """
         Test "--sut help" command and check if SUT class(es) are loaded.
         """
-        cmd_args = [
-            "--sut", "help"
-        ]
+        cmd_args = ["--sut", "help"]
 
         with pytest.raises(SystemExit) as excinfo:
             libkirk.main.run(cmd_args=cmd_args)
@@ -342,9 +381,7 @@ class TestMain:
         Test "--framework help" command and check if Framework class(es)
         are loaded.
         """
-        cmd_args = [
-            "--framework", "help"
-        ]
+        cmd_args = ["--framework", "help"]
 
         with pytest.raises(SystemExit) as excinfo:
             libkirk.main.run(cmd_args=cmd_args)
@@ -358,10 +395,14 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "environ",
-            "--env", "hello=ciao"
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "environ",
+            "--env",
+            "hello=ciao",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -379,10 +420,14 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--suite-iterate", "4",
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--suite-iterate",
+            "4",
         ]
 
         with pytest.raises(SystemExit) as excinfo:
@@ -401,8 +446,10 @@ class TestMain:
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
             "--run-suite",
         ]
         cmd_args.extend(["suite01"] * num_of_suites)
@@ -428,10 +475,14 @@ class TestMain:
         """
         temp = tmpdir.mkdir("temp")
         cmd_args = [
-            "--tmp-dir", str(temp),
-            "--framework", "dummy",
-            "--run-suite", "suite01",
-            "--runtime", "1",
+            "--tmp-dir",
+            str(temp),
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+            "--runtime",
+            "1",
         ]
 
         with pytest.raises(SystemExit) as excinfo:

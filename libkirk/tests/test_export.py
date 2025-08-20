@@ -1,6 +1,7 @@
 """
 Unit tests for Exporter implementations.
 """
+
 import json
 import asyncio
 import pytest
@@ -41,7 +42,7 @@ class TestJSONExporter:
         tests = [
             Test(name="ls0", cmd="ls"),
             Test(name="ls1", cmd="ls", args=["-l"]),
-            Test(name="ls2", cmd="ls", args=["--error"])
+            Test(name="ls2", cmd="ls", args=["--error"]),
         ]
         suite0 = Suite("ls_suite0", tests)
 
@@ -96,7 +97,8 @@ class TestJSONExporter:
                 cpu="x86_64",
                 swap="10 kB",
                 ram="1000 kB",
-                exec_time=3),
+                exec_time=3,
+            ),
         ]
 
         exporter = JSONExporter()
@@ -112,7 +114,7 @@ class TestJSONExporter:
             data = None
 
             output = tmpdir / f"output{i}.json"
-            with open(str(output), 'r') as json_data:
+            with open(str(output), "r") as json_data:
                 data = json.load(json_data)
 
             assert len(data["results"]) == 3
@@ -128,9 +130,7 @@ class TestJSONExporter:
                     "duration": 1,
                     "result": "pass",
                     "log": "folder\nfile.txt",
-                    "retval": [
-                        "0"
-                    ],
+                    "retval": ["0"],
                 },
                 "status": "pass",
                 "test_fqn": "ls0",
@@ -147,9 +147,7 @@ class TestJSONExporter:
                     "duration": 1,
                     "result": "pass",
                     "log": "folder\nfile.txt",
-                    "retval": [
-                        "0"
-                    ],
+                    "retval": ["0"],
                 },
                 "status": "pass",
                 "test_fqn": "ls1",
@@ -166,9 +164,7 @@ class TestJSONExporter:
                     "duration": 1,
                     "result": "fail",
                     "log": "",
-                    "retval": [
-                        "1"
-                    ],
+                    "retval": ["1"],
                 },
                 "status": "fail",
                 "test_fqn": "ls2",

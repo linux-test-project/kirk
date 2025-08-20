@@ -8,30 +8,30 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath(".."))
 
-project = 'kirk'
-copyright = '2025, Linux Test Project'
-author = 'Linux Test Project'
+project = "kirk"
+copyright = "2025, Linux Test Project"
+author = "Linux Test Project"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.viewcode',
-    'myst_parser'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.viewcode",
+    "myst_parser",
 ]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = ["html*"]
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_static_path = []
 
 
@@ -45,26 +45,22 @@ def run_apidoc(_):
 
     argv_list = []
     for output, source in packages.items():
-        argv_list.append([
-            "-f",
-            "-o",
-            output,
-            source,
-            "../libkirk/tests/"
-        ])
+        argv_list.append(["-f", "-o", output, source, "../libkirk/tests/"])
 
     try:
         # Sphinx 1.7+
         from sphinx.ext import apidoc
+
         for argv in argv_list:
             apidoc.main(argv)
     except ImportError:
         # Sphinx 1.6 (and earlier)
         from sphinx import apidoc
+
         for argv in argv_list:
             argv.insert(0, apidoc.__file__)
             apidoc.main(argv)
 
 
 def setup(app):
-    app.connect('builder-inited', run_apidoc)
+    app.connect("builder-inited", run_apidoc)

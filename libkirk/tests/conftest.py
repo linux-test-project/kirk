@@ -1,6 +1,7 @@
 """
 Generic stuff for pytest.
 """
+
 import libkirk
 import pytest
 from libkirk.results import TestResults
@@ -59,7 +60,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="echo",
                 args=["-n", "ciao0"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             test1 = Test(
                 name="test02",
@@ -67,7 +69,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="echo",
                 args=["-n", "ciao0"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             return Suite(name, [test0, test1])
         if name == "suite02":
@@ -77,7 +80,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="echo",
                 args=["-n", "ciao0"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             test1 = Test(
                 name="test02",
@@ -85,7 +89,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="sleep",
                 args=["0.2", "&&", "echo", "-n", "ciao1"],
-                parallelizable=True)
+                parallelizable=True,
+            )
 
             return Suite(name, [test0, test1])
         elif name == "sleep":
@@ -95,7 +100,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="sleep",
                 args=["2"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             test1 = Test(
                 name="test02",
@@ -103,7 +109,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="sleep",
                 args=["2"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             return Suite(name, [test0, test1])
         elif name == "environ":
@@ -113,7 +120,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="echo",
                 args=["-n", "$hello"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             return Suite(name, [test0])
         elif name == "kernel_panic":
@@ -123,7 +131,8 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="echo",
                 args=["Kernel", "panic"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             test1 = Test(
                 name="test01",
@@ -131,18 +140,16 @@ class DummyFramework(Framework):
                 env=self._env,
                 cmd="sleep",
                 args=["0.2"],
-                parallelizable=False)
+                parallelizable=False,
+            )
 
             return Suite(name, [test0, test1])
 
         return None
 
     async def read_result(
-            self,
-            test: Test,
-            stdout: str,
-            retcode: int,
-            exec_t: float) -> TestResults:
+        self, test: Test, stdout: str, retcode: int, exec_t: float
+    ) -> TestResults:
         passed = 0
         failed = 0
         skipped = 0

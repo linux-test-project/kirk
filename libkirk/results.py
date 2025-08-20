@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 from libkirk.data import Test
 from libkirk.data import Suite
 
@@ -16,6 +17,7 @@ class ResultStatus:
     inside a single test binary, but the overall status of the test is fine, so
     we assign a PASS status.
     """
+
     # regular test run
     PASS = 0
 
@@ -129,17 +131,18 @@ class TestResults(Results):
             raise ValueError("Empty test object")
 
     def __repr__(self) -> str:
-        return \
-            f"test: '{self._test}', " \
-            f"failed: '{self._failed}', " \
-            f"passed: {self._passed}, " \
-            f"broken: {self._broken}, " \
-            f"skipped: {self._skipped}, " \
-            f"warnins: {self._warns}, " \
-            f"status: {self._status}, " \
-            f"exec_time: {self._exec_t}, " \
-            f"retcode: {self._retcode}, " \
+        return (
+            f"test: '{self._test}', "
+            f"failed: '{self._failed}', "
+            f"passed: {self._passed}, "
+            f"broken: {self._broken}, "
+            f"skipped: {self._skipped}, "
+            f"warnins: {self._warns}, "
+            f"status: {self._status}, "
+            f"exec_time: {self._exec_t}, "
+            f"retcode: {self._retcode}, "
             f"stdout: {repr(self._stdout)}"
+        )
 
     @property
     def test(self) -> Test:
@@ -232,16 +235,17 @@ class SuiteResults(Results):
             raise ValueError("Empty suite object")
 
     def __repr__(self) -> str:
-        return \
-            f"suite: '{self._suite}', " \
-            f"tests: '{self._tests}', " \
-            f"distro: {self._distro}, " \
-            f"distro_ver: {self._distro_ver}, " \
-            f"kernel: {self._kernel}, " \
-            f"arch: {self._arch}, " \
-            f"cpu: {self._cpu}, " \
-            f"swap: {self._swap}, " \
+        return (
+            f"suite: '{self._suite}', "
+            f"tests: '{self._tests}', "
+            f"distro: {self._distro}, "
+            f"distro_ver: {self._distro_ver}, "
+            f"kernel: {self._kernel}, "
+            f"arch: {self._arch}, "
+            f"cpu: {self._cpu}, "
+            f"swap: {self._swap}, "
             f"ram: {self._ram}"
+        )
 
     @property
     def suite(self) -> Suite:

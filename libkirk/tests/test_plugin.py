@@ -1,6 +1,7 @@
 """
 Unittests for framework module.
 """
+
 import libkirk
 import libkirk.plugin
 from libkirk.sut import SUT

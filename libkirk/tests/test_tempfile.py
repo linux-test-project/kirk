@@ -1,6 +1,7 @@
 """
 Unittest for temporary module.
 """
+
 import os
 import pytest
 from libkirk.tempfile import TempDir
@@ -37,7 +38,8 @@ class TestTempDir:
 
             assert tempdir.abspath is not None
             assert tempdir.abspath == os.readlink(
-                os.path.join(tempdir.abspath, "..", tempdir.SYMLINK_NAME))
+                os.path.join(tempdir.abspath, "..", tempdir.SYMLINK_NAME)
+            )
 
         os.sync()
 
@@ -66,8 +68,7 @@ class TestTempDir:
 
         for i in range(0, 10):
             tempdir.mkdir(f"myfolder/{i}")
-            assert os.path.isdir(os.path.join(
-                tempdir.abspath, f"myfolder/{i}"))
+            assert os.path.isdir(os.path.join(tempdir.abspath, f"myfolder/{i}"))
 
     def test_mkdir_no_root(self):
         """

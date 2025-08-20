@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import re
 import asyncio
 from typing import Optional
@@ -43,7 +44,7 @@ TAINTED_MSG = [
     "soft lockup occurred",
     "kernel has been live patched",
     "auxiliary taint, defined for and used by distros",
-    "kernel was built with the struct randomization plugin"
+    "kernel was built with the struct randomization plugin",
 ]
 
 
@@ -57,7 +58,7 @@ class SUT(Plugin):
         "fail_io_timeout",
         "fail_make_request",
         "fail_page_alloc",
-        "failslab"
+        "failslab",
     ]
 
     @property
@@ -99,11 +100,12 @@ class SUT(Plugin):
         raise NotImplementedError()
 
     async def run_command(
-            self,
-            command: str,
-            cwd: Optional[str] = None,
-            env: Optional[dict] = None,
-            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
+        self,
+        command: str,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        iobuffer: Optional[IOBuffer] = None,
+    ) -> Optional[dict]:
         """
         Coroutine to run command on target.
         :param command: command to execute
@@ -137,9 +139,8 @@ class SUT(Plugin):
         raise NotImplementedError()
 
     async def ensure_communicate(
-            self,
-            iobuffer: Optional[IOBuffer],
-            retries: int = 10) -> None:
+        self, iobuffer: Optional[IOBuffer], retries: int = 10
+    ) -> None:
         """
         Ensure that `communicate` is completed, retrying as many times we
         want in case of `KirkException` error. After each `communicate` error
@@ -177,6 +178,7 @@ class SUT(Plugin):
             }
 
         """
+
         # create suite results
         async def _run_cmd(cmd: str) -> str:
             """
@@ -193,31 +195,28 @@ class SUT(Plugin):
             return stdout
 
         # pyrefly: ignore[bad-unpacking]
-        distro, \
-            distro_ver, \
-            kernel, \
-            arch, \
-            cpu, \
-            meminfo = await asyncio.gather(*[
-                _run_cmd(". /etc/os-release && echo \"$ID\""),
-                _run_cmd(". /etc/os-release && echo \"$VERSION_ID\""),
+        distro, distro_ver, kernel, arch, cpu, meminfo = await asyncio.gather(
+            *[
+                _run_cmd('. /etc/os-release && echo "$ID"'),
+                _run_cmd('. /etc/os-release && echo "$VERSION_ID"'),
                 _run_cmd("uname -s -r -v"),
                 _run_cmd("uname -m"),
                 _run_cmd("uname -p"),
-                _run_cmd("cat /proc/meminfo")
-            ])
+                _run_cmd("cat /proc/meminfo"),
+            ]
+        )
 
         memory = "unknown"
         swap = "unknown"
 
         if meminfo:
-            mem_m = re.search(r'MemTotal:\s+(?P<memory>\d+\s+kB)', meminfo)
+            mem_m = re.search(r"MemTotal:\s+(?P<memory>\d+\s+kB)", meminfo)
             if mem_m:
-                memory = mem_m.group('memory')
+                memory = mem_m.group("memory")
 
-            swap_m = re.search(r'SwapTotal:\s+(?P<swap>\d+\s+kB)', meminfo)
+            swap_m = re.search(r"SwapTotal:\s+(?P<swap>\d+\s+kB)", meminfo)
             if swap_m:
-                swap = swap_m.group('swap')
+                swap = swap_m.group("swap")
 
         ret = {
             "distro": distro,
@@ -226,7 +225,7 @@ class SUT(Plugin):
             "arch": arch,
             "cpu": cpu,
             "ram": memory,
-            "swap": swap
+            "swap": swap,
         }
 
         return ret

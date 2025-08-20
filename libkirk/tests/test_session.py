@@ -1,6 +1,7 @@
 """
 Unittests for the session module.
 """
+
 import json
 import asyncio
 import pytest
@@ -30,9 +31,8 @@ class _TestSession:
         Session communication object.
         """
         session = Session(
-            tmpdir=TempDir(str(tmpdir)),
-            framework=dummy_framework,
-            sut=sut)
+            tmpdir=TempDir(str(tmpdir)), framework=dummy_framework, sut=sut
+        )
 
         yield session
 
@@ -50,9 +50,8 @@ class _TestSession:
         """
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01", "suite02"],
-            pattern="test01|test02",
-            report_path=report)
+            suites=["suite01", "suite02"], pattern="test01|test02", report_path=report
+        )
 
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
@@ -63,9 +62,7 @@ class _TestSession:
         Test run method when executing suites, generating a report.
         """
         report = str(tmpdir / "report.json")
-        await session.run(
-            suites=["suite01", "suite02"],
-            report_path=report)
+        await session.run(suites=["suite01", "suite02"], report_path=report)
 
         with open(report, "r") as report_file:
             report_data = json.loads(report_file.read())
@@ -76,14 +73,17 @@ class _TestSession:
         Test stop method during run. We are not going to generate any results
         file, because we are not even sure some tests will be executed.
         """
+
         async def stop():
             await asyncio.sleep(0.2)
             await session.stop()
 
-        await asyncio.gather(*[
-            session.run(suites=["sleep"]),
-            stop(),
-        ])
+        await asyncio.gather(
+            *[
+                session.run(suites=["sleep"]),
+                stop(),
+            ]
+        )
 
     async def test_run_command(self, session):
         """
@@ -95,14 +95,12 @@ class _TestSession:
         """
         Test stop when runnig a command.
         """
+
         async def stop():
             await asyncio.sleep(0.1)
             await asyncio.wait_for(session.stop(), timeout=30)
 
-        await asyncio.gather(*[
-            session.run(command="sleep 1"),
-            stop()
-        ])
+        await asyncio.gather(*[session.run(command="sleep 1"), stop()])
 
     async def test_run_skip_tests(self, tmpdir, session):
         """
@@ -110,9 +108,8 @@ class _TestSession:
         """
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01", "suite02"],
-            skip_tests="test0[23]",
-            report_path=report)
+            suites=["suite01", "suite02"], skip_tests="test0[23]", report_path=report
+        )
 
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
@@ -124,7 +121,7 @@ class _TestSession:
             (0, 4),
             (1, 4),
             (3, 12),
-        ]
+        ],
     )
     async def test_run_suite_iterate(self, tmpdir, session, iterate, expect):
         """
@@ -132,9 +129,8 @@ class _TestSession:
         """
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01", "suite02"],
-            suite_iterate=iterate,
-            report_path=report)
+            suites=["suite01", "suite02"], suite_iterate=iterate, report_path=report
+        )
 
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
@@ -148,9 +144,8 @@ class _TestSession:
 
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01"] * num_of_suites,
-            randomize=True,
-            report_path=report)
+            suites=["suite01"] * num_of_suites, randomize=True, report_path=report
+        )
 
         report_data = None
         with open(report, "r", encoding="utf-8") as report_file:
@@ -169,10 +164,7 @@ class _TestSession:
         Test run method when executing suites for a certain amount of time.
         """
         report = str(tmpdir / "report.json")
-        await session.run(
-            suites=["suite01"],
-            runtime=1,
-            report_path=report)
+        await session.run(suites=["suite01"], runtime=1, report_path=report)
 
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())

@@ -1,6 +1,7 @@
 """
 Test AsyncSUT implementations.
 """
+
 import os
 import time
 import asyncio
@@ -114,14 +115,14 @@ class _TestSUT:
         """
         Test stop method when running communicate.
         """
+
         async def stop():
             await asyncio.sleep(sut_stop_sleep)
             await sut.stop(iobuffer=Printer())
 
-        await asyncio.gather(*[
-            sut.communicate(iobuffer=Printer()),
-            stop()
-        ], return_exceptions=True)
+        await asyncio.gather(
+            *[sut.communicate(iobuffer=Printer()), stop()], return_exceptions=True
+        )
 
     async def test_run_command(self, sut):
         """
@@ -150,10 +151,7 @@ class _TestSUT:
             assert res["returncode"] != 0
             assert 0 < res["exec_time"] < 2
 
-        await asyncio.gather(*[
-            test(),
-            stop()
-        ])
+        await asyncio.gather(*[test(), stop()])
 
     async def test_run_command_parallel(self, sut):
         """
@@ -165,8 +163,7 @@ class _TestSUT:
         await sut.communicate(iobuffer=Printer())
 
         exec_count = os.cpu_count()
-        coros = [sut.run_command(f"echo {i}")
-                 for i in range(exec_count)]
+        coros = [sut.run_command(f"echo {i}") for i in range(exec_count)]
 
         results = await asyncio.gather(*coros)
 
@@ -190,8 +187,7 @@ class _TestSUT:
 
         async def test():
             exec_count = os.cpu_count()
-            coros = [sut.run_command("sleep 2")
-                     for i in range(exec_count)]
+            coros = [sut.run_command("sleep 2") for i in range(exec_count)]
             results = await asyncio.gather(*coros, return_exceptions=True)
 
             for data in results:
@@ -202,10 +198,7 @@ class _TestSUT:
                 assert data["returncode"] != 0
                 assert 0 < data["exec_time"] < 2
 
-        await asyncio.gather(*[
-            test(),
-            stop()
-        ])
+        await asyncio.gather(*[test(), stop()])
 
     async def test_fetch_file_bad_args(self, sut):
         """
@@ -217,7 +210,7 @@ class _TestSUT:
             await sut.fetch_file(None)
 
         with pytest.raises(SUTError):
-            await sut.fetch_file('this_file_doesnt_exist')
+            await sut.fetch_file("this_file_doesnt_exist")
 
     async def test_fetch_file(self, sut):
         """
@@ -240,7 +233,7 @@ class _TestSUT:
         await sut.communicate(iobuffer=Printer())
 
         async def fetch():
-            await sut.run_command(f"truncate -s {1024*1024*1024} {target}"),
+            (await sut.run_command(f"truncate -s {1024 * 1024 * 1024} {target}"),)
             await sut.fetch_file(target)
 
         async def stop():
@@ -257,10 +250,7 @@ class _TestSUT:
         """
         await sut.communicate(iobuffer=Printer())
 
-        ret = await sut.run_command(
-            "echo -n $PWD",
-            cwd="/tmp",
-            iobuffer=Printer())
+        ret = await sut.run_command("echo -n $PWD", cwd="/tmp", iobuffer=Printer())
 
         assert ret["returncode"] == 0
         assert ret["stdout"].strip() == "/tmp"
@@ -272,9 +262,8 @@ class _TestSUT:
         await sut.communicate(iobuffer=Printer())
 
         ret = await sut.run_command(
-            "echo -n $HELLO",
-            env=dict(HELLO="ciao"),
-            iobuffer=Printer())
+            "echo -n $HELLO", env=dict(HELLO="ciao"), iobuffer=Printer()
+        )
 
         assert ret["returncode"] == 0
         assert ret["stdout"].strip() == "ciao"

@@ -1,6 +1,7 @@
 """
 Unittests for runner module.
 """
+
 import re
 import sys
 import asyncio
@@ -59,7 +60,7 @@ class MockSuiteScheduler(SuiteScheduler):
             sut=kwargs.get("sut", None),
             framework=kwargs.get("framework", None),
             timeout=kwargs.get("exec_timeout", 3600),
-            max_workers=kwargs.get("max_workers", 1)
+            max_workers=kwargs.get("max_workers", 1),
         )
         self._rebooted = 0
 
@@ -96,14 +97,13 @@ class TestTestScheduler:
 
     @pytest.fixture
     async def create_runner(self, sut, dummy_framework):
-        def _callback(
-                timeout: float = 3600.0,
-                max_workers: int = 1) -> TestScheduler:
+        def _callback(timeout: float = 3600.0, max_workers: int = 1) -> TestScheduler:
             obj = MockTestScheduler(
                 sut=sut,
                 framework=dummy_framework,
                 timeout=timeout,
-                max_workers=max_workers)
+                max_workers=max_workers,
+            )
 
             return obj
 
@@ -116,12 +116,14 @@ class TestTestScheduler:
         """
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="echo",
-                args=["-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="echo",
+                    args=["-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
 
         runner = create_runner(max_workers=workers)
 
@@ -152,12 +154,14 @@ class TestTestScheduler:
 
         tests = []
         for i in range(num_tests):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="sleep",
-                args=["0.5"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="sleep",
+                    args=["0.5"],
+                    parallelizable=True,
+                )
+            )
 
         runner = create_runner(max_workers=workers)
 
@@ -165,10 +169,7 @@ class TestTestScheduler:
             await asyncio.sleep(0.1)
             await runner.stop()
 
-        await asyncio.gather(*[
-            runner.schedule(tests),
-            stop()
-        ])
+        await asyncio.gather(*[runner.schedule(tests), stop()])
 
         assert len(runner.results) < num_tests
 
@@ -192,12 +193,14 @@ class TestTestScheduler:
 
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="echo",
-                args=["-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="echo",
+                    args=["-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
 
         with pytest.raises(KernelTaintedError):
             await runner.schedule(tests)
@@ -211,20 +214,24 @@ class TestTestScheduler:
             pytest.xfail("Unstable test on < 3.10")
 
         tests = []
-        tests.append(Test(
-            name="test0",
-            cmd="echo",
-            args=["Kernel", "panic"],
-            parallelizable=True,
-        ))
+        tests.append(
+            Test(
+                name="test0",
+                cmd="echo",
+                args=["Kernel", "panic"],
+                parallelizable=True,
+            )
+        )
 
         for i in range(1, 10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="sleep",
-                args=["0.2", "&&", "echo", "-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="sleep",
+                    args=["0.2", "&&", "echo", "-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
 
         runner = create_runner(max_workers=workers)
 
@@ -260,12 +267,14 @@ class TestTestScheduler:
 
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="sleep",
-                args=["0.1", "&&", "echo", "-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="sleep",
+                    args=["0.1", "&&", "echo", "-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
 
         with pytest.raises(KernelTimeoutError):
             await runner.schedule(tests)
@@ -277,12 +286,14 @@ class TestTestScheduler:
         """
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="sleep",
-                args=["0.5", "&&", "echo", "-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="sleep",
+                    args=["0.5", "&&", "echo", "-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
 
         runner = create_runner(timeout=0.05, max_workers=workers)
 
@@ -310,15 +321,17 @@ class TestSuiteScheduler:
     @pytest.fixture
     async def create_runner(self, sut, dummy_framework):
         def _callback(
-                suite_timeout: float = 3600.0,
-                exec_timeout: float = 3600.0,
-                max_workers: int = 1) -> SuiteScheduler:
+            suite_timeout: float = 3600.0,
+            exec_timeout: float = 3600.0,
+            max_workers: int = 1,
+        ) -> SuiteScheduler:
             obj = MockSuiteScheduler(
                 sut=sut,
                 framework=dummy_framework,
                 suite_timeout=suite_timeout,
                 exec_timeout=exec_timeout,
-                max_workers=max_workers)
+                max_workers=max_workers,
+            )
 
             return obj
 
@@ -331,12 +344,14 @@ class TestSuiteScheduler:
         """
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="echo",
-                args=["-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="echo",
+                    args=["-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
 
         runner = create_runner(max_workers=workers)
         await runner.schedule([Suite("suite01", tests)])
@@ -352,22 +367,21 @@ class TestSuiteScheduler:
         num_tests = workers * 2
         tests = []
         for i in range(num_tests):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="sleep",
-                args=["0.5"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="sleep",
+                    args=["0.5"],
+                    parallelizable=True,
+                )
+            )
         runner = create_runner(max_workers=workers)
 
         async def stop():
             await asyncio.sleep(0.1)
             await runner.stop()
 
-        await asyncio.gather(*[
-            runner.schedule([Suite("suite01", tests)]),
-            stop()
-        ])
+        await asyncio.gather(*[runner.schedule([Suite("suite01", tests)]), stop()])
 
         assert len(runner.results) == 1
         assert len(runner.results[0].tests_results) >= 1
@@ -395,12 +409,14 @@ class TestSuiteScheduler:
 
         tests = []
         for i in range(2):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="echo",
-                args=["-n", "ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="echo",
+                    args=["-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
         await runner.schedule([Suite("suite01", tests)])
 
         if workers > 1:
@@ -421,18 +437,22 @@ class TestSuiteScheduler:
 
         tests = []
         for i in range(0, 9):
-            tests.append(Test(
-                name=f"test{i}",
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="echo",
+                    args=["-n", "ciao"],
+                    parallelizable=True,
+                )
+            )
+        tests.append(
+            Test(
+                name="test9",
                 cmd="echo",
-                args=["-n", "ciao"],
+                args=["-n", "Kernel", "panic"],
                 parallelizable=True,
-            ))
-        tests.append(Test(
-            name="test9",
-            cmd="echo",
-            args=["-n", "Kernel", "panic"],
-            parallelizable=True,
-        ))
+            )
+        )
         await runner.schedule([Suite("suite01", tests)])
 
         assert runner.rebooted == 1
@@ -444,6 +464,7 @@ class TestSuiteScheduler:
         """
         Test the schedule method on kernel timeout.
         """
+
         async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
@@ -452,12 +473,14 @@ class TestSuiteScheduler:
 
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="echo",
-                args=["ciao"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="echo",
+                    args=["ciao"],
+                    parallelizable=True,
+                )
+            )
         await runner.schedule([Suite("suite01", tests)])
 
         assert runner.rebooted > 0
@@ -473,12 +496,14 @@ class TestSuiteScheduler:
 
         tests = []
         for i in range(10):
-            tests.append(Test(
-                name=f"test{i}",
-                cmd="sleep",
-                args=["0.5"],
-                parallelizable=True,
-            ))
+            tests.append(
+                Test(
+                    name=f"test{i}",
+                    cmd="sleep",
+                    args=["0.5"],
+                    parallelizable=True,
+                )
+            )
         await runner.schedule([Suite("suite01", tests)])
 
         assert runner.results[0].exec_time == 0.0

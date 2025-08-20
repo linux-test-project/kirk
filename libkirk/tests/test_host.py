@@ -1,6 +1,7 @@
 """
 Unittests for host SUT implementations.
 """
+
 import pytest
 from libkirk.host import HostSUT
 from libkirk.tests.test_sut import _TestSUT

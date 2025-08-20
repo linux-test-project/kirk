@@ -1,6 +1,7 @@
 """
 Unittest for events module.
 """
+
 import asyncio
 import pytest
 import libkirk
@@ -19,6 +20,7 @@ def test_reset():
     """
     Test reset method.
     """
+
     async def funct():
         pass
 
@@ -33,6 +35,7 @@ def test_register_errors():
     """
     Test register method during errors.
     """
+
     async def funct():
         pass
 
@@ -47,6 +50,7 @@ def test_register():
     """
     Test register method.
     """
+
     async def funct():
         pass
 
@@ -67,6 +71,7 @@ def test_unregister_all():
     Test unregister method removing all coroutine
     from the events list.
     """
+
     async def funct1():
         pass
 
@@ -95,6 +100,7 @@ def test_unregister_single():
     Test unregister method removing a single coroutine
     from the events list.
     """
+
     async def funct():
         pass
 

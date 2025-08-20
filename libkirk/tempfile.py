@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import os
 import pwd
 import shutil
@@ -17,6 +18,7 @@ class TempDir:
     """
     Temporary directory handler.
     """
+
     SYMLINK_NAME = "latest"
     FOLDER_PREFIX = "kirk."
 
@@ -52,9 +54,7 @@ class TempDir:
         os.makedirs(tmpbase, exist_ok=True)
 
         # delete the first max_rotate items
-        sorted_paths = sorted(
-            pathlib.Path(tmpbase).iterdir(),
-            key=os.path.getmtime)
+        sorted_paths = sorted(pathlib.Path(tmpbase).iterdir(), key=os.path.getmtime)
 
         # don't consider latest symlink
         num_paths = len(sorted_paths) - 1
@@ -78,9 +78,8 @@ class TempDir:
             os.remove(latest)
 
         os.symlink(
-            folder,
-            os.path.join(tmpbase, self.SYMLINK_NAME),
-            target_is_directory=True)
+            folder, os.path.join(tmpbase, self.SYMLINK_NAME), target_is_directory=True
+        )
 
         return folder
 

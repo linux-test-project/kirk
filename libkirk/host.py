@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import os
 import time
 import signal
@@ -26,6 +27,7 @@ class HostSUT(SUT):
     """
     SUT implementation using host's shell.
     """
+
     BUFFSIZE = 1024
 
     def __init__(self) -> None:
@@ -106,16 +108,12 @@ class HostSUT(SUT):
 
         try:
             if self._procs:
-                self._logger.info(
-                    "Terminating %d process(es)",
-                    len(self._procs))
+                self._logger.info("Terminating %d process(es)", len(self._procs))
 
                 for proc in self._procs:
                     await self._kill_process(proc)
 
-                await asyncio.gather(*[
-                    proc.wait() for proc in self._procs
-                ])
+                await asyncio.gather(*[proc.wait() for proc in self._procs])
 
                 self._logger.info("Process(es) terminated")
 
@@ -130,11 +128,12 @@ class HostSUT(SUT):
             self._logger.info("SUT has stopped")
 
     async def run_command(
-            self,
-            command: str,
-            cwd: Optional[str] = None,
-            env: Optional[dict] = None,
-            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
+        self,
+        command: str,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        iobuffer: Optional[IOBuffer] = None,
+    ) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -153,7 +152,7 @@ class HostSUT(SUT):
                 "stdout": asyncio.subprocess.PIPE,
                 "stderr": asyncio.subprocess.STDOUT,
                 "cwd": cwd if cwd else None,
-                "start_new_session": True
+                "start_new_session": True,
             }
 
             if env:
@@ -178,7 +177,7 @@ class HostSUT(SUT):
                     await iobuffer.write(sline)
 
                 stdout += sline
-                panic = "Kernel panic" in stdout[-2*self.BUFFSIZE:]
+                panic = "Kernel panic" in stdout[-2 * self.BUFFSIZE :]
 
                 if not await self._process_alive(proc):
                     break
@@ -225,7 +224,7 @@ class HostSUT(SUT):
             retdata = bytes()
 
             try:
-                async with AsyncFile(target_path, 'rb') as ftarget:
+                async with AsyncFile(target_path, "rb") as ftarget:
                     data = await ftarget.read()
                     if data:
                         assert isinstance(data, bytes)

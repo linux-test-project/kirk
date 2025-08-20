@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import os
 import inspect
 import importlib
@@ -51,14 +52,14 @@ def discover(mytype: type, folder: str) -> list:
     loaded_obj = []
 
     for myfile in os.listdir(folder):
-        if not myfile.endswith('.py'):
+        if not myfile.endswith(".py"):
             continue
 
         path = os.path.join(folder, myfile)
         if not os.path.isfile(path):
             continue
 
-        spec = importlib.util.spec_from_file_location('obj', path)
+        spec = importlib.util.spec_from_file_location("obj", path)
         if not spec or not spec.loader:
             continue
 
@@ -67,9 +68,11 @@ def discover(mytype: type, folder: str) -> list:
 
         members = inspect.getmembers(module, inspect.isclass)
         for _, klass in members:
-            if klass.__module__ != module.__name__ or \
-                    klass is mytype or \
-                    klass in loaded_obj:
+            if (
+                klass.__module__ != module.__name__
+                or klass is mytype
+                or klass in loaded_obj
+            ):
                 continue
 
             if issubclass(klass, mytype):

@@ -1,6 +1,7 @@
 """
 Unittests for ssh module.
 """
+
 import os
 import subprocess
 import asyncio
@@ -19,16 +20,13 @@ TEST_SSH_PASSWORD = os.environ.get("TEST_SSH_PASSWORD", None)
 TEST_SSH_KEY_FILE = os.environ.get("TEST_SSH_KEY_FILE", None)
 
 if not TEST_SSH_USERNAME:
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_SSH_USERNAME not defined"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_SSH_USERNAME not defined"))
 
 if not TEST_SSH_PASSWORD:
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_SSH_PASSWORD not defined"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_SSH_PASSWORD not defined"))
 
 if not TEST_SSH_KEY_FILE:
-    pytestmark.append(pytest.mark.skip(
-        reason="TEST_SSH_KEY_FILE not defined"))
+    pytestmark.append(pytest.mark.skip(reason="TEST_SSH_KEY_FILE not defined"))
 
 
 @pytest.fixture
@@ -80,7 +78,7 @@ class _TestSSHSUT(_TestSUT):
         buffer = MyBuffer()
         await sut.stop(iobuffer=buffer)
 
-        assert buffer.data == 'ciao\n'
+        assert buffer.data == "ciao\n"
 
     @pytest.mark.parametrize("enable", ["0", "1"])
     async def test_sudo(self, config, enable):
@@ -107,8 +105,7 @@ class _TestSSHSUT(_TestSUT):
         await sut.communicate()
 
         with pytest.raises(KernelPanicError):
-            await sut.run_command(
-                "echo 'Kernel panic\nThis is a generic message'")
+            await sut.run_command("echo 'Kernel panic\nThis is a generic message'")
 
     async def test_stderr(self, sut):
         """
@@ -130,7 +127,8 @@ class _TestSSHSUT(_TestSUT):
             shell=True,
             capture_output=True,
             text=True,
-            check=True)
+            check=True,
+        )
 
         ret = await sut.run_command(f"echo -n {result.stdout}")
         assert ret["stdout"] == result.stdout
@@ -146,7 +144,8 @@ def config_password(tmpdir):
         host="localhost",
         port="22",
         user=TEST_SSH_USERNAME,
-        password=TEST_SSH_PASSWORD)
+        password=TEST_SSH_PASSWORD,
+    )
 
 
 @pytest.fixture
@@ -159,7 +158,8 @@ def config_keyfile(tmpdir):
         host="localhost",
         port="22",
         user=TEST_SSH_USERNAME,
-        key_file=TEST_SSH_KEY_FILE)
+        key_file=TEST_SSH_KEY_FILE,
+    )
 
 
 class TestSSHSUTPassword(_TestSSHSUT):

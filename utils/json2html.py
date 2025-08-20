@@ -4,6 +4,7 @@
 """
 This script parses JSON results from kirk and produces a HTML page.
 """
+
 import os
 import json
 import argparse
@@ -188,9 +189,11 @@ def _generate_environment(environment):
     Generates HTML environment table.
     """
     out = []
-    out.append("   <table width=\"100%\">")
+    out.append('   <table width="100%">')
     out.append("    <tr>")
-    out.append("     <th colspan=\"2\" style=\"text-align: center\">Environment information</th>")
+    out.append(
+        '     <th colspan="2" style="text-align: center">Environment information</th>'
+    )
     out.append("    </tr>")
 
     print("\n".join(out))
@@ -198,7 +201,7 @@ def _generate_environment(environment):
     for key in environment:
         out = []
 
-        out.append("    <tr class=\"info\">")
+        out.append('    <tr class="info">')
         out.append(f"     <td>{key}</td>")
         out.append(f"     <td>{environment[key]}</td>")
         out.append("    </tr>")
@@ -214,17 +217,19 @@ def _generate_stats(stats):
     """
 
     out = []
-    out.append("   <table width=\"100%\">")
+    out.append('   <table width="100%">')
     out.append("    <tr>")
-    out.append("     <th colspan=\"6\" style=\"text-align: center\">Overall results</th>")
+    out.append('     <th colspan="6" style="text-align: center">Overall results</th>')
     out.append("    </tr>")
     out.append("    <tr>")
-    out.append(f"     <td class=\"rtime\">Runtime: {str(timedelta(seconds=stats['runtime']))}</td>")
-    out.append(f"     <td class=\"pass\">Passed: {stats['passed']}</td>")
-    out.append(f"     <td class=\"skip\">Skipped: {stats['skipped']}</td>")
-    out.append(f"     <td class=\"fail\">Failed: {stats['failed']}</td>")
-    out.append(f"     <td class=\"brok\">Broken: {stats['broken']}</td>")
-    out.append(f"     <td class=\"warn\">Warnings: {stats['warnings']}</td>")
+    out.append(
+        f'     <td class="rtime">Runtime: {str(timedelta(seconds=stats["runtime"]))}</td>'
+    )
+    out.append(f'     <td class="pass">Passed: {stats["passed"]}</td>')
+    out.append(f'     <td class="skip">Skipped: {stats["skipped"]}</td>')
+    out.append(f'     <td class="fail">Failed: {stats["failed"]}</td>')
+    out.append(f'     <td class="brok">Broken: {stats["broken"]}</td>')
+    out.append(f'     <td class="warn">Warnings: {stats["warnings"]}</td>')
     out.append("    </tr>")
     out.append("   </table>")
 
@@ -257,23 +262,23 @@ def _generate_results(results):
     print(_RESULT_TABLE_HEADER)
 
     for res in results:
-        overall = 'pass'
+        overall = "pass"
 
-        test = res['test']
+        test = res["test"]
 
-        if test['failed'] > 0:
-            overall = 'fail'
-        elif test['broken'] > 0:
-            overall = 'brok'
-        elif test['warnings'] > 0:
-            overall = 'warn'
-        elif test['skipped'] > 0:
-            overall = 'skip'
+        if test["failed"] > 0:
+            overall = "fail"
+        elif test["broken"] > 0:
+            overall = "brok"
+        elif test["warnings"] > 0:
+            overall = "warn"
+        elif test["skipped"] > 0:
+            overall = "skip"
 
         out = []
 
-        out.append(f"     <tr class=\"{overall}\">")
-        out.append(f"      <td class=\"id\">{res['test_fqn']}</td>")
+        out.append(f'     <tr class="{overall}">')
+        out.append(f'      <td class="id">{res["test_fqn"]}</td>')
         out.append(f"      <td>{test['duration']:.2f}</td>")
         out.append(f"      <td>{test['passed']}</td>")
         out.append(f"      <td>{test['skipped']}</td>")
@@ -281,10 +286,10 @@ def _generate_results(results):
         out.append(f"      <td>{test['broken']}</td>")
         out.append(f"      <td>{test['warnings']}</td>")
         out.append("     </tr>")
-        out.append("     <tr class=\"logs hidden3\">")
-        out.append("      <td class=\"logs\" colspan=\"8\">")
+        out.append('     <tr class="logs hidden3">')
+        out.append('      <td class="logs" colspan="8">')
         out.append("       <pre>")
-        out.append(escape(test['log']) + "      </pre>")
+        out.append(escape(test["log"]) + "      </pre>")
         out.append("      </td>")
         out.append("     </tr>")
 
@@ -299,12 +304,12 @@ def _generate_html(results_path):
     """
     print(_HTML_HEADER)
 
-    with open(results_path, 'r', encoding="utf-8") as file:
+    with open(results_path, "r", encoding="utf-8") as file:
         results = json.load(file)
 
-    _generate_environment(results['environment'])
-    _generate_stats(results['stats'])
-    _generate_results(results['results'])
+    _generate_environment(results["environment"])
+    _generate_stats(results["stats"])
+    _generate_results(results["results"])
 
     print(_HTML_FOOTER)
 
@@ -314,8 +319,7 @@ def _file_exists(filepath):
     Check if the given file path exists.
     """
     if not os.path.isfile(filepath):
-        raise argparse.ArgumentTypeError(
-            f"The file '{filepath}' does not exist.")
+        raise argparse.ArgumentTypeError(f"The file '{filepath}' does not exist.")
     return filepath
 
 
@@ -324,14 +328,16 @@ def run():
     Entry point of the script.
     """
     parser = argparse.ArgumentParser(
-        description="Script to generate simple HTML result table.")
+        description="Script to generate simple HTML result table."
+    )
 
     parser.add_argument(
-        '-r',
-        '--results',
+        "-r",
+        "--results",
         type=_file_exists,
         required=True,
-        help='kirk results.json file location')
+        help="kirk results.json file location",
+    )
 
     args = parser.parse_args()
 
