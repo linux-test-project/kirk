@@ -65,7 +65,7 @@ class TestLTPFramework:
         for i in range(self.TESTS_NUM, self.TESTS_NUM * 2):
             content += f"slow_test0{i} sleep 0.05\n"
 
-        suite = runtest / f"slow_suite"
+        suite = runtest / "slow_suite"
         suite.write(content)
 
         tests = {}

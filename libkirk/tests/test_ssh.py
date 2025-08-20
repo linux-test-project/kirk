@@ -6,7 +6,6 @@ import os
 import subprocess
 import asyncio
 import pytest
-import pytest
 from libkirk.sut import IOBuffer
 from libkirk.ssh import SSHSUT
 from libkirk.errors import KernelPanicError

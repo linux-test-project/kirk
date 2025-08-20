@@ -6,7 +6,6 @@
 This script parses JSON results from kirk and produces LTP traditional logs.
 """
 
-import os
 import json
 import argparse
 

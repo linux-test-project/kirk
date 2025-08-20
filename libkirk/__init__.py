@@ -7,7 +7,6 @@
 """
 
 import asyncio
-import signal
 import sys
 import typing
 from typing import Callable
