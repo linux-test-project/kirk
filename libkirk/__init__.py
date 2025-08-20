@@ -5,16 +5,17 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import sys
-import signal
-import typing
+
 import asyncio
+import signal
+import sys
+import typing
 from typing import Callable
+
 from libkirk.evt import EventsHandler
 
-
 # Kirk version
-__version__ = '2.2'
+__version__ = "2.2"
 
 
 events = EventsHandler()
@@ -60,7 +61,6 @@ def all_tasks(loop: asyncio.AbstractEventLoop) -> set:
     """
     tasks = None
 
-    # pylint: disable=no-member
     if sys.version_info >= (3, 7):
         tasks = asyncio.all_tasks(loop=loop)
     else:
@@ -83,24 +83,25 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
 
         task.cancel()
 
-    # pylint: disable=deprecated-argument
     if sys.version_info >= (3, 10):
-        loop.run_until_complete(
-            asyncio.gather(*tasks, return_exceptions=True))
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
     else:
         loop.run_until_complete(
-            asyncio.gather(*tasks, loop=loop, return_exceptions=True))
+            asyncio.gather(*tasks, loop=loop, return_exceptions=True)
+        )
 
     for task in tasks:
         if task.cancelled():
             continue
 
         if task.exception() is not None:
-            loop.call_exception_handler({
-                'message': 'unhandled exception during asyncio.run() shutdown',
-                'exception': task.exception(),
-                'task': task,
-            })
+            loop.call_exception_handler(
+                {
+                    "message": "unhandled exception during asyncio.run() shutdown",
+                    "exception": task.exception(),
+                    "task": task,
+                }
+            )
 
 
 def to_thread(callback: Callable, *args: typing.Any) -> typing.Any:

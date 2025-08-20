@@ -5,8 +5,9 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-from typing import Union
-from typing import Optional
+
+from typing import Optional, Union
+
 import libkirk
 
 
@@ -16,7 +17,7 @@ class AsyncFile:
     thread.
     """
 
-    def __init__(self, filename: str, mode='r') -> None:
+    def __init__(self, filename: str, mode="r") -> None:
         """
         :param filename: file to open
         :type filename: str
@@ -38,7 +39,7 @@ class AsyncFile:
         return self
 
     async def __anext__(self):
-        if 'r' not in self._mode:
+        if "r" not in self._mode:
             raise ValueError("File must be open in read mode")
 
         line = None
@@ -57,11 +58,10 @@ class AsyncFile:
             return
 
         def _open():
-            if 'b' in self._mode:
-                # pylint: disable=unspecified-encoding
+            if "b" in self._mode:
                 return open(self._filename, self._mode)
 
-            return open(self._filename, self._mode, encoding='utf-8')
+            return open(self._filename, self._mode, encoding="utf-8")
 
         self._file = await libkirk.to_thread(_open)
 

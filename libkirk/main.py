@@ -5,28 +5,26 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
+import argparse
+import asyncio
 import os
 import re
-import asyncio
-import argparse
 from typing import Optional
+
 import libkirk
-import libkirk.sut
 import libkirk.data
 import libkirk.plugin
+import libkirk.sut
 from libkirk import __version__
-from libkirk.plugin import Plugin
-from libkirk.sut import SUT
+from libkirk.errors import FrameworkError, KirkException, SUTError
 from libkirk.framework import Framework
-from libkirk.ui import SimpleUserInterface
-from libkirk.ui import VerboseUserInterface
-from libkirk.ui import ParallelUserInterface
-from libkirk.session import Session
-from libkirk.tempfile import TempDir
 from libkirk.monitor import JSONFileMonitor
-from libkirk.errors import SUTError
-from libkirk.errors import FrameworkError
-from libkirk.errors import KirkException
+from libkirk.plugin import Plugin
+from libkirk.session import Session
+from libkirk.sut import SUT
+from libkirk.tempfile import TempDir
+from libkirk.ui import ParallelUserInterface, SimpleUserInterface, VerboseUserInterface
 
 # runtime loaded SUT(s)
 LOADED_SUT = []
@@ -47,21 +45,20 @@ def _from_params_to_config(params: list) -> dict:
     """
     config = {}
     for param in params:
-        if '=' not in param:
+        if "=" not in param:
             raise argparse.ArgumentTypeError(
-                f"Missing '=' assignment in '{param}' parameter")
+                f"Missing '=' assignment in '{param}' parameter"
+            )
 
-        data = param.split('=', 1)
+        data = param.split("=", 1)
         key = data[0]
         value = data[1]
 
         if not key:
-            raise argparse.ArgumentTypeError(
-                f"Empty key for '{param}' parameter")
+            raise argparse.ArgumentTypeError(f"Empty key for '{param}' parameter")
 
         if not key:
-            raise argparse.ArgumentTypeError(
-                f"Empty value for '{param}' parameter")
+            raise argparse.ArgumentTypeError(f"Empty value for '{param}' parameter")
 
         config[key] = value
 
@@ -80,7 +77,7 @@ def _dict_config(opt_name: str, plugins: list, value: str) -> dict:
         for plugin in plugins:
             msg += f"{plugin.name} | "
 
-        msg += '\n'
+        msg += "\n"
 
         for plugin in plugins:
             if not plugin.config_help:
@@ -95,11 +92,11 @@ def _dict_config(opt_name: str, plugins: list, value: str) -> dict:
     if not value:
         raise argparse.ArgumentTypeError("Parameters list can't be empty")
 
-    params = value.split(':')
+    params = value.split(":")
     name = params[0]
 
     config = _from_params_to_config(params[1:])
-    config['name'] = name
+    config["name"] = name
 
     return config
 
@@ -126,7 +123,7 @@ def _env_config(value: str) -> Optional[dict]:
     if not value:
         return None
 
-    params = value.split(':')
+    params = value.split(":")
     config = _from_params_to_config(params)
 
     return config
@@ -158,21 +155,21 @@ def _time_config(data: str) -> int:
     """
     indata = data.strip()
 
-    match = re.search(r'^(?P<value>\d+)\s*(?P<suffix>[smhd]?)$', indata)
+    match = re.search(r"^(?P<value>\d+)\s*(?P<suffix>[smhd]?)$", indata)
     if not match:
         raise argparse.ArgumentTypeError(f"Incorrect time format '{indata}'")
 
-    value = int(match.group('value'))
-    suffix = match.group('suffix')
+    value = int(match.group("value"))
+    suffix = match.group("suffix")
 
-    if not suffix or suffix == 's':
+    if not suffix or suffix == "s":
         return value
 
-    if suffix == 'm':
+    if suffix == "m":
         value *= 60
-    elif suffix == 'h':
+    elif suffix == "h":
         value *= 3600
-    elif suffix == 'd':
+    elif suffix == "d":
         value *= 3600 * 24
 
     return value
@@ -237,15 +234,11 @@ def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
 
     if skip_file:
         lines = None
-        with open(skip_file, 'r', encoding="utf-8") as skip_file_data:
+        with open(skip_file, "r", encoding="utf-8") as skip_file_data:
             lines = skip_file_data.readlines()
 
-        toskip = [
-            line.rstrip()
-            for line in lines
-            if not re.search(r'^\s+#.*', line)
-        ]
-        skip = '|'.join(toskip)
+        toskip = [line.rstrip() for line in lines if not re.search(r"^\s+#.*", line)]
+        skip = "|".join(toskip)
 
     if skip_tests:
         if skip_file:
@@ -257,9 +250,8 @@ def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
 
 
 def _get_sut(
-        args: argparse.Namespace,
-        parser: argparse.ArgumentParser,
-        tmpdir: TempDir) -> SUT:
+    args: argparse.Namespace, parser: argparse.ArgumentParser, tmpdir: TempDir
+) -> SUT:
     """
     Create and return SUT object.
     """
@@ -282,20 +274,20 @@ def _get_sut(
 
 
 def _get_framework(
-        args: argparse.Namespace,
-        parser: argparse.ArgumentParser) -> Framework:
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> Framework:
     """
     Create and framework object.
     """
     fw_config = args.framework.copy()
     if args.env:
-        fw_config['env'] = args.env.copy()
+        fw_config["env"] = args.env.copy()
 
     if args.exec_timeout:
-        fw_config['test_timeout'] = args.exec_timeout
+        fw_config["test_timeout"] = args.exec_timeout
 
     if args.suite_timeout:
-        fw_config['suite_timeout'] = args.suite_timeout
+        fw_config["suite_timeout"] = args.suite_timeout
 
     fw_name = args.framework["name"]
     framework = _get_plugin(LOADED_FRAMEWORK, fw_name)
@@ -312,10 +304,7 @@ def _get_framework(
     return framework
 
 
-# pylint: disable=too-many-statements
-def _start_session(
-        args: argparse.Namespace,
-        parser: argparse.ArgumentParser) -> None:
+def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """
     Start the LTP session.
     """
@@ -336,7 +325,7 @@ def _start_session(
 
     # create temporary directory
     tmpdir = None
-    if args.tmp_dir == '':
+    if args.tmp_dir == "":
         tmpdir = TempDir(None)
     elif args.tmp_dir:
         tmpdir = TempDir(args.tmp_dir)
@@ -355,7 +344,8 @@ def _start_session(
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
-        force_parallel=args.force_parallel)
+        force_parallel=args.force_parallel,
+    )
 
     # initialize monitor file
     monitor = None
@@ -414,10 +404,7 @@ def _start_session(
 
     try:
         loop.run_until_complete(
-            asyncio.gather(*[
-                libkirk.events.start(),
-                session_run()
-            ])
+            asyncio.gather(*[libkirk.events.start(), session_run()])
         )
     except KeyboardInterrupt:
         exit_code = RC_INTERRUPT
@@ -428,10 +415,12 @@ def _start_session(
             # at this point loop has been closed, so we can collect all
             # tasks and cancel them
             loop.run_until_complete(
-                asyncio.gather(*[
-                    session.stop(),
-                    libkirk.events.stop(),
-                ])
+                asyncio.gather(
+                    *[
+                        session.stop(),
+                        libkirk.events.stop(),
+                    ]
+                )
             )
             libkirk.cancel_tasks(loop)
         except KeyboardInterrupt:
@@ -449,135 +438,121 @@ def run(cmd_args: Optional[list] = None) -> None:
     _discover_frameworks(currdir)
 
     parser = argparse.ArgumentParser(
-        description='Kirk - All-in-one Linux Testing Framework')
+        description="Kirk - All-in-one Linux Testing Framework"
+    )
 
-    generic_opts = parser.add_argument_group('General options')
+    generic_opts = parser.add_argument_group("General options")
     generic_opts.add_argument(
-        "--version",
-        "-V",
-        action="version",
-        version=f"%(prog)s, {__version__}")
+        "--version", "-V", action="version", version=f"%(prog)s, {__version__}"
+    )
     generic_opts.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Verbose mode")
+        "--verbose", "-v", action="store_true", help="Verbose mode"
+    )
     generic_opts.add_argument(
-        "--no-colors",
-        "-n",
-        action="store_true",
-        help="If defined, no colors are shown")
+        "--no-colors", "-n", action="store_true", help="If defined, no colors are shown"
+    )
     generic_opts.add_argument(
-        "--tmp-dir",
-        "-d",
-        type=str,
-        default="/tmp",
-        help="Temporary directory")
+        "--tmp-dir", "-d", type=str, default="/tmp", help="Temporary directory"
+    )
     generic_opts.add_argument(
-        "--restore",
-        "-r",
-        type=str,
-        help="Restore a specific session")
+        "--restore", "-r", type=str, help="Restore a specific session"
+    )
     generic_opts.add_argument(
-        "--json-report",
-        "-o",
-        type=str,
-        help="JSON output report")
+        "--json-report", "-o", type=str, help="JSON output report"
+    )
     generic_opts.add_argument(
-        "--monitor",
-        "-m",
-        type=str,
-        help="Location of the monitor file")
+        "--monitor", "-m", type=str, help="Location of the monitor file"
+    )
 
-    conf_opts = parser.add_argument_group('Configuration options')
+    conf_opts = parser.add_argument_group("Configuration options")
     conf_opts.add_argument(
         "--sut",
         "-u",
         default="host",
         type=_sut_config,
-        help="System Under Test parameters. For help please use '--sut help'")
+        help="System Under Test parameters. For help please use '--sut help'",
+    )
     conf_opts.add_argument(
         "--framework",
         "-U",
         default="ltp",
         type=_framework_config,
-        help="Framework parameters. For help please use '--framework help'")
+        help="Framework parameters. For help please use '--framework help'",
+    )
     conf_opts.add_argument(
         "--env",
         "-e",
         type=_env_config,
-        help="List of key=value environment values separated by ':'")
-    conf_opts.add_argument(
-        "--skip-tests",
-        "-s",
-        type=str,
-        help="Skip specific tests")
+        help="List of key=value environment values separated by ':'",
+    )
+    conf_opts.add_argument("--skip-tests", "-s", type=str, help="Skip specific tests")
     conf_opts.add_argument(
         "--skip-file",
         "-S",
         type=str,
-        help="Skip specific tests using a skip file (newline separated item)")
+        help="Skip specific tests using a skip file (newline separated item)",
+    )
 
-    exec_opts = parser.add_argument_group('Execution options')
+    exec_opts = parser.add_argument_group("Execution options")
+    exec_opts.add_argument("--run-suite", "-f", nargs="*", help="List of suites to run")
     exec_opts.add_argument(
-        "--run-suite",
-        "-f",
-        nargs="*",
-        help="List of suites to run")
-    exec_opts.add_argument(
-        "--run-pattern",
-        "-p",
-        help="Run all tests matching the regex pattern")
-    exec_opts.add_argument(
-        "--run-command",
-        "-c",
-        help="Command to run")
+        "--run-pattern", "-p", help="Run all tests matching the regex pattern"
+    )
+    exec_opts.add_argument("--run-command", "-c", help="Command to run")
     exec_opts.add_argument(
         "--suite-timeout",
         "-T",
         type=_time_config,
         default="1h",
-        help="Timeout before stopping the suite (default: 1h)")
+        help="Timeout before stopping the suite (default: 1h)",
+    )
     exec_opts.add_argument(
         "--exec-timeout",
         "-t",
         type=_time_config,
         default="1h",
-        help="Timeout before stopping a single execution (default: 1h)")
+        help="Timeout before stopping a single execution (default: 1h)",
+    )
     exec_opts.add_argument(
         "--randomize",
         "-R",
         action="store_true",
-        help="Force parallelization execution of all tests")
+        help="Force parallelization execution of all tests",
+    )
     exec_opts.add_argument(
         "--runtime",
         "-I",
         type=_time_config,
         default="0",
-        help="Set for how long we want to run the session in seconds")
+        help="Set for how long we want to run the session in seconds",
+    )
     exec_opts.add_argument(
         "--suite-iterate",
         "-i",
         type=_iterate_config,
         default=1,
-        help="Number of times to repeat testing suites")
+        help="Number of times to repeat testing suites",
+    )
     exec_opts.add_argument(
         "--workers",
         "-w",
         type=int,
         default=1,
-        help="Number of workers to execute tests in parallel")
+        help="Number of workers to execute tests in parallel",
+    )
     exec_opts.add_argument(
         "--force-parallel",
         "-W",
         action="store_true",
-        help="Force parallelization execution of all tests")
+        help="Force parallelization execution of all tests",
+    )
     exec_opts.add_argument(
         "--fault-injection",
         "-F",
         type=_finjection_config,
         default=0,
-        help="Probability of failure (0-100)")
+        help="Probability of failure (0-100)",
+    )
 
     # output arguments
     # parse comand line

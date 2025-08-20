@@ -5,23 +5,24 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import os
-import re
-import copy
-import random
-import logging
+
 import asyncio
+import copy
+import logging
+import os
+import random
+import re
 from typing import Optional
+
 import libkirk
 import libkirk.data
 import libkirk.types
-from libkirk.io import AsyncFile
-from libkirk.sut import SUT
-from libkirk.sut import IOBuffer
-from libkirk.results import TestResults
-from libkirk.export import JSONExporter
-from libkirk.scheduler import SuiteScheduler
 from libkirk.errors import KirkException
+from libkirk.export import JSONExporter
+from libkirk.io import AsyncFile
+from libkirk.results import TestResults
+from libkirk.scheduler import SuiteScheduler
+from libkirk.sut import SUT, IOBuffer
 
 
 class RedirectSUTStdout(IOBuffer):
@@ -45,7 +46,6 @@ class Session:
     The session runner.
     """
 
-    # pylint: disable=too-many-instance-attributes
     def __init__(self, **kwargs) -> None:
         """
         :param tmpdir: temporary directory
@@ -91,16 +91,17 @@ class Session:
             framework=self._framework,
             suite_timeout=suite_timeout,
             exec_timeout=self._exec_timeout,
-            max_workers=workers)
+            max_workers=workers,
+        )
 
-        self._curr_suite = ''
+        self._curr_suite = ""
         self._setup_debug_log()
         self._setup_test_save()
 
         if not self._sut.parallel_execution:
             self._logger.info(
-                "SUT doesn't support parallel execution. "
-                "Forcing workers=1.")
+                "SUT doesn't support parallel execution. Forcing workers=1."
+            )
             self._workers = 1
 
     def _setup_debug_log(self) -> None:
@@ -119,7 +120,8 @@ class Session:
         handler.setLevel(logging.DEBUG)
 
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s:%(lineno)s - %(levelname)s - %(message)s")
+            "%(asctime)s - %(name)s:%(lineno)s - %(levelname)s - %(message)s"
+        )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
@@ -134,8 +136,8 @@ class Session:
             self._curr_suite = suite.name
 
         async def save_test_file(results: TestResults) -> None:
-            epath = os.path.join(self._tmpdir.abspath, 'executed')
-            async with AsyncFile(epath, 'a+') as efile:
+            epath = os.path.join(self._tmpdir.abspath, "executed")
+            async with AsyncFile(epath, "a+") as efile:
                 await efile.write(f"{self._curr_suite}::{results.test.name}\n")
 
         libkirk.events.register("suite_started", save_suite_started)
@@ -149,18 +151,18 @@ class Session:
         if not (path and os.path.exists(path)):
             return data
 
-        epath = os.path.join(path, 'executed')
+        epath = os.path.join(path, "executed")
         if not os.path.exists(epath):
             return data
 
         self._logger.info("Reading previous executed tests")
 
-        async with AsyncFile(epath, 'r') as efile:
+        async with AsyncFile(epath, "r") as efile:
             async for line in efile:
                 if not line:
                     continue
 
-                suite, test = line.split('::')
+                suite, test = line.split("::")
                 if not (suite and test):
                     continue
 
@@ -178,8 +180,7 @@ class Session:
         Start communicating with SUT.
         """
         await libkirk.events.fire("sut_start", self._sut.name)
-        await self._sut.ensure_communicate(
-            iobuffer=RedirectSUTStdout(self._sut, False))
+        await self._sut.ensure_communicate(iobuffer=RedirectSUTStdout(self._sut, False))
 
     async def _stop_sut(self) -> None:
         """
@@ -213,9 +214,8 @@ class Session:
         return list(results)
 
     async def _restore_tests(
-            self,
-            suites_obj: list,
-            restore_path: Optional[str] = None) -> None:
+        self, suites_obj: list, restore_path: Optional[str] = None
+    ) -> None:
         """
         Remove all tests but the one which need to be restored.
         """
@@ -245,9 +245,8 @@ class Session:
 
     @staticmethod
     def _filter_tests(
-            suites_obj: list,
-            regex: Optional[str] = None,
-            when_matching: bool = False) -> None:
+        suites_obj: list, regex: Optional[str] = None, when_matching: bool = False
+    ) -> None:
         """
         Filter tests according to `regex`, if `when_matching` is True.
         """
@@ -261,8 +260,7 @@ class Session:
 
             for test in suite_obj.tests:
                 match = matcher.search(test.name)
-                if (not match and not when_matching) or \
-                        match and when_matching:
+                if (not match and not when_matching) or match and when_matching:
                     toremove.append(test)
 
             for item in toremove:
@@ -286,11 +284,12 @@ class Session:
         return suites_list
 
     async def _read_suites(
-            self,
-            suites: list,
-            pattern: Optional[str] = None,
-            skip_tests: Optional[str] = None,
-            restore_path: Optional[str] = None) -> list:
+        self,
+        suites: list,
+        pattern: Optional[str] = None,
+        skip_tests: Optional[str] = None,
+        restore_path: Optional[str] = None,
+    ) -> list:
         """
         Read suites and return a list of Suite objects.
         """
@@ -331,15 +330,14 @@ class Session:
                         test.full_command,
                         cwd=test.cwd,
                         env=test.env,
-                        iobuffer=RedirectSUTStdout(self._sut, True)),
-                    timeout=self._exec_timeout
+                        iobuffer=RedirectSUTStdout(self._sut, True),
+                    ),
+                    timeout=self._exec_timeout,
                 )
 
                 await libkirk.events.fire(
-                    "run_cmd_stop",
-                    command,
-                    ret["stdout"],
-                    ret["returncode"])
+                    "run_cmd_stop", command, ret["stdout"], ret["returncode"]
+                )
             except asyncio.TimeoutError:
                 exc = KirkException(f"Command timeout: {repr(command)}")
             except KirkException as err:
@@ -411,9 +409,7 @@ class Session:
             return
 
         try:
-            await asyncio.wait_for(
-                self._schedule_infinite(suites_obj),
-                runtime)
+            await asyncio.wait_for(self._schedule_infinite(suites_obj), runtime)
         except asyncio.TimeoutError:
             await self._scheduler.stop()
 
@@ -438,21 +434,19 @@ class Session:
             self._logger.info(warn_msg)
             await libkirk.events.fire("session_warning", warn_msg)
 
-    # pylint: disable=too-many-locals
-    # pylint: disable=too-many-arguments
-    # pylint: disable=too-many-positional-arguments
     async def run(
-            self,
-            command: Optional[str] = None,
-            suites: Optional[list] = None,
-            pattern: Optional[str] = None,
-            skip_tests: Optional[str] = None,
-            report_path: Optional[str] = None,
-            restore_path: Optional[str] = None,
-            suite_iterate: int = 1,
-            randomize: bool = False,
-            runtime: int = 0,
-            fault_prob: int = 0) -> None:
+        self,
+        command: Optional[str] = None,
+        suites: Optional[list] = None,
+        pattern: Optional[str] = None,
+        skip_tests: Optional[str] = None,
+        report_path: Optional[str] = None,
+        restore_path: Optional[str] = None,
+        suite_iterate: int = 1,
+        randomize: bool = False,
+        runtime: int = 0,
+        fault_prob: int = 0,
+    ) -> None:
         """
         Run a new session and store results inside a JSON file.
         :param command: single command to run before suites
@@ -481,8 +475,8 @@ class Session:
 
             if not self._sut.parallel_execution:
                 await libkirk.events.fire(
-                    "session_warning",
-                    "SUT doesn't support parallel execution")
+                    "session_warning", "SUT doesn't support parallel execution"
+                )
 
             try:
                 await self._start_sut()
@@ -495,10 +489,8 @@ class Session:
 
                 if suites:
                     suites_obj = await self._read_suites(
-                        suites,
-                        pattern,
-                        skip_tests,
-                        restore_path)
+                        suites, pattern, skip_tests, restore_path
+                    )
 
                     suites_obj = self._apply_iterate(suites_obj, suite_iterate)
 
@@ -525,23 +517,18 @@ class Session:
                         tasks.append(
                             exporter.save_file(
                                 self._results,
-                                os.path.join(
-                                    self._tmpdir.abspath,
-                                    "results.json")
-                            ))
+                                os.path.join(self._tmpdir.abspath, "results.json"),
+                            )
+                        )
 
                         if report_path:
-                            tasks.append(
-                                exporter.save_file(
-                                    self._results,
-                                    report_path
-                                ))
+                            tasks.append(exporter.save_file(self._results, report_path))
 
                         await asyncio.gather(*tasks)
 
                         await libkirk.events.fire(
-                            "session_completed",
-                            self._scheduler.results)
+                            "session_completed", self._scheduler.results
+                        )
                 except KirkException as err:
                     self._logger.exception(err)
                     await libkirk.events.fire("session_error", str(err))

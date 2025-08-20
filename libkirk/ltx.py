@@ -5,14 +5,14 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import asyncio
 import logging
-from typing import Any
-from typing import Optional
-from typing import Callable
+from typing import Any, Callable, Optional
+
 import libkirk
-from libkirk.io import AsyncFile
 from libkirk.errors import LTXError
+from libkirk.io import AsyncFile
 
 try:
     import msgpack
@@ -24,7 +24,8 @@ class Request:
     """
     LTX request.
     """
-    ERROR = 0xff
+
+    ERROR = 0xFF
     VERSION = 0x00
     PING = 0x01
     PONG = 0x02
@@ -35,8 +36,8 @@ class Request:
     EXEC = 0x07
     RESULT = 0x08
     LOG = 0x09
-    DATA = 0xa0
-    KILL = 0xa1
+    DATA = 0xA0
+    KILL = 0xA1
     MAX_SLOTS = 127
     ALL_SLOTS = 128
     MAX_ENVS = 16
@@ -88,13 +89,12 @@ class Request:
         """
         raise NotImplementedError()
 
-# pylint: disable=invalid-name
-
 
 class Requests:
     """
     Class container for LTX requests.
     """
+
     class version(Request):
         """
         VERSION request.
@@ -181,12 +181,7 @@ class Requests:
             self._value = value
 
         async def pack(self) -> bytes:
-            pkg = msgpack.packb([
-                self.ENV,
-                self._slot_id,
-                self._key,
-                self._value
-            ])
+            pkg = msgpack.packb([self.ENV, self._slot_id, self._key, self._value])
 
             if not pkg:
                 raise LTXError("Can't pack ENV request")
@@ -202,10 +197,7 @@ class Requests:
 
             if message[0] == self.ENV:
                 self._logger.info("ENV echoed back")
-                await self._raise_complete(
-                    self._slot_id,
-                    self._key,
-                    self._value)
+                await self._raise_complete(self._slot_id, self._key, self._value)
 
     class cwd(Request):
         """
@@ -222,8 +214,7 @@ class Requests:
             """
             super().__init__()
 
-            if slot_id is not None and \
-                    (slot_id < 0 or slot_id > self.ALL_SLOTS):
+            if slot_id is not None and (slot_id < 0 or slot_id > self.ALL_SLOTS):
                 raise ValueError(f"Out of bounds slot ID [0-{self.ALL_SLOTS}]")
 
             if not path:
@@ -233,11 +224,13 @@ class Requests:
             self._path = path
 
         async def pack(self) -> bytes:
-            pkg = msgpack.packb([
-                self.CWD,
-                self._slot_id,
-                self._path,
-            ])
+            pkg = msgpack.packb(
+                [
+                    self.CWD,
+                    self._slot_id,
+                    self._path,
+                ]
+            )
 
             if not pkg:
                 raise LTXError("Can't pack CWD request")
@@ -274,10 +267,12 @@ class Requests:
             self._data = []
 
         async def pack(self) -> bytes:
-            pkg = msgpack.packb([
-                self.GET_FILE,
-                self._path,
-            ])
+            pkg = msgpack.packb(
+                [
+                    self.GET_FILE,
+                    self._path,
+                ]
+            )
 
             if not pkg:
                 raise LTXError("Can't pack GET_FILE request")
@@ -293,7 +288,7 @@ class Requests:
                 self._data.append(message[1])
             elif message[0] == self.GET_FILE:
                 self._logger.info("GET_FILE echoed back")
-                await self._raise_complete(self._path, b''.join(self._data))
+                await self._raise_complete(self._path, b"".join(self._data))
 
     class set_file(Request):
         """
@@ -319,11 +314,13 @@ class Requests:
             self._data = data
 
         async def pack(self) -> bytes:
-            pkg = msgpack.packb([
-                self.SET_FILE,
-                self._path,
-                self._data,
-            ])
+            pkg = msgpack.packb(
+                [
+                    self.SET_FILE,
+                    self._path,
+                    self._data,
+                ]
+            )
 
             if not pkg:
                 raise LTXError("Can't pack SET_FILE request")
@@ -344,10 +341,8 @@ class Requests:
         """
 
         def __init__(
-                self,
-                slot_id: int,
-                command: str,
-                stdout_coro: Optional[Callable] = None) -> None:
+            self, slot_id: int, command: str, stdout_coro: Optional[Callable] = None
+        ) -> None:
             """
             :param slot_id: command table ID
             :type slot_id: int
@@ -374,11 +369,13 @@ class Requests:
             self._echoed = False
 
         async def pack(self) -> bytes:
-            pkg = msgpack.packb([
-                self.EXEC,
-                self._slot_id,
-                self._command,
-            ])
+            pkg = msgpack.packb(
+                [
+                    self.EXEC,
+                    self._slot_id,
+                    self._command,
+                ]
+            )
 
             if not pkg:
                 raise LTXError("Can't pack EXEC request")
@@ -419,16 +416,10 @@ class Requests:
                 si_status = message[4]
 
                 self._logger.debug(
-                    "time_ns=%s, si_code=%s, si_status=%s",
-                    time_ns,
-                    si_code,
-                    si_status)
+                    "time_ns=%s, si_code=%s, si_status=%s", time_ns, si_code, si_status
+                )
 
-                await self._raise_complete(
-                    time_ns,
-                    si_code,
-                    si_status,
-                    stdout)
+                await self._raise_complete(time_ns, si_code, si_status, stdout)
 
     class kill(Request):
         """
@@ -451,10 +442,12 @@ class Requests:
             self._slot_id = slot_id
 
         async def pack(self) -> bytes:
-            pkg = msgpack.packb([
-                self.KILL,
-                self._slot_id,
-            ])
+            pkg = msgpack.packb(
+                [
+                    self.KILL,
+                    self._slot_id,
+                ]
+            )
 
             if not pkg:
                 raise LTXError("Can't pack KILL request")
@@ -494,6 +487,7 @@ class LTX:
         ...
     ```
     """
+
     BUFFSIZE = 1 << 21
 
     def __init__(self, infile: str, outfile: str) -> None:
@@ -588,9 +582,9 @@ class LTX:
             self._requests.extend(requests)
 
             data = [await req.pack() for req in requests]
-            tosend = b''.join(data)
+            tosend = b"".join(data)
 
-            async with AsyncFile(self._infile, 'wb') as afile:
+            async with AsyncFile(self._infile, "wb") as afile:
                 await afile.write(tosend)
 
     async def gather(self, requests: list) -> dict:
@@ -620,14 +614,13 @@ class LTX:
 
         return replies
 
-    # pylint: disable=too-many-nested-blocks
     async def _polling(self) -> None:
         """
         Read and process messages coming from LTX.
         """
         self._logger.info("Starting producer")
 
-        with open(self._outfile, 'rb', buffering=0) as afile:
+        with open(self._outfile, "rb", buffering=0) as afile:
             # force utf-8 encoding by using raw=False
             unpacker = msgpack.Unpacker(raw=False)
 

@@ -5,12 +5,14 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import os
+
 import json
 import logging
+import os
+
+from libkirk.errors import ExporterError
 from libkirk.io import AsyncFile
 from libkirk.results import ResultStatus
-from libkirk.errors import ExporterError
 
 
 class Exporter:
@@ -38,7 +40,6 @@ class JSONExporter(Exporter):
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.json")
 
-    # pylint: disable=too-many-locals
     async def save_file(self, results: list, path: str) -> None:
         if not results or len(results) == 0:
             raise ValueError("results is empty")
@@ -95,7 +96,7 @@ class JSONExporter(Exporter):
                 "failed": sum(result.failed for result in results),
                 "broken": sum(result.broken for result in results),
                 "skipped": sum(result.skipped for result in results),
-                "warnings": sum(result.warnings for result in results)
+                "warnings": sum(result.warnings for result in results),
             },
             "environment": {
                 "distribution": results[0].distro,

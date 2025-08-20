@@ -5,27 +5,27 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
+import asyncio
+import logging
 import os
 import sys
 import time
-import asyncio
-import logging
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
+
 import libkirk
 import libkirk.data
-from libkirk.sut import SUT
-from libkirk.sut import IOBuffer
-from libkirk.data import Test
-from libkirk.data import Suite
-from libkirk.results import TestResults
-from libkirk.results import SuiteResults
+from libkirk.data import Suite, Test
+from libkirk.errors import (
+    KernelPanicError,
+    KernelTaintedError,
+    KernelTimeoutError,
+    KirkException,
+    SchedulerError,
+)
 from libkirk.framework import Framework
-from libkirk.errors import KirkException
-from libkirk.errors import SchedulerError
-from libkirk.errors import KernelPanicError
-from libkirk.errors import KernelTaintedError
-from libkirk.errors import KernelTimeoutError
+from libkirk.results import SuiteResults, TestResults
+from libkirk.sut import SUT, IOBuffer
 
 
 class Scheduler:
@@ -95,6 +95,7 @@ class TestScheduler(Scheduler):
     Schedule and run tests, taking into account status of the kernel
     during their execution, as well as tests timeout.
     """
+
     STATUS_OK = 0
     TEST_TIMEOUT = 1
     KERNEL_PANIC = 2
@@ -102,11 +103,8 @@ class TestScheduler(Scheduler):
     KERNEL_TIMEOUT = 4
 
     def __init__(
-            self,
-            sut: SUT,
-            framework: Framework,
-            timeout: float = 0.0,
-            max_workers: int = 1) -> None:
+        self, sut: SUT, framework: Framework, timeout: float = 0.0, max_workers: int = 1
+    ) -> None:
         """
         :param sut: object to communicate with SUT
         :type sut: SUT
@@ -148,9 +146,8 @@ class TestScheduler(Scheduler):
         return code, messages
 
     async def _write_kmsg(
-            self,
-            test: Test,
-            results: Optional[TestResults] = None) -> None:
+        self, test: Test, results: Optional[TestResults] = None
+    ) -> None:
         """
         If root, we write test information on /dev/kmsg.
         """
@@ -162,11 +159,15 @@ class TestScheduler(Scheduler):
             return
 
         if results:
-            message = f'{sys.argv[0]}[{os.getpid()}]: ' \
-                f'{test.name}: end (returncode: {results.return_code})\n'
+            message = (
+                f"{sys.argv[0]}[{os.getpid()}]: "
+                f"{test.name}: end (returncode: {results.return_code})\n"
+            )
         else:
-            message = f'{sys.argv[0]}[{os.getpid()}]: ' \
-                f'{test.name}: start (command: {test.full_command})\n'
+            message = (
+                f"{sys.argv[0]}[{os.getpid()}]: "
+                f"{test.name}: start (command: {test.full_command})\n"
+            )
 
         await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
 
@@ -199,8 +200,6 @@ class TestScheduler(Scheduler):
 
         self._logger.info("All tests have been completed")
 
-    # pylint: disable=too-many-statements
-    # pylint: disable=too-many-locals
     async def _run_test(self, test: Test) -> None:
         """
         Run a single test and populate the results array.
@@ -228,12 +227,11 @@ class TestScheduler(Scheduler):
                 tainted_code1, _ = await self._get_tainted_status()
 
                 # pyrefly: ignore[bad-assignment]
-                test_data = await asyncio.wait_for(self._sut.run_command(
-                    cmd,
-                    cwd=test.cwd,
-                    env=test.env,
-                    iobuffer=iobuffer),
-                    timeout=self._timeout
+                test_data = await asyncio.wait_for(
+                    self._sut.run_command(
+                        cmd, cwd=test.cwd, env=test.env, iobuffer=iobuffer
+                    ),
+                    timeout=self._timeout,
                 )
 
                 if test_data is None:
@@ -241,9 +239,7 @@ class TestScheduler(Scheduler):
 
                 tainted_code2, tainted_msg2 = await self._get_tainted_status()
                 if tainted_code2 != tainted_code1:
-                    self._logger.info(
-                        "Recognised Kernel tainted: %s",
-                        tainted_msg2)
+                    self._logger.info("Recognised Kernel tainted: %s", tainted_msg2)
 
                     tainted_msg = tainted_msg2
                     status = self.KERNEL_TAINTED
@@ -256,15 +252,10 @@ class TestScheduler(Scheduler):
                 exec_time = time.time() - start_t
                 status = self.TEST_TIMEOUT
 
-                self._logger.info(
-                    "Got test timeout. "
-                    "Checking if SUT is still replying")
+                self._logger.info("Got test timeout. Checking if SUT is still replying")
 
                 try:
-                    await asyncio.wait_for(
-                        self._sut.ping(),
-                        timeout=10
-                    )
+                    await asyncio.wait_for(self._sut.ping(), timeout=10)
 
                     self._logger.info("SUT replied")
                 except asyncio.TimeoutError:
@@ -284,7 +275,8 @@ class TestScheduler(Scheduler):
                 test,
                 test_data["stdout"],
                 test_data["returncode"],
-                test_data["exec_time"])
+                test_data["exec_time"],
+            )
 
             self._logger.debug("results=%s", results)
             self._results.append(results)
@@ -333,9 +325,8 @@ class TestScheduler(Scheduler):
         coros = [self._run_test(test) for test in tests]
 
         self._logger.info(
-            "Scheduling %d tests on %d workers",
-            len(coros),
-            self._max_workers)
+            "Scheduling %d tests on %d workers", len(coros), self._max_workers
+        )
 
         await asyncio.gather(*coros)
 
@@ -354,12 +345,12 @@ class TestScheduler(Scheduler):
 
             try:
                 if self._max_workers > 1:
-                    await self._run_parallel([
-                        test for test in jobs if test.parallelizable
-                    ])
-                    await self._run_and_wait([
-                        test for test in jobs if not test.parallelizable
-                    ])
+                    await self._run_parallel(
+                        [test for test in jobs if test.parallelizable]
+                    )
+                    await self._run_and_wait(
+                        [test for test in jobs if not test.parallelizable]
+                    )
                 else:
                     await self._run_and_wait(jobs)
             except KirkException as err:
@@ -383,15 +374,14 @@ class SuiteScheduler(Scheduler):
     (i.e. kernel panic).
     """
 
-    # pylint: disable=too-many-arguments
-    # pylint: disable=too-many-positional-arguments
     def __init__(
-            self,
-            sut: SUT,
-            framework: Framework,
-            suite_timeout: float = 0.0,
-            exec_timeout: float = 0.0,
-            max_workers: int = 1) -> None:
+        self,
+        sut: SUT,
+        framework: Framework,
+        suite_timeout: float = 0.0,
+        exec_timeout: float = 0.0,
+        max_workers: int = 1,
+    ) -> None:
         """
         :param sut: object used to communicate with SUT
         :type sut: SUT
@@ -429,7 +419,8 @@ class SuiteScheduler(Scheduler):
             sut=self._sut,
             framework=self._framework,
             timeout=exec_timeout,
-            max_workers=max_workers)
+            max_workers=max_workers,
+        )
 
     @property
     def results(self) -> list:
@@ -495,21 +486,17 @@ class SuiteScheduler(Scheduler):
                     start_t = time.time()
                     await asyncio.wait_for(
                         self._scheduler.schedule(tests_left),
-                        timeout=self._suite_timeout
+                        timeout=self._suite_timeout,
                     )
                 except asyncio.TimeoutError:
-                    self._logger.info(
-                        "Testing suite timed out: %s", suite.name)
+                    self._logger.info("Testing suite timed out: %s", suite.name)
 
                     await libkirk.events.fire(
-                        "suite_timeout",
-                        suite,
-                        self._suite_timeout)
+                        "suite_timeout", suite, self._suite_timeout
+                    )
 
                     timed_out = True
-                except (KernelPanicError,
-                        KernelTaintedError,
-                        KernelTimeoutError):
+                except (KernelPanicError, KernelTaintedError, KernelTimeoutError):
                     if self._reboot_lock.locked():
                         self._logger.info("SUT is rebooting. Waiting...")
                         await reboot_event.wait()
@@ -546,7 +533,7 @@ class SuiteScheduler(Scheduler):
                                 warnings=0,
                                 exec_time=0.0,
                                 retcode=32,
-                                stdout=""
+                                stdout="",
                             )
                         )
 
@@ -567,12 +554,10 @@ class SuiteScheduler(Scheduler):
                 arch=info["arch"],
                 cpu=info["cpu"],
                 swap=info["swap"],
-                ram=info["ram"])
+                ram=info["ram"],
+            )
 
-            await libkirk.events.fire(
-                "suite_completed",
-                suite_results,
-                suite_exec_time)
+            await libkirk.events.fire("suite_completed", suite_results, suite_exec_time)
 
             self._logger.info("Suite completed")
             self._logger.debug(suite_results)

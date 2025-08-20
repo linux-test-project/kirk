@@ -5,6 +5,7 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
+
 import logging
 from typing import Optional
 
@@ -27,9 +28,7 @@ class Suite:
         self._tests = tests
 
     def __repr__(self) -> str:
-        return \
-            f"name: '{self._name}', " \
-            f"tests: {self._tests}"
+        return f"name: '{self._name}', tests: {self._tests}"
 
     @property
     def name(self) -> str:
@@ -61,15 +60,15 @@ class Test:
     Test definition class.
     """
 
-    # pylint: disable=too-many-arguments
-    # pylint: disable=too-many-positional-arguments
-    def __init__(self,
-                 name: str,
-                 cmd: str,
-                 cwd: Optional[str] = None,
-                 env: Optional[dict] = None,
-                 args: Optional[list] = None,
-                 parallelizable: bool = False) -> None:
+    def __init__(
+        self,
+        name: str,
+        cmd: str,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        args: Optional[list] = None,
+        parallelizable: bool = False,
+    ) -> None:
         """
         :param name: name of the test
         :type name: str
@@ -98,13 +97,14 @@ class Test:
         self._parallelizable = parallelizable
 
     def __repr__(self) -> str:
-        return \
-            f"name: '{self._name}', " \
-            f"commmand: '{self._cmd}', " \
-            f"arguments: {self._args}, " \
-            f"cwd: '{self._cwd}', " \
-            f"environ: '{self._env}', " \
+        return (
+            f"name: '{self._name}', "
+            f"commmand: '{self._cmd}', "
+            f"arguments: {self._args}, "
+            f"cwd: '{self._cwd}', "
+            f"environ: '{self._env}', "
             f"parallelizable: {self._parallelizable}"
+        )
 
     @property
     def name(self) -> str:
@@ -155,10 +155,10 @@ class Test:
         For example, if `command="ls"` and `arguments="-l -a"`,
         `full_command="ls -l -a"`.
         """
-        cmd = self.command if self.command else ''
+        cmd = self.command if self.command else ""
         if len(self.arguments) > 0:
-            cmd += ' '
-            cmd += ' '.join(self.arguments)
+            cmd += " "
+            cmd += " ".join(self.arguments)
 
         return cmd
 

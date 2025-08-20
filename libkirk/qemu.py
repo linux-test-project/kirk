@@ -5,26 +5,25 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import os
-import re
-import time
-import signal
-import string
-import shutil
-import secrets
-import logging
+
 import asyncio
 import contextlib
+import logging
+import os
+import re
+import secrets
+import shutil
+import signal
+import string
+import time
 from typing import Optional
+
 import libkirk.types
+from libkirk.errors import KernelPanicError, SUTError
 from libkirk.io import AsyncFile
-from libkirk.sut import SUT
-from libkirk.sut import IOBuffer
-from libkirk.errors import SUTError
-from libkirk.errors import KernelPanicError
+from libkirk.sut import SUT, IOBuffer
 
 
-# pylint: disable=too-many-instance-attributes
 class QemuSUT(SUT):
     """
     Qemu SUT spawn a new VM using qemu and execute commands inside it.
@@ -62,8 +61,9 @@ class QemuSUT(SUT):
         """
         Generate a random string of the given length.
         """
-        out = ''.join(secrets.choice(string.ascii_letters + string.digits)
-                      for _ in range(length))
+        out = "".join(
+            secrets.choice(string.ascii_letters + string.digits) for _ in range(length)
+        )
         return out
 
     def _get_transport(self) -> tuple:
@@ -106,7 +106,8 @@ class QemuSUT(SUT):
             params.append("-device virtserialport,chardev=transport")
         else:
             raise NotImplementedError(
-                f"Unsupported serial device type {self._serial_type}")
+                f"Unsupported serial device type {self._serial_type}"
+            )
 
         _, transport_file = self._get_transport()
         params.append(f"-chardev file,id=transport,path={transport_file}")
@@ -117,7 +118,8 @@ class QemuSUT(SUT):
                 f"path={self._virtfs},"
                 "mount_tag=host0,"
                 "security_model=mapped-xattr,"
-                "readonly=on")
+                "readonly=on"
+            )
 
         if self._image:
             params.append(f"-drive if=virtio,cache=unsafe,file={self._image}")
@@ -153,28 +155,23 @@ class QemuSUT(SUT):
         self._ram = libkirk.types.dict_item(kwargs, "ram", str, "2G")
         self._smp = libkirk.types.dict_item(kwargs, "smp", str, "2")
         self._virtfs = libkirk.types.dict_item(kwargs, "virtfs", str, None)
-        self._serial_type = libkirk.types.dict_item(
-            kwargs, "serial", str, "isa")
+        self._serial_type = libkirk.types.dict_item(kwargs, "serial", str, "isa")
         self._opts = libkirk.types.dict_item(kwargs, "options", str, None)
 
         system = libkirk.types.dict_item(kwargs, "system", str, "x86_64")
         self._qemu_cmd = f"qemu-system-{system}"
 
         if not self._tmpdir or not os.path.isdir(self._tmpdir):
-            raise SUTError(
-                f"Temporary directory doesn't exist: {self._tmpdir}")
+            raise SUTError(f"Temporary directory doesn't exist: {self._tmpdir}")
 
         if self._image and not os.path.isfile(self._image):
-            raise SUTError(
-                f"Image location doesn't exist: {self._image}")
+            raise SUTError(f"Image location doesn't exist: {self._image}")
 
         if self._kernel and not os.path.isfile(self._kernel):
-            raise SUTError(
-                f"Kernel location doesn't exist: {self._kernel}")
+            raise SUTError(f"Kernel location doesn't exist: {self._kernel}")
 
         if self._initrd and not os.path.isfile(self._initrd):
-            raise SUTError(
-                f"initrd location doesn't exist: {self._initrd}")
+            raise SUTError(f"initrd location doesn't exist: {self._initrd}")
 
         if not self._ram:
             raise SUTError("RAM is not defined")
@@ -183,8 +180,7 @@ class QemuSUT(SUT):
             raise SUTError("CPU is not defined")
 
         if self._virtfs and not os.path.isdir(self._virtfs):
-            raise SUTError(
-                f"Virtual FS directory doesn't exist: {self._virtfs}")
+            raise SUTError(f"Virtual FS directory doesn't exist: {self._virtfs}")
 
         if self._serial_type not in ["isa", "virtio"]:
             raise SUTError("Serial protocol must be isa or virtio")
@@ -232,10 +228,7 @@ class QemuSUT(SUT):
 
         return exec_time
 
-    async def _read_stdout(
-            self,
-            size: int,
-            iobuffer: Optional[IOBuffer] = None) -> str:
+    async def _read_stdout(self, size: int, iobuffer: Optional[IOBuffer] = None) -> str:
         """
         Read data from stdout.
         """
@@ -265,9 +258,8 @@ class QemuSUT(SUT):
                 raise SUTError(err) from err
 
     async def _wait_for(
-            self,
-            message: str,
-            iobuffer: Optional[IOBuffer] = None) -> Optional[str]:
+        self, message: str, iobuffer: Optional[IOBuffer] = None
+    ) -> Optional[str]:
         """
         Wait a string from stdout.
         """
@@ -288,7 +280,7 @@ class QemuSUT(SUT):
 
             message_pos = stdout.find(message)
             if message_pos != -1:
-                self._last_read = stdout[message_pos + len(message):]
+                self._last_read = stdout[message_pos + len(message) :]
                 break
 
             data = await self._read_stdout(1024, iobuffer)
@@ -324,10 +316,7 @@ class QemuSUT(SUT):
         async with self._fetch_lock:
             pass
 
-    async def _exec(
-            self,
-            command: str,
-            iobuffer: Optional[IOBuffer] = None) -> tuple:
+    async def _exec(self, command: str, iobuffer: Optional[IOBuffer] = None) -> tuple:
         """
         Execute a command and return set(stdout, retcode, exec_time).
         """
@@ -354,11 +343,10 @@ class QemuSUT(SUT):
             if stdout and stdout.rstrip():
                 match = re.search(f"(?P<retcode>\\d+)-{code}", stdout)
                 if not match and not self._stop:
-                    raise SUTError(
-                        f"Can't read return code from reply {repr(stdout)}")
+                    raise SUTError(f"Can't read return code from reply {repr(stdout)}")
 
                 # first character is '\n'
-                stdout = stdout[1:match.start()]
+                stdout = stdout[1 : match.start()]
 
                 try:
                     retcode = int(match.group("retcode"))
@@ -366,10 +354,8 @@ class QemuSUT(SUT):
                     pass
 
         self._logger.debug(
-            "stdout=%s, retcode=%d, exec_time=%d",
-            repr(stdout),
-            retcode,
-            exec_time)
+            "stdout=%s, retcode=%d, exec_time=%d", repr(stdout), retcode, exec_time
+        )
 
         return stdout, retcode, exec_time
 
@@ -387,7 +373,7 @@ class QemuSUT(SUT):
                     self._logger.info("Stop running command")
 
                     # send interrupt character (equivalent of CTRL+C)
-                    await self._write_stdin('\x03')
+                    await self._write_stdin("\x03")
                     await self._wait_lockers()
 
                 # logged in -> poweroff
@@ -437,12 +423,12 @@ class QemuSUT(SUT):
             self._logger.debug(cmd)
 
             # pyrefly: ignore[bad-assignment]
-            # pylint: disable=consider-using-with
             self._proc = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stdin=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT)
+                stderr=asyncio.subprocess.STDOUT,
+            )
 
             try:
                 if self._user:
@@ -470,7 +456,8 @@ class QemuSUT(SUT):
 
                 if self._virtfs:
                     _, retcode, _ = await self._exec(
-                        "mount -t 9p -o trans=virtio host0 /mnt", None)
+                        "mount -t 9p -o trans=virtio host0 /mnt", None
+                    )
                     if retcode != 0:
                         raise SUTError("Failed to mount virtfs")
 
@@ -488,11 +475,12 @@ class QemuSUT(SUT):
             raise SUTError(error)
 
     async def run_command(
-            self,
-            command: str,
-            cwd: Optional[str] = None,
-            env: Optional[dict] = None,
-            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
+        self,
+        command: str,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        iobuffer: Optional[IOBuffer] = None,
+    ) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -505,20 +493,15 @@ class QemuSUT(SUT):
             if cwd:
                 stdout, retcode, _ = await self._exec(f"cd {cwd}", None)
                 if retcode != 0:
-                    raise SUTError(
-                        f"Can't setup current working directory: {stdout}")
+                    raise SUTError(f"Can't setup current working directory: {stdout}")
 
             if env:
                 for key, value in env.items():
-                    stdout, retcode, _ = await self._exec(
-                        f"export {key}={value}", None)
+                    stdout, retcode, _ = await self._exec(f"export {key}={value}", None)
                     if retcode != 0:
-                        raise SUTError(
-                            f"Can't setup env {key}={value}: {stdout}")
+                        raise SUTError(f"Can't setup env {key}={value}: {stdout}")
 
-            stdout, retcode, exec_time = await self._exec(
-                f"{command}",
-                iobuffer)
+            stdout, retcode, exec_time = await self._exec(f"{command}", iobuffer)
 
             ret = {
                 "command": command,
@@ -541,21 +524,21 @@ class QemuSUT(SUT):
         async with self._fetch_lock:
             self._logger.info("Downloading %s", target_path)
 
-            _, retcode, _ = await self._exec(f'test -f {target_path}', None)
+            _, retcode, _ = await self._exec(f"test -f {target_path}", None)
             if retcode != 0:
                 raise SUTError(f"'{target_path}' doesn't exist")
 
             transport_dev, transport_path = self._get_transport()
 
             stdout, retcode, _ = await self._exec(
-                f"cat {target_path} > {transport_dev}", None)
+                f"cat {target_path} > {transport_dev}", None
+            )
 
             if self._stop:
                 return bytes()
 
             if retcode not in [0, signal.SIGHUP, signal.SIGKILL]:
-                raise SUTError(
-                    f"Can't send file to {transport_dev}: {stdout}")
+                raise SUTError(f"Can't send file to {transport_dev}: {stdout}")
 
             # read back data and send it to the local file path
             file_size = os.path.getsize(transport_path)

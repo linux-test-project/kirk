@@ -5,17 +5,17 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import time
+
 import asyncio
-import logging
 import contextlib
 import importlib.util
+import logging
+import time
 from typing import Optional
+
 import libkirk.types
-from libkirk.sut import SUT
-from libkirk.sut import IOBuffer
-from libkirk.errors import SUTError
-from libkirk.errors import KernelPanicError
+from libkirk.errors import KernelPanicError, SUTError
+from libkirk.sut import SUT, IOBuffer
 
 try:
     import asyncssh
@@ -62,7 +62,6 @@ except ModuleNotFoundError:
     pass
 
 
-# pylint: disable=too-many-instance-attributes
 class SSHSUT(SUT):
     """
     A SUT that is using SSH protocol con communicate and transfer data.
@@ -112,7 +111,8 @@ class SSHSUT(SUT):
         proc = await asyncio.create_subprocess_shell(
             self._reset_cmd,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE)
+            stderr=asyncio.subprocess.PIPE,
+        )
 
         if not proc or not proc.stdout:
             raise SUTError("Can't communicate with the host shell")
@@ -134,11 +134,7 @@ class SSHSUT(SUT):
 
         self._logger.info("Reset command has been executed")
 
-    def _create_command(
-            self,
-            cmd: str,
-            cwd: Optional[str],
-            env: Optional[dict]) -> str:
+    def _create_command(self, cmd: str, cwd: Optional[str], env: Optional[dict]) -> str:
         """
         Create command to send to SSH client.
         """
@@ -153,47 +149,44 @@ class SSHSUT(SUT):
 
         args.append(cmd)
 
-        script = ''.join(args)
+        script = "".join(args)
         if self._sudo:
             script = f"sudo /bin/sh -c '{script}'"
 
         return script
 
     def setup(self, **kwargs: dict) -> None:
-        if not importlib.util.find_spec('asyncssh'):
+        if not importlib.util.find_spec("asyncssh"):
             raise SUTError("'asyncssh' library is not available")
 
         self._logger.info("Initialize SUT")
 
-        self._host = libkirk.types.dict_item(
-            kwargs, "host", str, default="localhost")
+        self._host = libkirk.types.dict_item(kwargs, "host", str, default="localhost")
         self._reset_cmd = libkirk.types.dict_item(
-            kwargs, "reset_cmd", str, default=None)
-        self._user = libkirk.types.dict_item(
-            kwargs, "user", str, default="root")
-        self._password = libkirk.types.dict_item(
-            kwargs, "password", str, default=None)
-        self._key_file = libkirk.types.dict_item(
-            kwargs, "key_file", str, default=None)
+            kwargs, "reset_cmd", str, default=None
+        )
+        self._user = libkirk.types.dict_item(kwargs, "user", str, default="root")
+        self._password = libkirk.types.dict_item(kwargs, "password", str, default=None)
+        self._key_file = libkirk.types.dict_item(kwargs, "key_file", str, default=None)
         self._known_hosts = libkirk.types.dict_item(
-            kwargs, "known_hosts", str, default="~/.ssh/known_hosts")
+            kwargs, "known_hosts", str, default="~/.ssh/known_hosts"
+        )
 
         if self._known_hosts == "/dev/null":
             self._known_hosts = None
 
         try:
-            self._port = int(libkirk.types.dict_item(
-                kwargs, "port", str, default="22"))
+            self._port = int(libkirk.types.dict_item(kwargs, "port", str, default="22"))
 
             if 1 > self._port > 65535:
                 raise ValueError()
         except ValueError as err:
-            raise SUTError(
-                "'port' must be an integer between 1-65535") from err
+            raise SUTError("'port' must be an integer between 1-65535") from err
 
         try:
-            self._sudo = int(libkirk.types.dict_item(
-                kwargs, "sudo", str, default="0")) == 1
+            self._sudo = (
+                int(libkirk.types.dict_item(kwargs, "sudo", str, default="0")) == 1
+            )
         except ValueError as err:
             raise SUTError("'sudo' must be 0 or 1") from err
 
@@ -219,7 +212,8 @@ class SSHSUT(SUT):
                     port=self._port,
                     username=self._user,
                     client_keys=[priv_key],
-                    known_hosts=self._known_hosts)
+                    known_hosts=self._known_hosts,
+                )
             else:
                 # pyrefly: ignore[bad-assignment]
                 self._conn = await asyncssh.connect(
@@ -227,14 +221,16 @@ class SSHSUT(SUT):
                     port=self._port,
                     username=self._user,
                     password=self._password,
-                    known_hosts=self._known_hosts)
+                    known_hosts=self._known_hosts,
+                )
 
             # pyrefly: ignore[missing-attribute]
             # read maximum number of sessions and limit `run_command`
             # concurrent calls to that by using a semaphore
             ret = await self._conn.run(
                 r'sed -n "s/^MaxSessions\s*\([[:digit:]]*\)/\1/p" '
-                '/etc/ssh/sshd_config')
+                "/etc/ssh/sshd_config"
+            )
 
             max_sessions = ret.stdout or 10
 
@@ -251,8 +247,7 @@ class SSHSUT(SUT):
         self._stop = True
         try:
             if self._channels:
-                self._logger.info("Killing %d process(es)",
-                                  len(self._channels))
+                self._logger.info("Killing %d process(es)", len(self._channels))
 
                 for proc in self._channels:
                     proc.kill()
@@ -293,11 +288,12 @@ class SSHSUT(SUT):
         return end_t
 
     async def run_command(
-            self,
-            command: str,
-            cwd: Optional[str] = None,
-            env: Optional[dict] = None,
-            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
+        self,
+        command: str,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        iobuffer: Optional[IOBuffer] = None,
+    ) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -318,8 +314,7 @@ class SSHSUT(SUT):
 
                 # pyrefly: ignore[missing-attribute]
                 channel, session = await self._conn.create_session(
-                    lambda: MySSHClientSession(iobuffer),
-                    cmd
+                    lambda: MySSHClientSession(iobuffer), cmd
                 )
 
                 self._channels.append(channel)
@@ -337,7 +332,7 @@ class SSHSUT(SUT):
                         "command": command,
                         "returncode": channel.get_returncode(),
                         "exec_time": time.time() - start_t,
-                        "stdout": "".join(stdout)
+                        "stdout": "".join(stdout),
                     }
 
             if panic:
@@ -358,10 +353,7 @@ class SSHSUT(SUT):
         data = bytes()
         try:
             # pyrefly: ignore[missing-attribute]
-            ret = await self._conn.run(
-                f"cat {target_path}",
-                check=True,
-                encoding=None)
+            ret = await self._conn.run(f"cat {target_path}", check=True, encoding=None)
 
             data = bytes(ret.stdout)
         except asyncssh.Error as err:

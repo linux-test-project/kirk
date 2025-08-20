@@ -5,18 +5,15 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import sys
+
 import platform
+import sys
 import traceback
 from typing import Optional
-import libkirk
-from libkirk.data import Test
-from libkirk.data import Suite
-from libkirk.results import TestResults
-from libkirk.results import SuiteResults
 
-# pylint: disable=missing-function-docstring
-# pylint: disable=unused-argument
+import libkirk
+from libkirk.data import Suite, Test
+from libkirk.results import SuiteResults, TestResults
 
 
 class ConsoleUserInterface:
@@ -63,8 +60,8 @@ class ConsoleUserInterface:
         """
         Fire a `printf` event.
         """
-        msg = msg.replace(self.RESET_SCREEN, '')
-        msg = msg.replace('\r', '')
+        msg = msg.replace(self.RESET_SCREEN, "")
+        msg = msg.replace("\r", "")
 
         if color and not self._no_colors:
             msg = f"{color}{msg}{self.RESET_COLOR}"
@@ -76,6 +73,7 @@ class ConsoleUserInterface:
         Print a message in console, avoiding any I/O blocking operation
         done by the `print` built-in function, using `asyncio.to_thread()`.
         """
+
         def _wrap():
             print(msg, end=end, flush=flush)
 
@@ -112,7 +110,7 @@ class ConsoleUserInterface:
         message.append(f"\tPython:     {sys.version}")
         message.append(f"\tDirectory:  {tmpdir}\n")
 
-        await self._print('\n'.join(message))
+        await self._print("\n".join(message))
 
     async def session_stopped(self) -> None:
         await self._print("Session stopped")
@@ -130,13 +128,9 @@ class ConsoleUserInterface:
         await self._print(f"{cmd}", color=self.CYAN)
 
     async def run_cmd_stdout(self, data: str) -> None:
-        await self._print(data, end='')
+        await self._print(data, end="")
 
-    async def run_cmd_stop(
-            self,
-            command: str,
-            stdout: str,
-            returncode: int) -> None:
+    async def run_cmd_stop(self, command: str, stdout: str, returncode: int) -> None:
         await self._print(f"\nExit code: {returncode}\n")
 
     async def suite_started(self, suite: Suite) -> None:
@@ -146,12 +140,9 @@ class ConsoleUserInterface:
         message.append(suite_msg)
         message.append("-" * len(suite_msg))
 
-        await self._print('\n'.join(message))
+        await self._print("\n".join(message))
 
-    async def suite_completed(
-            self,
-            results: SuiteResults,
-            exec_time: float) -> None:
+    async def suite_completed(self, results: SuiteResults, exec_time: float) -> None:
         duration = self._user_friendly_duration(results.exec_time)
         exec_time_uf = self._user_friendly_duration(exec_time)
 
@@ -173,12 +164,12 @@ class ConsoleUserInterface:
         message.append(f"\tSwap:        {results.swap}")
         message.append(f"\tDistro:      {results.distro} {results.distro_ver}")
 
-        await self._print('\n'.join(message))
+        await self._print("\n".join(message))
 
     async def suite_timeout(self, suite: Suite, timeout: float) -> None:
         await self._print(
-            f"Suite '{suite.name}' timed out after {timeout} seconds",
-            color=self.RED)
+            f"Suite '{suite.name}' timed out after {timeout} seconds", color=self.RED
+        )
 
     async def session_warning(self, msg: str) -> None:
         await self._print(f"Warning: {msg}", color=self.YELLOW)
@@ -219,12 +210,12 @@ class ConsoleUserInterface:
         message.append(f"\tBroken:     {broken}")
         message.append(f"\tWarnings:   {warnings}")
 
-        await self._print('\n'.join(message))
+        await self._print("\n".join(message))
 
     async def internal_error(self, exc: BaseException, func_name: str) -> None:
         await self._print(
-            f"\nUI error in function '{func_name}': {exc}\n",
-            color=self.RED)
+            f"\nUI error in function '{func_name}': {exc}\n", color=self.RED
+        )
 
         traceback.print_exc()
 
@@ -319,7 +310,7 @@ class VerboseUserInterface(ConsoleUserInterface):
         libkirk.events.register("test_stdout", self.test_stdout)
 
     async def sut_stdout(self, _: str, data: str) -> None:
-        await self._print(data, end='')
+        await self._print(data, end="")
 
     async def kernel_tainted(self, message: str) -> None:
         await self._print(f"Tainted kernel: {message}", color=self.YELLOW)
@@ -353,10 +344,10 @@ class VerboseUserInterface(ConsoleUserInterface):
         uf_time = self._user_friendly_duration(results.exec_time)
         message.append(f"\nDuration: {uf_time}\n")
 
-        await self._print('\n'.join(message))
+        await self._print("\n".join(message))
 
     async def test_stdout(self, _: Test, data: str) -> None:
-        await self._print(data, end='')
+        await self._print(data, end="")
 
 
 class ParallelUserInterface(ConsoleUserInterface):
@@ -412,8 +403,8 @@ class ParallelUserInterface(ConsoleUserInterface):
             self._pl_done += 1
 
             await self._print(
-                f"{results.test.name} ({self._pl_done}/{self._pl_total}): ",
-                end="")
+                f"{results.test.name} ({self._pl_done}/{self._pl_total}): ", end=""
+            )
         else:
             await self._print(f"{results.test.name}: ", end="")
 

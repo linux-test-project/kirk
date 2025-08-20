@@ -5,19 +5,19 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import os
-import re
+
 import json
 import logging
+import os
+import re
 from typing import Optional
+
 import libkirk.types
-from libkirk.results import TestResults
-from libkirk.results import ResultStatus
-from libkirk.sut import SUT
-from libkirk.data import Suite
-from libkirk.data import Test
-from libkirk.framework import Framework
+from libkirk.data import Suite, Test
 from libkirk.errors import FrameworkError
+from libkirk.framework import Framework
+from libkirk.results import ResultStatus, TestResults
+from libkirk.sut import SUT
 
 
 class LTPFramework(Framework):
@@ -33,7 +33,7 @@ class LTPFramework(Framework):
         "resource_file",
         "format_device",
         "save_restore",
-        "max_runtime"
+        "max_runtime",
     ]
 
     def __init__(self) -> None:
@@ -88,7 +88,7 @@ class LTPFramework(Framework):
         Read PATH and initialize it with testcases folder as well.
         """
         env = self._env.copy()
-        if 'PATH' in env:
+        if "PATH" in env:
             env["PATH"] = env["PATH"] + f":{self._tc_folder}"
         else:
             ret = await sut.run_command("echo -n $PATH")
@@ -117,13 +117,13 @@ class LTPFramework(Framework):
                     runtime = float(runtime)
                     if runtime >= self._max_runtime:
                         self._logger.info(
-                            "max_runtime is bigger than %f",
-                            self._max_runtime)
+                            "max_runtime is bigger than %f", self._max_runtime
+                        )
                         addable = False
                 except TypeError:
                     self._logger.error(
-                        "metadata contains wrong max_runtime type: %s",
-                        runtime)
+                        "metadata contains wrong max_runtime type: %s", runtime
+                    )
 
         return addable
 
@@ -141,13 +141,9 @@ class LTPFramework(Framework):
 
         return parts
 
-    # pylint: disable=too-many-locals
     async def _read_runtest(
-            self,
-            sut: SUT,
-            suite_name: str,
-            content: str,
-            metadata: Optional[dict] = None) -> Suite:
+        self, sut: SUT, suite_name: str, content: str, metadata: Optional[dict] = None
+    ) -> Suite:
         """
         It reads a runtest file content and it returns a Suite object.
         """
@@ -161,7 +157,7 @@ class LTPFramework(Framework):
         env = await self._read_path(sut)
 
         tests = []
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         for line in lines:
             if not line.strip() or line.strip().startswith("#"):
@@ -172,8 +168,7 @@ class LTPFramework(Framework):
             parts = self._get_cmd_args(line)
 
             if len(parts) < 2:
-                raise FrameworkError(
-                    "runtest file is not defining test command")
+                raise FrameworkError("runtest file is not defining test command")
 
             test_name = parts[0]
             test_cmd = parts[1]
@@ -190,8 +185,7 @@ class LTPFramework(Framework):
             else:
                 test_params = metadata_tests.get(test_name, None)
                 if test_params:
-                    self._logger.info(
-                        "Found %s test params in metadata", test_name)
+                    self._logger.info("Found %s test params in metadata", test_name)
                     self._logger.debug("params=%s", test_params)
 
                 if test_params is None:
@@ -218,7 +212,8 @@ class LTPFramework(Framework):
                 args=test_args,
                 cwd=self._tc_folder,
                 env=env,
-                parallelizable=parallelizable)
+                parallelizable=parallelizable,
+            )
 
             tests.append(test)
 
@@ -258,7 +253,7 @@ class LTPFramework(Framework):
         if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"command failed with: {stdout}")
 
-        suites = [line for line in stdout.split('\n') if line]
+        suites = [line for line in stdout.split("\n") if line]
         return suites
 
     async def find_command(self, sut: SUT, command: str) -> Test:
@@ -284,7 +279,8 @@ class LTPFramework(Framework):
             args=args,
             cwd=cwd,
             env=env,
-            parallelizable=False)
+            parallelizable=False,
+        )
 
         return test
 
@@ -308,11 +304,7 @@ class LTPFramework(Framework):
         runtest_data = await sut.fetch_file(suite_path)
         runtest_str = runtest_data.decode(encoding="utf-8", errors="ignore")
 
-        metadata_path = os.path.join(
-            self._root,
-            "metadata",
-            "ltp.json"
-        )
+        metadata_path = os.path.join(self._root, "metadata", "ltp.json")
         metadata_dict = None
         ret = await sut.run_command(f"test -f {metadata_path}")
         if ret and ret["returncode"] == 0:
@@ -324,13 +316,10 @@ class LTPFramework(Framework):
         return suite
 
     async def read_result(
-            self,
-            test: Test,
-            stdout: str,
-            retcode: int,
-            exec_t: float) -> TestResults:
+        self, test: Test, stdout: str, retcode: int, exec_t: float
+    ) -> TestResults:
         # get rid of colors from stdout
-        stdout = re.sub(r'\u001b\[[0-9;]+[a-zA-Z]', '', stdout)
+        stdout = re.sub(r"\u001b\[[0-9;]+[a-zA-Z]", "", stdout)
 
         match = re.search(
             r"Summary:\n"
@@ -339,7 +328,7 @@ class LTPFramework(Framework):
             r"broken\s*(?P<broken>\d+)\n"
             r"skipped\s*(?P<skipped>\d+)\n"
             r"warnings\s*(?P<warnings>\d+)\n",
-            stdout
+            stdout,
         )
 
         passed = 0
@@ -365,11 +354,13 @@ class LTPFramework(Framework):
             broken = stdout.count("TBROK")
             warnings = stdout.count("TWARN")
 
-            if passed == 0 and \
-                    failed == 0 and \
-                    skipped == 0 and \
-                    broken == 0 and \
-                    warnings == 0:
+            if (
+                passed == 0
+                and failed == 0
+                and skipped == 0
+                and broken == 0
+                and warnings == 0
+            ):
                 # if no results are given, this is probably an
                 # old test implementation that fails when return
                 # code is != 0

@@ -6,7 +6,6 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-# pylint: disable=invalid-name
 import os
 import sys
 
@@ -15,4 +14,5 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
     import libkirk.main
+
     libkirk.main.run()

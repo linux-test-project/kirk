@@ -5,11 +5,10 @@
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
-import logging
+
 import asyncio
-from typing import Any
-from typing import Callable
-from typing import Optional
+import logging
+from typing import Any, Callable, Optional
 
 
 class Event:
@@ -154,8 +153,7 @@ class EventsHandler:
         if not self.is_registered(event_name):
             raise ValueError(f"{event_name} is not registered")
 
-        self._logger.info(
-            "Unregister event: %s -> %s", repr(event_name), repr(coro))
+        self._logger.info("Unregister event: %s -> %s", repr(event_name), repr(coro))
 
         if coro:
             self._events[event_name].remove(coro)
@@ -193,7 +191,6 @@ class EventsHandler:
         if not task:
             return
 
-        # pylint: disable=broad-except
         try:
             await task
         except asyncio.CancelledError:
