@@ -1,6 +1,6 @@
 # Copyright (c) 2022 Andrea Cervesato <andrea.cervesato@suse.com>
 
-name: "Lint packages"
+name: "Static analysis"
 on: [push, pull_request]
 
 jobs:
@@ -25,10 +25,13 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: python3 -m pip install pylint
+      run: python3 -m pip install pylint pyrefly msgpack asyncssh
 
     - name: Test kirk
       run: ./kirk --help
 
     - name: Lint with pylint
       run: pylint --rcfile=pylint.ini libkirk
+
+    - name: Static type checking
+      run: pyrefly check --project-excludes="*test*" libkirk
