@@ -9,7 +9,9 @@ import os
 import time
 import asyncio
 import logging
-import importlib
+import importlib.util
+from typing import Optional
+import libkirk.types
 from libkirk.sut import SUT
 from libkirk.sut import IOBuffer
 from libkirk.ltx import Request
@@ -28,10 +30,9 @@ class LTXSUT(SUT):
         self._logger = logging.getLogger("kirk.ltx")
         self._release_lock = asyncio.Lock()
         self._fetch_lock = asyncio.Lock()
+        self._ltx: Optional[LTX] = None
         self._outfile = ''
         self._infile = ''
-        self._tmpdir = None
-        self._ltx = None
         self._slots = []
 
     @property
@@ -51,9 +52,8 @@ class LTXSUT(SUT):
 
         self._logger.info("Initialize SUT")
 
-        self._tmpdir = kwargs.get("tmpdir", None)
-        self._infile = kwargs.get("infile", None)
-        self._outfile = kwargs.get("outfile", None)
+        self._infile = libkirk.types.dict_item(kwargs, "infile", str)
+        self._outfile = libkirk.types.dict_item(kwargs, "outfile", str)
 
         if not self._infile or not os.path.exists(self._infile):
             raise SUTError(f"'{self._infile}' input file doesn't exist")
@@ -67,12 +67,12 @@ class LTXSUT(SUT):
 
     @property
     async def is_running(self) -> bool:
-        if self._ltx:
-            return self._ltx.connected
+        if not self._ltx:
+            return False
 
-        return False
+        return self._ltx.connected
 
-    async def stop(self, iobuffer: IOBuffer = None) -> None:
+    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if not await self.is_running:
             return
 
@@ -88,6 +88,7 @@ class LTXSUT(SUT):
                     await asyncio.sleep(1e-2)
 
         try:
+            # pyrefly: ignore[missing-attribute]
             await self._ltx.disconnect()
         except LTXError as err:
             raise SUTError(err) from err
@@ -95,12 +96,13 @@ class LTXSUT(SUT):
         while await self.is_running:
             await asyncio.sleep(1e-2)
 
-    async def _send_requests(self, requests: list) -> list:
+    async def _send_requests(self, requests: list) -> dict:
         """
         Send requests and check for LTXError.
         """
         reply = None
         try:
+            # pyrefly: ignore[missing-attribute]
             reply = await self._ltx.gather(requests)
         except LTXError as err:
             raise SUTError(err) from err
@@ -142,7 +144,7 @@ class LTXSUT(SUT):
 
         return (replies[req][0] * 1e-9) - start_t
 
-    async def communicate(self, iobuffer: IOBuffer = None) -> None:
+    async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if await self.is_running:
             raise SUTError("SUT is already running")
 
@@ -158,9 +160,9 @@ class LTXSUT(SUT):
     async def run_command(
             self,
             command: str,
-            cwd: str = None,
-            env: dict = None,
-            iobuffer: IOBuffer = None) -> dict:
+            cwd: Optional[str] = None,
+            env: Optional[dict] = None,
+            iobuffer: Optional[IOBuffer] = None) -> Optional[dict]:
         if not command:
             raise ValueError("command is empty")
 
@@ -175,7 +177,7 @@ class LTXSUT(SUT):
         try:
             start_t = time.monotonic()
 
-            requests = []
+            requests: list[Request] = []
             if cwd:
                 requests.append(Requests.cwd(slot_id, cwd))
 
