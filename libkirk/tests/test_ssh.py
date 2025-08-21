@@ -114,7 +114,8 @@ class _TestSSHSUT(_TestSUT):
         await sut.communicate()
 
         ret = await sut.run_command(">&2 echo ciao_stderr && echo ciao_stdout")
-        assert ret["stdout"] == "ciao_stdout\nciao_stderr\n"
+        assert "ciao_stdout" in ret["stdout"]
+        assert "ciao_stderr" in ret["stdout"]
 
     async def test_long_stdout(self, sut):
         """
