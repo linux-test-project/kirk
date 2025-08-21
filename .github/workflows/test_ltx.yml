@@ -1,0 +1,53 @@
+# Copyright (c) 2025 Andrea Cervesato <andrea.cervesato@suse.com>
+
+name: "Test LTX"
+on: [push, pull_request]
+
+env:
+  PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 msgpack
+
+jobs:
+  python3:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [
+          "3.7",
+          "3.8",
+          "3.9",
+          "3.10",
+          "3.11",
+          "3.12",
+          "3.13"
+        ]
+
+    steps:
+    - name: Show OS
+      run: cat /etc/os-release
+
+    - name: Git checkout
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: pip install $PYTHON_PKGS
+
+    - name: Checkout ltx
+      uses: actions/checkout@v5
+      with:
+        repository: linux-test-project/ltx
+        path: ltx
+
+    - name: Compile ltx
+      run: make -C ltx
+
+    - name: Test with pytest
+      env:
+        TEST_LTX_BINARY: ./ltx/ltx
+      run: python3 -m pytest -m "ltx"
