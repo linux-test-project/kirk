@@ -302,12 +302,17 @@ class SSHSUT(SUT):
 
         async with self._session_sem:
             cmd = self._create_command(command, cwd, env)
-            ret = None
             start_t = 0
             stdout = []
             panic = False
             channel = None
             session = None
+            ret = {
+                "command": command,
+                "returncode": 1,
+                "exec_time": 0.0,
+                "stdout": "",
+            }
 
             try:
                 self._logger.info("Running command: %s", repr(command))
@@ -324,16 +329,16 @@ class SSHSUT(SUT):
 
                 panic = session.kernel_panic()
                 stdout = session.get_output()
+            except asyncssh.misc.ChannelOpenError as err:
+                if not self._stop:
+                    raise SUTError(err)
             finally:
                 if channel:
                     self._channels.remove(channel)
+                    ret["returncode"] = channel.get_returncode()
+                    ret["stdout"] = "".join(stdout)
 
-                    ret = {
-                        "command": command,
-                        "returncode": channel.get_returncode(),
-                        "exec_time": time.time() - start_t,
-                        "stdout": "".join(stdout),
-                    }
+                ret["exec_time"] = time.time() - start_t
 
             if panic:
                 raise KernelPanicError()
