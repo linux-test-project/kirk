@@ -4,7 +4,11 @@ name: "Test packages"
 on: [push, pull_request]
 
 env:
-  PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 build
+  PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 build asyncssh
+  TEST_SSH_KEY_FILE: /home/runner/.ssh/id_rsa
+  TEST_SSH_USERNAME: runner
+  TEST_SSH_PASSWORD: password
+  TEST_SSH_PORT: 22
 
 jobs:
   python3-deprecated:
@@ -66,5 +70,27 @@ jobs:
     - name: Build package
       run: python3 -m build
 
+    - name: Setup user password
+      run: echo "$TEST_SSH_USERNAME:$TEST_SSH_PASSWORD" | sudo chpasswd
+
+    - name: Install Private SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        name: id_rsa
+        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+    - name: Install Public SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PUBLIC_KEY }}
+        name: id_rsa.pub
+        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+    - name: Generate known hosts
+      run: |
+        cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+        ssh-keyscan -H localhost > ~/.ssh/known_hosts
+
     - name: Test with pytest
-      run: python3 -m pytest -m "not qemu and not ssh and not ltx"
+      run: python3 -m pytest -m "not qemu and not ltx"

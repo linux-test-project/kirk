@@ -17,6 +17,7 @@ pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
 TEST_SSH_USERNAME = os.environ.get("TEST_SSH_USERNAME", None)
 TEST_SSH_PASSWORD = os.environ.get("TEST_SSH_PASSWORD", None)
 TEST_SSH_KEY_FILE = os.environ.get("TEST_SSH_KEY_FILE", None)
+TEST_SSH_PORT = os.environ.get("TEST_SSH_PORT", "22")
 
 if not TEST_SSH_USERNAME:
     pytestmark.append(pytest.mark.skip(reason="TEST_SSH_USERNAME not defined"))
@@ -141,7 +142,7 @@ def config_password(tmpdir):
     return dict(
         tmpdir=str(tmpdir),
         host="localhost",
-        port="22",
+        port=TEST_SSH_PORT,
         user=TEST_SSH_USERNAME,
         password=TEST_SSH_PASSWORD,
     )
@@ -155,7 +156,7 @@ def config_keyfile(tmpdir):
     return dict(
         tmpdir=str(tmpdir),
         host="localhost",
-        port="22",
+        port=TEST_SSH_PORT,
         user=TEST_SSH_USERNAME,
         key_file=TEST_SSH_KEY_FILE,
     )
