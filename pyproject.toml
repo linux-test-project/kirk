@@ -61,8 +61,6 @@ filterwarnings = [
         "ignore::DeprecationWarning",
         "ignore::pytest.PytestCollectionWarning",
 ]
-log_cli = "true"
-log_level = "DEBUG"
 markers = [
         "ssh",
         "qemu",
