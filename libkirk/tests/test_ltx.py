@@ -2,9 +2,9 @@
 Unittests for ltx module.
 """
 
-import asyncio.subprocess
 import os
 import signal
+import subprocess
 import time
 
 import pytest
@@ -41,8 +41,10 @@ class TestLTX:
         stdin = os.open(infile, os.O_RDWR | os.O_NONBLOCK)
         stdout = os.open(outfile, os.O_RDWR)
 
-        proc = await asyncio.subprocess.create_subprocess_shell(
-            TEST_LTX_BINARY, stdin=stdin, stdout=stdout
+        proc = subprocess.Popen(
+            TEST_LTX_BINARY,
+            stdin=stdin,
+            stdout=stdout,
         )
 
         try:
@@ -50,6 +52,7 @@ class TestLTX:
                 yield handle
         finally:
             proc.kill()
+            proc.wait()
 
     async def test_version(self, ltx):
         """
@@ -272,8 +275,10 @@ async def sut(tmpdir):
     stdin = os.open(infile, os.O_RDONLY | os.O_NONBLOCK)
     stdout = os.open(outfile, os.O_RDWR)
 
-    proc = await asyncio.subprocess.create_subprocess_shell(
-        TEST_LTX_BINARY, stdin=stdin, stdout=stdout
+    proc = subprocess.Popen(
+        TEST_LTX_BINARY,
+        stdin=stdin,
+        stdout=stdout,
     )
 
     sut = LTXSUT()
@@ -285,6 +290,7 @@ async def sut(tmpdir):
         await sut.stop()
 
     proc.kill()
+    proc.wait()
 
 
 class TestLTXSUT(_TestSUT):
