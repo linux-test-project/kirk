@@ -2,13 +2,13 @@
 Generic stuff for pytest.
 """
 
-import libkirk
 import pytest
+
+import libkirk
+from libkirk.data import Suite, Test
+from libkirk.framework import Framework
 from libkirk.results import TestResults
 from libkirk.sut import SUT
-from libkirk.framework import Framework
-from libkirk.data import Suite
-from libkirk.data import Test
 
 
 @pytest.fixture(scope="session")

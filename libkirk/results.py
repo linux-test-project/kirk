@@ -6,8 +6,7 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-from libkirk.data import Test
-from libkirk.data import Suite
+from libkirk.data import Suite, Test
 
 
 class ResultStatus:

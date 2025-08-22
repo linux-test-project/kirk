@@ -2,16 +2,17 @@
 Unittests for ltx module.
 """
 
-import os
-import time
-import signal
 import asyncio.subprocess
+import os
+import signal
+import time
+
 import pytest
-from libkirk.ltx import LTX
-from libkirk.ltx import Requests
+
+from libkirk.ltx import LTX, Requests
 from libkirk.ltx_sut import LTXSUT
-from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_session import _TestSession
+from libkirk.tests.test_sut import _TestSUT
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
 

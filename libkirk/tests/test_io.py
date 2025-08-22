@@ -3,6 +3,7 @@ Unittests for io module.
 """
 
 import pytest
+
 from libkirk.io import AsyncFile
 
 pytestmark = pytest.mark.asyncio

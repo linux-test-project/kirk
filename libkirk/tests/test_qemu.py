@@ -3,12 +3,13 @@ Test SUT implementations.
 """
 
 import os
+
 import pytest
-from libkirk.qemu import QemuSUT
+
 from libkirk.errors import KernelPanicError
-from libkirk.tests.test_sut import _TestSUT
-from libkirk.tests.test_sut import Printer
+from libkirk.qemu import QemuSUT
 from libkirk.tests.test_session import _TestSession
+from libkirk.tests.test_sut import Printer, _TestSUT
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.qemu]
 

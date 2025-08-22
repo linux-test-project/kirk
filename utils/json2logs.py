@@ -6,8 +6,8 @@
 This script parses JSON results from kirk and produces LTP traditional logs.
 """
 
-import json
 import argparse
+import json
 
 
 def process_kirk_results(resfile, sumfile, runfile, failfile):

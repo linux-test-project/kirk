@@ -3,7 +3,9 @@ Unittest for events module.
 """
 
 import asyncio
+
 import pytest
+
 import libkirk
 
 

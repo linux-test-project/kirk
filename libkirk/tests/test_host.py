@@ -3,10 +3,10 @@ Unittests for host SUT implementations.
 """
 
 import pytest
-from libkirk.host import HostSUT
-from libkirk.tests.test_sut import _TestSUT
-from libkirk.tests.test_session import _TestSession
 
+from libkirk.host import HostSUT
+from libkirk.tests.test_session import _TestSession
+from libkirk.tests.test_sut import _TestSUT
 
 pytestmark = pytest.mark.asyncio
 

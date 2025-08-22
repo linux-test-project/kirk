@@ -3,7 +3,9 @@ Unittest for temporary module.
 """
 
 import os
+
 import pytest
+
 from libkirk.tempfile import TempDir
 
 

@@ -2,11 +2,13 @@
 Unittests for main module.
 """
 
-import os
-import sys
-import pwd
 import json
+import os
+import pwd
+import sys
+
 import pytest
+
 import libkirk.main
 
 

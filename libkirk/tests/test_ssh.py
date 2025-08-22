@@ -2,15 +2,17 @@
 Unittests for ssh module.
 """
 
+import asyncio
 import os
 import subprocess
-import asyncio
+
 import pytest
-from libkirk.sut import IOBuffer
-from libkirk.ssh import SSHSUT
+
 from libkirk.errors import KernelPanicError
-from libkirk.tests.test_sut import _TestSUT
+from libkirk.ssh import SSHSUT
+from libkirk.sut import IOBuffer
 from libkirk.tests.test_session import _TestSession
+from libkirk.tests.test_sut import _TestSUT
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
 

@@ -2,15 +2,16 @@
 Test AsyncSUT implementations.
 """
 
-import os
-import time
 import asyncio
 import logging
-import pytest
-import libkirk
-from libkirk.sut import IOBuffer
-from libkirk.errors import SUTError
+import os
+import time
 
+import pytest
+
+import libkirk
+from libkirk.errors import SUTError
+from libkirk.sut import IOBuffer
 
 pytestmark = pytest.mark.asyncio
 

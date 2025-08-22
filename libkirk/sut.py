@@ -6,12 +6,12 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-import re
 import asyncio
+import re
 from typing import Optional
+
+from libkirk.errors import KirkException, SUTError
 from libkirk.plugin import Plugin
-from libkirk.errors import SUTError
-from libkirk.errors import KirkException
 
 
 class IOBuffer:

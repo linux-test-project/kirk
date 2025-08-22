@@ -2,12 +2,13 @@
 Unittests for the session module.
 """
 
-import json
 import asyncio
+import json
+
 import pytest
+
 from libkirk.session import Session
 from libkirk.tempfile import TempDir
-
 
 pytestmark = pytest.mark.asyncio
 

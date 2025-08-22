@@ -6,20 +6,17 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
+import asyncio
+import importlib.util
+import logging
 import os
 import time
-import asyncio
-import logging
-import importlib.util
 from typing import Optional
+
 import libkirk.types
-from libkirk.sut import SUT
-from libkirk.sut import IOBuffer
-from libkirk.ltx import Request
-from libkirk.ltx import Requests
-from libkirk.ltx import LTX
-from libkirk.errors import LTXError
-from libkirk.errors import SUTError
+from libkirk.errors import LTXError, SUTError
+from libkirk.ltx import LTX, Request, Requests
+from libkirk.sut import SUT, IOBuffer
 
 
 class LTXSUT(SUT):

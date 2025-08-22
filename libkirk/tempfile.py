@@ -7,9 +7,9 @@
 """
 
 import os
+import pathlib
 import pwd
 import shutil
-import pathlib
 import tempfile
 from typing import Optional
 

@@ -2,19 +2,17 @@
 Unittests for runner module.
 """
 
+import asyncio
 import re
 import sys
-import asyncio
+
 import pytest
-from libkirk.sut import TAINTED_MSG
-from libkirk.data import Test
-from libkirk.data import Suite
+
+from libkirk.data import Suite, Test
+from libkirk.errors import KernelPanicError, KernelTaintedError, KernelTimeoutError
 from libkirk.host import HostSUT
-from libkirk.scheduler import TestScheduler
-from libkirk.scheduler import SuiteScheduler
-from libkirk.errors import KernelTaintedError
-from libkirk.errors import KernelTimeoutError
-from libkirk.errors import KernelPanicError
+from libkirk.scheduler import SuiteScheduler, TestScheduler
+from libkirk.sut import TAINTED_MSG
 
 pytestmark = pytest.mark.asyncio
 

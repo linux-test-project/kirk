@@ -5,9 +5,9 @@
 This script parses JSON results from kirk and produces a HTML page.
 """
 
-import os
-import json
 import argparse
+import json
+import os
 from datetime import timedelta
 from html import escape
 

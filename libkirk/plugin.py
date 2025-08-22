@@ -6,10 +6,10 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-import os
-import inspect
 import importlib
 import importlib.util
+import inspect
+import os
 
 
 class Plugin:

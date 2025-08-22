@@ -2,14 +2,14 @@
 Unit tests for Exporter implementations.
 """
 
-import json
 import asyncio
-import pytest
-from libkirk.data import Test
-from libkirk.data import Suite
-from libkirk.results import SuiteResults, TestResults, ResultStatus
-from libkirk.export import JSONExporter
+import json
 
+import pytest
+
+from libkirk.data import Suite, Test
+from libkirk.export import JSONExporter
+from libkirk.results import ResultStatus, SuiteResults, TestResults
 
 pytestmark = pytest.mark.asyncio
 

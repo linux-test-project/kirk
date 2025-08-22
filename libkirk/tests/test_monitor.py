@@ -2,9 +2,11 @@
 Unittest for monitor module.
 """
 
-import json
 import asyncio
+import json
+
 import pytest
+
 import libkirk
 from libkirk.io import AsyncFile
 from libkirk.monitor import JSONFileMonitor

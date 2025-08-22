@@ -6,21 +6,18 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-import os
-import time
-import signal
 import asyncio
-import logging
 import contextlib
-from typing import Any
-from typing import Dict
-from typing import Optional
+import logging
+import os
+import signal
+import time
 from asyncio.subprocess import Process
+from typing import Any, Dict, Optional
+
+from libkirk.errors import KernelPanicError, SUTError
 from libkirk.io import AsyncFile
-from libkirk.sut import SUT
-from libkirk.sut import IOBuffer
-from libkirk.errors import SUTError
-from libkirk.errors import KernelPanicError
+from libkirk.sut import SUT, IOBuffer
 
 
 class HostSUT(SUT):

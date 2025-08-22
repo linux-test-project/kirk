@@ -4,8 +4,8 @@ Unittests for framework module.
 
 import libkirk
 import libkirk.plugin
-from libkirk.sut import SUT
 from libkirk.framework import Framework
+from libkirk.sut import SUT
 
 
 def test_sut(tmpdir):
