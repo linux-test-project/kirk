@@ -1,0 +1,68 @@
+# Copyright (c) 2025 Andrea Cervesato <andrea.cervesato@suse.com>
+
+name: "Test SSH"
+on: [push, pull_request]
+
+env:
+  PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 build asyncssh
+  TEST_SSH_KEY_FILE: /home/runner/.ssh/id_rsa
+  TEST_SSH_USERNAME: runner
+  TEST_SSH_PASSWORD: password
+  TEST_SSH_PORT: 22
+
+jobs:
+  python3:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [
+          "3.7",
+          "3.8",
+          "3.9",
+          "3.10",
+          "3.11",
+          "3.12",
+          "3.13"
+        ]
+
+    steps:
+    - name: Show OS
+      run: cat /etc/os-release
+
+    - name: Git checkout
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: python3 -m pip install $PYTHON_PKGS
+
+    - name: Setup user password
+      run: echo "$TEST_SSH_USERNAME:$TEST_SSH_PASSWORD" | sudo chpasswd
+
+    - name: Install Private SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        name: id_rsa
+        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+    - name: Install Public SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PUBLIC_KEY }}
+        name: id_rsa.pub
+        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+    - name: Generate known hosts
+      run: |
+        cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+        ssh-keyscan -H localhost > ~/.ssh/known_hosts
+
+    - name: Test with pytest
+      run: python3 -m pytest -m "ssh"
