@@ -11,7 +11,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import libkirk
 import libkirk.data
@@ -24,7 +24,7 @@ from libkirk.errors import (
     SchedulerError,
 )
 from libkirk.framework import Framework
-from libkirk.results import SuiteResults, TestResults
+from libkirk.results import Results, SuiteResults, TestResults
 from libkirk.sut import SUT, IOBuffer
 
 
@@ -34,7 +34,7 @@ class Scheduler:
     """
 
     @property
-    def results(self) -> list:
+    def results(self) -> List[Results]:
         """
         Current results. It's reset before every `schedule` call and
         it's populated when a job completes the execution.
@@ -55,7 +55,7 @@ class Scheduler:
         """
         raise NotImplementedError()
 
-    async def schedule(self, jobs: list) -> None:
+    async def schedule(self, jobs: List[Any]) -> None:
         """
         Schedule and execute a list of jobs.
         :param jobs: object containing jobs definition
@@ -172,7 +172,7 @@ class TestScheduler(Scheduler):
         await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
 
     @property
-    def results(self) -> list:
+    def results(self) -> List[Results]:
         return self._results
 
     @property
@@ -219,7 +219,7 @@ class TestScheduler(Scheduler):
             cmd = test.full_command
             start_t = time.time()
             exec_time = 0
-            test_data: dict[str, Any] = {}
+            test_data: Dict[str, Any] = {}
             tainted_msg = None
             status = self.STATUS_OK
 
@@ -300,7 +300,7 @@ class TestScheduler(Scheduler):
             self._logger.info("Test completed: %s", test.name)
             self._logger.debug(results)
 
-    async def _run_and_wait(self, tests: list) -> None:
+    async def _run_and_wait(self, tests: List[Test]) -> None:
         """
         Run tests one after another.
         """
@@ -314,7 +314,7 @@ class TestScheduler(Scheduler):
         for test in tests:
             await self._run_test(test)
 
-    async def _run_parallel(self, tests: list) -> None:
+    async def _run_parallel(self, tests: List[Test]) -> None:
         """
         Run tests in parallel.
         """
@@ -330,7 +330,7 @@ class TestScheduler(Scheduler):
 
         await asyncio.gather(*coros)
 
-    async def schedule(self, jobs: list) -> None:
+    async def schedule(self, jobs: List[Any]) -> None:
         if not jobs:
             raise ValueError("jobs list is empty")
 
@@ -423,7 +423,7 @@ class SuiteScheduler(Scheduler):
         )
 
     @property
-    def results(self) -> list:
+    def results(self) -> List[Results]:
         return self._results
 
     @property
@@ -564,7 +564,7 @@ class SuiteScheduler(Scheduler):
 
             self._results.append(suite_results)
 
-    async def schedule(self, jobs: list) -> None:
+    async def schedule(self, jobs: List[Any]) -> None:
         if not jobs:
             raise ValueError("jobs list is empty")
 

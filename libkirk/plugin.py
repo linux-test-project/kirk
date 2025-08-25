@@ -10,6 +10,7 @@ import importlib
 import importlib.util
 import inspect
 import os
+from typing import Any, Dict, List
 
 
 class Plugin:
@@ -17,7 +18,7 @@ class Plugin:
     Generic plugin definition.
     """
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
         """
         Initialize plugin using configuration dictionary.
         :param kwargs: SUT configuration
@@ -26,7 +27,7 @@ class Plugin:
         raise NotImplementedError()
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         """
         Associate each configuration option with a help message.
         This is used by the main menu application to generate --help message.
@@ -42,7 +43,7 @@ class Plugin:
         raise NotImplementedError()
 
 
-def discover(mytype: type, folder: str) -> list:
+def discover(mytype: type, folder: str) -> List[Plugin]:
     """
     Discover ``mytype`` implementations inside a specific folder.
     """

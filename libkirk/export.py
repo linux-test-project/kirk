@@ -9,10 +9,11 @@
 import json
 import logging
 import os
+from typing import List
 
 from libkirk.errors import ExporterError
 from libkirk.io import AsyncFile
-from libkirk.results import ResultStatus
+from libkirk.results import ResultStatus, SuiteResults
 
 
 class Exporter:
@@ -20,7 +21,7 @@ class Exporter:
     A class used to export Results into report file.
     """
 
-    async def save_file(self, results: list, path: str) -> None:
+    async def save_file(self, results: List[SuiteResults], path: str) -> None:
         """
         Save report into a file by taking information from SUT and testing
         results.
@@ -40,7 +41,7 @@ class JSONExporter(Exporter):
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.json")
 
-    async def save_file(self, results: list, path: str) -> None:
+    async def save_file(self, results: List[SuiteResults], path: str) -> None:
         if not results or len(results) == 0:
             raise ValueError("results is empty")
 

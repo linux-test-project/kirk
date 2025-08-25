@@ -12,11 +12,11 @@ import logging
 import os
 import random
 import re
-from typing import Optional
+from typing import Dict, List, Optional
 
 import libkirk
-import libkirk.data
 import libkirk.types
+from libkirk.data import Suite
 from libkirk.errors import KirkException
 from libkirk.export import JSONExporter
 from libkirk.io import AsyncFile
@@ -132,7 +132,7 @@ class Session:
         if not self._tmpdir.abspath:
             return
 
-        async def save_suite_started(suite: libkirk.data.Suite) -> None:
+        async def save_suite_started(suite: Suite) -> None:
             self._curr_suite = suite.name
 
         async def save_test_file(results: TestResults) -> None:
@@ -143,7 +143,7 @@ class Session:
         libkirk.events.register("suite_started", save_suite_started)
         libkirk.events.register("test_completed", save_test_file)
 
-    async def _read_restored_session(self, path: str) -> dict:
+    async def _read_restored_session(self, path: str) -> Dict[str, List[str]]:
         """
         Read restored session.
         """
@@ -192,7 +192,7 @@ class Session:
         await libkirk.events.fire("sut_stop", self._sut.name)
         await self._sut.stop(iobuffer=RedirectSUTStdout(self._sut, False))
 
-    async def _get_suites_objects(self, names: list) -> list:
+    async def _get_suites_objects(self, names: List[str]) -> List[Suite]:
         """
         Return suites objects by giving their names.
         """
@@ -211,6 +211,7 @@ class Session:
             if not suite:
                 raise KirkException("Can't find suite objects")
 
+        # pyrefly: ignore=no-matching-overload
         return list(results)
 
     async def _restore_tests(
@@ -245,7 +246,9 @@ class Session:
 
     @staticmethod
     def _filter_tests(
-        suites_obj: list, regex: Optional[str] = None, when_matching: bool = False
+        suites_obj: List[Suite],
+        regex: Optional[str] = None,
+        when_matching: bool = False,
     ) -> None:
         """
         Filter tests according to `regex`, if `when_matching` is True.
@@ -267,7 +270,7 @@ class Session:
                 suite_obj.tests.remove(item)
 
     @staticmethod
-    def _apply_iterate(suites_obj: list, suite_iterate: int) -> list:
+    def _apply_iterate(suites_obj: List[Suite], suite_iterate: int) -> List[Suite]:
         """
         Return testing suites after applying iterate parameters.
         """
@@ -285,15 +288,15 @@ class Session:
 
     async def _read_suites(
         self,
-        suites: list,
+        names: List[str],
         pattern: Optional[str] = None,
         skip_tests: Optional[str] = None,
         restore_path: Optional[str] = None,
-    ) -> list:
+    ) -> List[Suite]:
         """
         Read suites and return a list of Suite objects.
         """
-        suites_obj = await self._get_suites_objects(suites)
+        suites_obj = await self._get_suites_objects(names)
 
         await self._restore_tests(suites_obj, restore_path)
 
@@ -373,14 +376,14 @@ class Session:
             await libkirk.events.fire("session_stopped")
             self._stop = False
 
-    async def _schedule_once(self, suites_obj: list) -> None:
+    async def _schedule_once(self, suites_obj: List[Suite]) -> None:
         """
         Schedule tests only once.
         """
         await self._scheduler.schedule(suites_obj)
         self._results.extend(self._scheduler.results)
 
-    async def _schedule_infinite(self, suites_obj: list) -> None:
+    async def _schedule_infinite(self, suites_obj: List[Suite]) -> None:
         """
         Schedule all testing suites infinite times.
         """
@@ -400,7 +403,7 @@ class Session:
                 suite.name = f"{suite.name}[{count}]"
                 suites_list.append(suite)
 
-    async def _run_scheduler(self, suites_obj: list, runtime: int) -> None:
+    async def _run_scheduler(self, suites_obj: List[Suite], runtime: int) -> None:
         """
         Run the scheduler for specific amount of time given by `runtime`.
         """
@@ -437,7 +440,7 @@ class Session:
     async def run(
         self,
         command: Optional[str] = None,
-        suites: Optional[list] = None,
+        suites: Optional[List[str]] = None,
         pattern: Optional[str] = None,
         skip_tests: Optional[str] = None,
         report_path: Optional[str] = None,

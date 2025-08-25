@@ -9,7 +9,7 @@
 import platform
 import sys
 import traceback
-from typing import Optional
+from typing import List, Optional
 
 import libkirk
 from libkirk.data import Suite, Test
@@ -177,7 +177,7 @@ class ConsoleUserInterface:
     async def session_error(self, error: str) -> None:
         await self._print(f"Error: {error}", color=self.RED)
 
-    async def session_completed(self, results: list) -> None:
+    async def session_completed(self, results: List[SuiteResults]) -> None:
         if len(results) < 2:
             return
 

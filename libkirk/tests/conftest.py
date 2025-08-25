@@ -2,6 +2,8 @@
 Generic stuff for pytest.
 """
 
+from typing import Dict, List
+
 import pytest
 
 import libkirk
@@ -34,7 +36,7 @@ class DummyFramework(Framework):
     def __init__(self) -> None:
         self._root = None
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         self._root = kwargs.get("root", "/")
         self._env = kwargs.get("env", None)
 
@@ -43,10 +45,10 @@ class DummyFramework(Framework):
         return "dummy"
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         return {}
 
-    async def get_suites(self, sut: SUT) -> list:
+    async def get_suites(self, sut: SUT) -> List[str]:
         return ["suite01", "suite02", "sleep", "environ", "kernel_panic"]
 
     async def find_command(self, sut: SUT, command: str) -> Test:

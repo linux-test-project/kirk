@@ -8,7 +8,7 @@
 
 import asyncio
 import re
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from libkirk.errors import KirkException, SUTError
 from libkirk.plugin import Plugin
@@ -103,9 +103,9 @@ class SUT(Plugin):
         self,
         command: str,
         cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        env: Optional[Dict[str, str]] = None,
         iobuffer: Optional[IOBuffer] = None,
-    ) -> Optional[dict]:
+    ) -> Optional[Dict[str, Any]]:
         """
         Coroutine to run command on target.
         :param command: command to execute
@@ -162,7 +162,7 @@ class SUT(Plugin):
 
                 await self.stop(iobuffer=iobuffer)
 
-    async def get_info(self) -> dict:
+    async def get_info(self) -> Dict[str, str]:
         """
         Return SUT information.
         :returns: dict
@@ -233,7 +233,7 @@ class SUT(Plugin):
     _tainted_lock = asyncio.Lock()
     _tainted_status = asyncio.Queue(maxsize=1)
 
-    async def get_tainted_info(self) -> tuple:
+    async def get_tainted_info(self) -> Tuple[int, List[str]]:
         """
         Return information about kernel if tainted.
         :returns: (int, list[str])

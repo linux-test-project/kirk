@@ -6,6 +6,8 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
+from typing import List, Optional
+
 from libkirk.data import Suite, Test
 
 
@@ -92,7 +94,19 @@ class TestResults(Results):
     Test results definition.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self,
+        test: Test,
+        failed: int = 0,
+        passed: int = 0,
+        broken: int = 0,
+        skipped: int = 0,
+        warnings: int = 0,
+        exec_time: float = 0.0,
+        status: int = ResultStatus.PASS,
+        retcode: int = 0,
+        stdout: str = "",
+    ) -> None:
         """
         :param test: Test object declaration
         :type test: Test
@@ -115,19 +129,19 @@ class TestResults(Results):
         :param stdout: stdout of the test
         :type stdout: str
         """
-        self._test = kwargs.get("test", None)
-        self._failed = max(kwargs.get("failed", 0), 0)
-        self._passed = max(kwargs.get("passed", 0), 0)
-        self._broken = max(kwargs.get("broken", 0), 0)
-        self._skipped = max(kwargs.get("skipped", 0), 0)
-        self._warns = max(kwargs.get("warnings", 0), 0)
-        self._exec_t = max(kwargs.get("exec_time", 0.0), 0.0)
-        self._retcode = kwargs.get("retcode", 0)
-        self._status = kwargs.get("status", ResultStatus.PASS)
-        self._stdout = kwargs.get("stdout", None)
-
-        if not self._test:
+        if not test:
             raise ValueError("Empty test object")
+
+        self._test = test
+        self._failed = failed
+        self._passed = passed
+        self._broken = broken
+        self._skipped = skipped
+        self._warns = warnings
+        self._exec_time = exec_time
+        self._status = status
+        self._retcode = retcode
+        self._stdout = stdout
 
     def __repr__(self) -> str:
         return (
@@ -137,8 +151,8 @@ class TestResults(Results):
             f"broken: {self._broken}, "
             f"skipped: {self._skipped}, "
             f"warnins: {self._warns}, "
+            f"exec_time: {self._exec_time}, "
             f"status: {self._status}, "
-            f"exec_time: {self._exec_t}, "
             f"retcode: {self._retcode}, "
             f"stdout: {repr(self._stdout)}"
         )
@@ -177,7 +191,7 @@ class TestResults(Results):
 
     @property
     def exec_time(self) -> float:
-        return self._exec_t
+        return self._exec_time
 
     @property
     def failed(self) -> int:
@@ -205,7 +219,18 @@ class SuiteResults(Results):
     Testing suite results definition.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self,
+        suite: Suite,
+        tests: List[TestResults] = [],
+        distro: Optional[str] = None,
+        distro_ver: Optional[str] = None,
+        kernel: Optional[str] = None,
+        arch: Optional[str] = None,
+        cpu: Optional[str] = None,
+        swap: Optional[str] = None,
+        ram: Optional[str] = None,
+    ) -> None:
         """
         :param suite: Test object declaration
         :type suite: Suite
@@ -219,19 +244,25 @@ class SuiteResults(Results):
         :type kernel: str
         :param arch: OS architecture
         :type arch: str
+        :param cpu: CPU type info
+        :type cpu: str
+        :param swap: swap memory info
+        :type swap: str
+        :param ram: RAM info
+        :type ram: str
         """
-        self._suite = kwargs.get("suite", None)
-        self._tests = kwargs.get("tests", [])
-        self._distro = kwargs.get("distro", None)
-        self._distro_ver = kwargs.get("distro_ver", None)
-        self._kernel = kwargs.get("kernel", None)
-        self._arch = kwargs.get("arch", None)
-        self._cpu = kwargs.get("cpu", None)
-        self._swap = kwargs.get("swap", None)
-        self._ram = kwargs.get("ram", None)
-
-        if not self._suite:
+        if not suite:
             raise ValueError("Empty suite object")
+
+        self._suite = suite
+        self._tests = tests
+        self._distro = distro
+        self._distro_ver = distro_ver
+        self._kernel = kernel
+        self._arch = arch
+        self._cpu = cpu
+        self._swap = swap
+        self._ram = ram
 
     def __repr__(self) -> str:
         return (
@@ -255,7 +286,7 @@ class SuiteResults(Results):
         return self._suite
 
     @property
-    def tests_results(self) -> list:
+    def tests_results(self) -> List[TestResults]:
         """
         Results of all tests.
         :returns: list(TestResults)
@@ -273,49 +304,49 @@ class SuiteResults(Results):
         return res
 
     @property
-    def distro(self) -> str:
+    def distro(self) -> Optional[str]:
         """
         Distribution name.
         """
         return self._distro
 
     @property
-    def distro_ver(self) -> str:
+    def distro_ver(self) -> Optional[str]:
         """
         Distribution version.
         """
         return self._distro_ver
 
     @property
-    def kernel(self) -> str:
+    def kernel(self) -> Optional[str]:
         """
         Kernel version.
         """
         return self._kernel
 
     @property
-    def arch(self) -> str:
+    def arch(self) -> Optional[str]:
         """
         Operating system architecture.
         """
         return self._arch
 
     @property
-    def cpu(self) -> str:
+    def cpu(self) -> Optional[str]:
         """
         Current CPU type.
         """
         return self._cpu
 
     @property
-    def swap(self) -> str:
+    def swap(self) -> Optional[str]:
         """
         Current swap memory occupation.
         """
         return self._swap
 
     @property
-    def ram(self) -> str:
+    def ram(self) -> Optional[str]:
         """
         Current RAM occupation.
         """

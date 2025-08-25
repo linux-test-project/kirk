@@ -11,7 +11,7 @@ import contextlib
 import importlib.util
 import logging
 import time
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import libkirk.types
 from libkirk.errors import KernelPanicError, SUTError
@@ -53,7 +53,7 @@ try:
             """
             return self._panic
 
-        def get_output(self) -> list:
+        def get_output(self) -> List[str]:
             """
             Return the list containing stored stdout/stderr messages.
             """
@@ -87,7 +87,7 @@ class SSHSUT(SUT):
         return "ssh"
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         return {
             "host": "IP address of the SUT (default: localhost)",
             "port": "TCP port of the service (default: 22)",
@@ -134,7 +134,9 @@ class SSHSUT(SUT):
 
         self._logger.info("Reset command has been executed")
 
-    def _create_command(self, cmd: str, cwd: Optional[str], env: Optional[dict]) -> str:
+    def _create_command(
+        self, cmd: str, cwd: Optional[str], env: Optional[Dict[str, Any]]
+    ) -> str:
         """
         Create command to send to SSH client.
         """
@@ -155,7 +157,7 @@ class SSHSUT(SUT):
 
         return script
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
         if not importlib.util.find_spec("asyncssh"):
             raise SUTError("'asyncssh' library is not available")
 
@@ -291,9 +293,9 @@ class SSHSUT(SUT):
         self,
         command: str,
         cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        env: Optional[Dict[str, str]] = None,
         iobuffer: Optional[IOBuffer] = None,
-    ) -> Optional[dict]:
+    ) -> Optional[Dict[str, Any]]:
         if not command:
             raise ValueError("command is empty")
 

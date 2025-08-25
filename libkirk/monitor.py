@@ -9,7 +9,7 @@
 import asyncio
 import json
 import logging
-import typing
+from typing import Any, Dict, List
 
 import libkirk
 from libkirk.data import Suite, Test
@@ -33,7 +33,7 @@ class JSONFileMonitor:
         self._lock = asyncio.Lock()
 
         self._path = path
-        self._events: dict[str, typing.Any] = {
+        self._events: Dict[str, Any] = {
             "session_restore": self.session_restore,
             "session_started": self.session_started,
             "session_stopped": self.session_stopped,
@@ -75,7 +75,7 @@ class JSONFileMonitor:
         for name, coro in self._events.items():
             libkirk.events.unregister(name, coro)
 
-    async def _write(self, msg_type: str, msg: dict) -> None:
+    async def _write(self, msg_type: str, msg: Dict[str, Any]) -> None:
         """
         Write a message to the JSON file.
         """
@@ -91,7 +91,7 @@ class JSONFileMonitor:
                 await fdata.write(data_str)
 
     @staticmethod
-    def _test_to_dict(test: Test) -> dict:
+    def _test_to_dict(test: Test) -> Dict[str, Any]:
         """
         Convert test into a dict which can be converted to JSON.
         """
@@ -106,13 +106,13 @@ class JSONFileMonitor:
 
         return data
 
-    def _suite_to_dict(self, suite: Suite) -> dict:
+    def _suite_to_dict(self, suite: Suite) -> Dict[str, Any]:
         """
         Translate suite into a dict which can be converted into JSON.
         """
         data = {"name": suite.name, "tests": []}
 
-        tests: list[dict] = []
+        tests: List[dict] = []
         for test in suite.tests:
             tests.append(self._test_to_dict(test))
 

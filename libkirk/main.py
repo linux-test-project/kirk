@@ -10,7 +10,7 @@ import argparse
 import asyncio
 import os
 import re
-from typing import Optional
+from typing import Dict, List, Optional
 
 import libkirk
 import libkirk.data
@@ -38,7 +38,7 @@ RC_ERROR = 1
 RC_INTERRUPT = 130
 
 
-def _from_params_to_config(params: list) -> dict:
+def _from_params_to_config(params: List[str]) -> Dict[str, str]:
     """
     Return a configuration as dictionary according with input parameters
     given to the commandline option.
@@ -65,7 +65,7 @@ def _from_params_to_config(params: list) -> dict:
     return config
 
 
-def _dict_config(opt_name: str, plugins: list, value: str) -> dict:
+def _dict_config(opt_name: str, plugins: List[Plugin], value: str) -> Dict[str, str]:
     """
     Generic dictionary option configuration.
     """
@@ -101,21 +101,21 @@ def _dict_config(opt_name: str, plugins: list, value: str) -> dict:
     return config
 
 
-def _sut_config(value: str) -> dict:
+def _sut_config(value: str) -> Dict[str, str]:
     """
     Return a SUT configuration according with input string.
     """
     return _dict_config("sut", LOADED_SUT, value)
 
 
-def _framework_config(value: str) -> dict:
+def _framework_config(value: str) -> Dict[str, str]:
     """
     Return a Framework configuration according with input string.
     """
     return _dict_config("framework", LOADED_FRAMEWORK, value)
 
 
-def _env_config(value: str) -> Optional[dict]:
+def _env_config(value: str) -> Optional[Dict[str, str]]:
     """
     Return an environment configuration dictionary, parsing strings such as
     "key=value:key=value:key=value".
@@ -213,7 +213,7 @@ def _discover_frameworks(path: str) -> None:
     LOADED_FRAMEWORK.extend(objs)
 
 
-def _get_plugin(plugins: list, name: str) -> Optional[Plugin]:
+def _get_plugin(plugins: List[Plugin], name: str) -> Optional[Plugin]:
     """
     Return the Plugin object with given name.
     """
@@ -429,7 +429,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     parser.exit(exit_code)
 
 
-def run(cmd_args: Optional[list] = None) -> None:
+def run(cmd_args: Optional[List[str]] = None) -> None:
     """
     Entry point of the application.
     """

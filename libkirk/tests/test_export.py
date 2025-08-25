@@ -97,7 +97,6 @@ class TestJSONExporter:
                 cpu="x86_64",
                 swap="10 kB",
                 ram="1000 kB",
-                exec_time=3,
             ),
         ]
 

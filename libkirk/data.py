@@ -7,52 +7,9 @@
 """
 
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
 LOGGER = logging.getLogger("kirk.data")
-
-
-class Suite:
-    """
-    Testing suite definition class.
-    """
-
-    def __init__(self, name: str, tests: list) -> None:
-        """
-        :param name: name of the testing suite
-        :type name: str
-        :param tests: tests of the suite
-        :type tests: list
-        """
-        self._name = name
-        self._tests = tests
-
-    def __repr__(self) -> str:
-        return f"name: '{self._name}', tests: {self._tests}"
-
-    @property
-    def name(self) -> str:
-        """
-        Name of the testing suite.
-        """
-        return self._name
-
-    @name.setter
-    def name(self, value: str) -> None:
-        """
-        Set the suite name.
-        """
-        if not value:
-            raise ValueError("empty suite name")
-
-        self._name = value
-
-    @property
-    def tests(self) -> list:
-        """
-        Tests definitions.
-        """
-        return self._tests
 
 
 class Test:
@@ -65,8 +22,8 @@ class Test:
         name: str,
         cmd: str,
         cwd: Optional[str] = None,
-        env: Optional[dict] = None,
-        args: Optional[list] = None,
+        env: Optional[Dict[str, str]] = None,
+        args: Optional[List[str]] = None,
         parallelizable: bool = False,
     ) -> None:
         """
@@ -121,7 +78,7 @@ class Test:
         return self._cmd
 
     @property
-    def arguments(self) -> list:
+    def arguments(self) -> List[str]:
         """
         Arguments of the command.
         """
@@ -142,7 +99,7 @@ class Test:
         return self._cwd
 
     @property
-    def env(self) -> dict:
+    def env(self) -> Dict[str, str]:
         """
         Environment variables
         """
@@ -167,3 +124,46 @@ class Test:
         Force test to be parallelizable.
         """
         self._parallelizable = True
+
+
+class Suite:
+    """
+    Testing suite definition class.
+    """
+
+    def __init__(self, name: str, tests: List[Test]) -> None:
+        """
+        :param name: name of the testing suite
+        :type name: str
+        :param tests: tests of the suite
+        :type tests: list
+        """
+        self._name = name
+        self._tests = tests
+
+    def __repr__(self) -> str:
+        return f"name: '{self._name}', tests: {self._tests}"
+
+    @property
+    def name(self) -> str:
+        """
+        Name of the testing suite.
+        """
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        """
+        Set the suite name.
+        """
+        if not value:
+            raise ValueError("empty suite name")
+
+        self._name = value
+
+    @property
+    def tests(self) -> List[Test]:
+        """
+        Tests definitions.
+        """
+        return self._tests

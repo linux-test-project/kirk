@@ -16,7 +16,7 @@ import shutil
 import signal
 import string
 import time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import libkirk.types
 from libkirk.errors import KernelPanicError, SUTError
@@ -142,7 +142,7 @@ class QemuSUT(SUT):
 
         return cmd
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
         self._logger.info("Initialize SUT")
 
         self._tmpdir = libkirk.types.dict_item(kwargs, "tmpdir", str, None)
@@ -186,7 +186,7 @@ class QemuSUT(SUT):
             raise SUTError("Serial protocol must be isa or virtio")
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         return {
             "image": "qemu image location",
             "kernel": "kernel image location",
@@ -478,9 +478,9 @@ class QemuSUT(SUT):
         self,
         command: str,
         cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        env: Optional[Dict[str, str]] = None,
         iobuffer: Optional[IOBuffer] = None,
-    ) -> Optional[dict]:
+    ) -> Optional[Dict[str, Any]]:
         if not command:
             raise ValueError("command is empty")
 

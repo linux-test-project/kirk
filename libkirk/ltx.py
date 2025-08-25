@@ -8,7 +8,7 @@
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import libkirk
 from libkirk.errors import LTXError
@@ -80,7 +80,7 @@ class Request:
         """
         raise NotImplementedError()
 
-    async def feed(self, message: list) -> None:
+    async def feed(self, message: List[Any]) -> None:
         """
         Feed request queue with data and return when the request
         has been completed.
@@ -107,7 +107,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -133,7 +133,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -188,7 +188,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -237,7 +237,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -279,7 +279,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -327,7 +327,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -382,7 +382,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -454,7 +454,7 @@ class Requests:
 
             return pkg
 
-        async def feed(self, message: list) -> None:
+        async def feed(self, message: List[Any]) -> None:
             if self.completed:
                 return
 
@@ -564,7 +564,7 @@ class LTX:
 
         self._logger.info("Disconnected")
 
-    async def send(self, requests: list) -> None:
+    async def send(self, requests: List[Request]) -> None:
         """
         Send requests to LTX service. The order is preserved during
         requests execution.
@@ -587,7 +587,7 @@ class LTX:
             async with AsyncFile(self._infile, "wb") as afile:
                 await afile.write(tosend)
 
-    async def gather(self, requests: list) -> dict:
+    async def gather(self, requests: List[Request]) -> Dict[Request, Any]:
         """
         Gather multiple requests and wait for the response, then return all
         rquests' replies inside a dictionary that maps requests with their
@@ -666,7 +666,7 @@ class LTX:
             finally:
                 self._logger.info("Producer has stopped")
 
-    async def _feed_requests(self, data: list) -> None:
+    async def _feed_requests(self, data: List[Request]) -> None:
         """
         Feed the list of requests with given data.
         """

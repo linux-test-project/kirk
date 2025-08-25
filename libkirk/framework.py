@@ -6,6 +6,8 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
+from typing import List
+
 from libkirk.data import Suite, Test
 from libkirk.plugin import Plugin
 from libkirk.results import TestResults
@@ -18,7 +20,7 @@ class Framework(Plugin):
     testing frameworks inside the application.
     """
 
-    async def get_suites(self, sut: SUT) -> list:
+    async def get_suites(self, sut: SUT) -> List[str]:
         """
         Return the list of available suites inside SUT.
         :param sut: SUT object to communicate with

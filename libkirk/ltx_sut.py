@@ -11,7 +11,7 @@ import importlib.util
 import logging
 import os
 import time
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import libkirk.types
 from libkirk.errors import LTXError, SUTError
@@ -38,13 +38,13 @@ class LTXSUT(SUT):
         return "ltx"
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         return {
             "infile": "file where ltx is reading data",
             "outfile": "file where ltx is writing data",
         }
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
         if not importlib.util.find_spec("msgpack"):
             raise SUTError("'msgpack' library is not available")
 
@@ -94,7 +94,7 @@ class LTXSUT(SUT):
         while await self.is_running:
             await asyncio.sleep(1e-2)
 
-    async def _send_requests(self, requests: list) -> dict:
+    async def _send_requests(self, requests: List[Request]) -> Dict[Request, Any]:
         """
         Send requests and check for LTXError.
         """
@@ -159,9 +159,9 @@ class LTXSUT(SUT):
         self,
         command: str,
         cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        env: Optional[Dict[str, str]] = None,
         iobuffer: Optional[IOBuffer] = None,
-    ) -> Optional[dict]:
+    ) -> Optional[Dict[str, Any]]:
         if not command:
             raise ValueError("command is empty")
 
@@ -176,7 +176,7 @@ class LTXSUT(SUT):
         try:
             start_t = time.monotonic()
 
-            requests: list[Request] = []
+            requests: List[Request] = []
             if cwd:
                 requests.append(Requests.cwd(slot_id, cwd))
 

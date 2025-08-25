@@ -8,7 +8,7 @@
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 
 class Event:
@@ -47,7 +47,7 @@ class Event:
         """
         self._coros.append(coro)
 
-    def create_tasks(self, *args: list, **kwargs: dict) -> list:
+    def create_tasks(self, *args: List[Any], **kwargs: Dict[Any, Any]) -> List[Any]:
         """
         Create tasks to run according to registered coroutines.
         :param args: Arguments to be passed to callback functions execution.
@@ -73,7 +73,7 @@ class EventsHandler:
         self._logger = logging.getLogger("kirk.events")
         self._tasks = asyncio.Queue()
         self._lock = asyncio.Lock()
-        self._events: dict[str, Event] = {}
+        self._events: Dict[str, Event] = {}
         self._stop = False
 
         # register a default event used to notify internal

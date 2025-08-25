@@ -34,11 +34,11 @@ class HostSUT(SUT):
         self._running = False
         self._stop = False
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
         pass
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         # cwd and env are given by default, so no options are needed
         return {}
 
@@ -128,9 +128,9 @@ class HostSUT(SUT):
         self,
         command: str,
         cwd: Optional[str] = None,
-        env: Optional[dict] = None,
+        env: Optional[Dict[str, str]] = None,
         iobuffer: Optional[IOBuffer] = None,
-    ) -> Optional[dict]:
+    ) -> Optional[Dict[str, Any]]:
         if not command:
             raise ValueError("command is empty")
 

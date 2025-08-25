@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import re
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import libkirk.types
 from libkirk.data import Suite, Test
@@ -45,13 +45,13 @@ class LTPFramework(Framework):
         self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
 
     @property
-    def config_help(self) -> dict:
+    def config_help(self) -> Dict[str, str]:
         return {
             "root": "LTP install folder",
             "max_runtime": "filter out all tests above this time value",
         }
 
-    def setup(self, **kwargs: dict) -> None:
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
         self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._env = {
             "LTPROOT": self._root,
@@ -83,7 +83,7 @@ class LTPFramework(Framework):
 
             self._max_runtime = runtime
 
-    async def _read_path(self, sut: SUT) -> dict:
+    async def _read_path(self, sut: SUT) -> Dict[str, str]:
         """
         Read PATH and initialize it with testcases folder as well.
         """
@@ -102,7 +102,7 @@ class LTPFramework(Framework):
 
         return env
 
-    def _is_addable(self, test_params: dict) -> bool:
+    def _is_addable(self, test_params: Dict[str, Any]) -> bool:
         """
         Check if test has to be added or not, according with test parameters
         from metadata.
@@ -127,7 +127,7 @@ class LTPFramework(Framework):
 
         return addable
 
-    def _get_cmd_args(self, line: str) -> list:
+    def _get_cmd_args(self, line: str) -> List[str]:
         """
         Return a command with arguments inside a list(str).
         The command can have the following syntax:
@@ -232,7 +232,7 @@ class LTPFramework(Framework):
     def name(self) -> str:
         return "ltp"
 
-    async def get_suites(self, sut: SUT) -> list:
+    async def get_suites(self, sut: SUT) -> List[str]:
         if not sut:
             raise ValueError("SUT is None")
 
