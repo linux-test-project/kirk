@@ -305,13 +305,13 @@ class TestLTXSUT(_TestSUT):
         if os.environ.get("GITHUB_ACTIONS"):
             pytest.xfail("Unstable test under Github actions")
 
-        super().test_run_command_stop(sut)
+        await super().test_run_command_stop(sut)
 
     async def test_run_command_stop_parallel(self, sut):
         if os.environ.get("GITHUB_ACTIONS"):
             pytest.xfail("Unstable test under Github actions")
 
-        super().test_run_command_stop_parallel(sut)
+        await super().test_run_command_stop_parallel(sut)
 
 
 class TestLTXSession(_TestSession):
