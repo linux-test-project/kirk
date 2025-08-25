@@ -552,7 +552,7 @@ class QemuSUT(SUT):
                     data = await transport.read(4096)
                     if data:
                         # pyrefly: ignore[bad-argument-type]
-                        retdata.append(data)
+                        retdata.extend(data)
 
                     pos = await transport.tell()
                     if not pos:
