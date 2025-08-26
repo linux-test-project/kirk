@@ -14,7 +14,7 @@ from typing import Callable
 from libkirk.evt import EventsHandler
 
 # Kirk version
-__version__ = "2.2.1"
+__version__ = "2.2.2"
 
 
 events = EventsHandler()
