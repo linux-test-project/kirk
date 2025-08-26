@@ -342,7 +342,7 @@ class QemuSUT(SUT):
         if not self._stop:
             if stdout and stdout.rstrip():
                 match = re.search(f"(?P<retcode>\\d+)-{code}", stdout)
-                if not match and not self._stop:
+                if not match:
                     raise SUTError(f"Can't read return code from reply {repr(stdout)}")
 
                 # first character is '\n'
