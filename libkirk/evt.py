@@ -135,7 +135,7 @@ class EventsHandler:
 
         evt.register(coro)
 
-    def unregister(self, event_name: str, coro: Optional[Callable] = None) -> None:
+    def unregister(self, event_name: str, coro: Callable) -> None:
         """
         Unregister a single event Callable with event_name`. If `coro` is None,
         all coroutines registered will be removed.
@@ -146,9 +146,6 @@ class EventsHandler:
         """
         if not event_name:
             raise ValueError("event_name is empty")
-
-        if not coro:
-            raise ValueError("coro is empty")
 
         if not self.is_registered(event_name):
             raise ValueError(f"{event_name} is not registered")

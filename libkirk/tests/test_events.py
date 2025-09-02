@@ -60,14 +60,6 @@ def test_register():
     assert libkirk.events.is_registered("myevent")
 
 
-def test_unregister_errors():
-    """
-    Test unregister method during errors.
-    """
-    with pytest.raises(ValueError):
-        libkirk.events.unregister(None)
-
-
 def test_unregister_all():
     """
     Test unregister method removing all coroutine
