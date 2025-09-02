@@ -17,7 +17,7 @@ class AsyncFile:
     thread.
     """
 
-    def __init__(self, filename: str, mode="r") -> None:
+    def __init__(self, filename: str, mode: str = "r") -> None:
         """
         :param filename: file to open
         :type filename: str
