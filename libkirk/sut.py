@@ -299,7 +299,7 @@ class SUT(Plugin):
 
         return True
 
-    async def setup_fault_injection(self, prob) -> None:
+    async def setup_fault_injection(self, prob: int) -> None:
         """
         Configure kernel fault injection. When `prob` is zero, the fault
         injection is set to default values.
