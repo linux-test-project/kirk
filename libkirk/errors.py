@@ -60,3 +60,9 @@ class SchedulerError(KirkException):
     """
     Raised when an error occurs during Scheduler operations.
     """
+
+
+class SessionError(KirkException):
+    """
+    Raised when an error occurs during Session operations.
+    """

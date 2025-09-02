@@ -17,12 +17,14 @@ from typing import Dict, List, Optional
 import libkirk
 import libkirk.types
 from libkirk.data import Suite
-from libkirk.errors import KirkException
+from libkirk.errors import KirkException, SessionError
 from libkirk.export import JSONExporter
+from libkirk.framework import Framework
 from libkirk.io import AsyncFile
 from libkirk.results import TestResults
 from libkirk.scheduler import SuiteScheduler
 from libkirk.sut import SUT, IOBuffer
+from libkirk.tempfile import TempDir
 
 
 class RedirectSUTStdout(IOBuffer):
@@ -46,7 +48,16 @@ class Session:
     The session runner.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self,
+        tmpdir: TempDir,
+        framework: Framework,
+        sut: SUT,
+        exec_timeout: float = 3600.0,
+        suite_timeout: float = 3600.0,
+        workers: int = 1,
+        force_parallel: bool = False,
+    ) -> None:
         """
         :param tmpdir: temporary directory
         :type tmpdir: TempDir
@@ -64,27 +75,15 @@ class Session:
         :type force_parallel: bool
         """
         self._logger = logging.getLogger("kirk.session")
-        self._tmpdir = kwargs.get("tmpdir", None)
-        self._framework = kwargs.get("framework", None)
-        self._sut = kwargs.get("sut", None)
-        self._exec_timeout = kwargs.get("exec_timeout", 3600.0)
-        self._force_parallel = kwargs.get("force_parallel", False)
+        self._tmpdir = tmpdir
+        self._framework = framework
+        self._sut = sut
+        self._exec_timeout = exec_timeout
+        self._force_parallel = force_parallel
         self._stop = False
         self._exec_lock = asyncio.Lock()
         self._run_lock = asyncio.Lock()
         self._results = []
-
-        if not self._tmpdir:
-            raise ValueError("tmpdir is empty")
-
-        if not self._framework:
-            raise ValueError("framework is empty")
-
-        if not self._sut:
-            raise ValueError("sut is empty")
-
-        suite_timeout = kwargs.get("suite_timeout", 3600.0)
-        workers = kwargs.get("workers", 1)
 
         self._scheduler = SuiteScheduler(
             sut=self._sut,
@@ -337,6 +336,8 @@ class Session:
                     ),
                     timeout=self._exec_timeout,
                 )
+                if not ret:
+                    raise SessionError(f"Can't execute command '{test.full_command}'")
 
                 await libkirk.events.fire(
                     "run_cmd_stop", command, ret["stdout"], ret["returncode"]
@@ -416,7 +417,7 @@ class Session:
         except asyncio.TimeoutError:
             await self._scheduler.stop()
 
-    async def _apply_fault_injection(self, fault_prob) -> None:
+    async def _apply_fault_injection(self, fault_prob: int) -> None:
         """
         Check if we can apply fault injection configuration
         and eventually does it.
