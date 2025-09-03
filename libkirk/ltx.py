@@ -8,7 +8,8 @@
 
 import asyncio
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from types import TracebackType
+from typing import Any, Callable, Dict, List, Optional, Type
 
 import libkirk
 from libkirk.errors import LTXError
@@ -508,11 +509,17 @@ class LTX:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> bool:
         """
         Disconnect from LTX service.
         """
         await self.disconnect()
+        return True
 
     @property
     def connected(self) -> bool:
@@ -596,7 +603,7 @@ class LTX:
         req_len = len(requests)
         replies = {}
 
-        async def on_complete(req, *args) -> None:
+        async def on_complete(req: Request, *args: List) -> None:
             replies[req] = args
 
         for req in requests:

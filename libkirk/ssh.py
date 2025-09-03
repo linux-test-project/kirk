@@ -11,7 +11,7 @@ import contextlib
 import importlib.util
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import libkirk.types
 from libkirk.errors import KernelPanicError, SUTError
@@ -33,7 +33,7 @@ try:
             self._panic = False
 
         # pyrefly: ignore[bad-override]
-        def data_received(self, data, _) -> None:
+        def data_received(self, data: str, _: asyncssh.DataType) -> None:
             """
             Override default data_received callback, storing stdout/stderr inside
             a buffer and checking for kernel panic.

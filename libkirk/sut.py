@@ -308,7 +308,7 @@ class SUT(Plugin):
         interval = 1 if prob == 0 else 100
         times = 1 if prob == 0 else -1
 
-        async def _set_value(value, path) -> None:
+        async def _set_value(value: int, path: str) -> None:
             """
             Set the value to the path
             """
