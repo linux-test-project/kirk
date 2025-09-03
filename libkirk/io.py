@@ -6,12 +6,13 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-from typing import Optional, Union
+from types import TracebackType
+from typing import IO, Any, AsyncContextManager, Optional, Type, Union
 
 import libkirk
 
 
-class AsyncFile:
+class AsyncFile(AsyncContextManager):
     """
     Handle files in asynchronous way by running operations inside a separate
     thread.
@@ -28,17 +29,23 @@ class AsyncFile:
         self._mode = mode
         self._file = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Any:
         await self.open()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> bool:
         await self.close()
+        return True
 
-    def __aiter__(self):
+    def __aiter__(self) -> Any:
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> Optional[Union[str, bytes]]:
         if "r" not in self._mode:
             raise ValueError("File must be open in read mode")
 
@@ -46,9 +53,16 @@ class AsyncFile:
         if self._file:
             line = await libkirk.to_thread(self._file.readline)
             if not line:
-                raise StopAsyncIteration
+                raise StopAsyncIteration()
 
-        return line
+            if isinstance(line, str):
+                return str(line)
+            elif isinstance(line, bytes):
+                return bytes(line)
+            else:
+                raise ValueError("File is not handling str | bytes")
+
+        return None
 
     async def open(self) -> None:
         """
@@ -57,7 +71,7 @@ class AsyncFile:
         if self._file:
             return
 
-        def _open():
+        def _open() -> IO[Any]:
             if "b" in self._mode:
                 return open(self._filename, self._mode)
 
