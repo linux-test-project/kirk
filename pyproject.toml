@@ -70,3 +70,17 @@ markers = [
 [tool.pyrefly]
 project-includes = ["**/*"]
 project-excludes = ["**/*venv/**/*"]
+
+[tool.ruff]
+line-length=88
+exclude = [
+        "doc/",
+        "utils/",
+        "libkirk/tests",
+]
+
+[tool.ruff.lint]
+select = [
+        "ANN0",
+        "ANN2",
+]
