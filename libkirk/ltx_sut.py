@@ -184,7 +184,7 @@ class LTXSUT(SUT):
                 for key, value in env.items():
                     requests.append(Requests.env(slot_id, key, value))
 
-            async def _stdout_coro(data):
+            async def _stdout_coro(data) -> None:
                 if iobuffer:
                     await iobuffer.write(data)
 

@@ -596,7 +596,7 @@ class LTX:
         req_len = len(requests)
         replies = {}
 
-        async def on_complete(req, *args):
+        async def on_complete(req, *args) -> None:
             replies[req] = args
 
         for req in requests:

@@ -56,7 +56,9 @@ class ConsoleUserInterface:
         # other and user interface will be printed in the correct way
         libkirk.events.register("printf", self.print_message, ordered=True)
 
-    async def _print(self, msg: str, color: Optional[str] = None, end: str = "\n"):
+    async def _print(
+        self, msg: str, color: Optional[str] = None, end: str = "\n"
+    ) -> None:
         """
         Fire a `printf` event.
         """
@@ -68,13 +70,15 @@ class ConsoleUserInterface:
 
         await libkirk.events.fire("printf", msg, end=end, flush=True)
 
-    async def print_message(self, msg: str, end: str = "\n", flush: bool = True):
+    async def print_message(
+        self, msg: str, end: str = "\n", flush: bool = True
+    ) -> None:
         """
         Print a message in console, avoiding any I/O blocking operation
         done by the `print` built-in function, using `asyncio.to_thread()`.
         """
 
-        def _wrap():
+        def _wrap() -> None:
             print(msg, end=end, flush=flush)
 
         await libkirk.to_thread(_wrap)

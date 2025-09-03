@@ -27,7 +27,7 @@ try:
         and to check if Kernel Panic has occured in the system.
         """
 
-        def __init__(self, iobuffer: Optional[IOBuffer] = None):
+        def __init__(self, iobuffer: Optional[IOBuffer] = None) -> None:
             self._output = []
             self._iobuffer = iobuffer
             self._panic = False
