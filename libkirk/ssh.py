@@ -11,7 +11,7 @@ import contextlib
 import importlib.util
 import logging
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import libkirk.types
 from libkirk.errors import KernelPanicError, SUTError
