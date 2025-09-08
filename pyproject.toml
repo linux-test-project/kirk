@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kirk"
 dynamic = ["version"]
-description = "All-in-one Linux Testing Framework"
+description = "Linux Test Project tests executor"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.6"
