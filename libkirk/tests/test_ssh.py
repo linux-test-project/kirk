@@ -10,7 +10,7 @@ import pytest
 
 from libkirk.errors import KernelPanicError
 from libkirk.ssh import SSHSUT
-from libkirk.sut import IOBuffer
+from libkirk.com import IOBuffer
 from libkirk.tests.test_session import _TestSession
 from libkirk.tests.test_sut import _TestSUT
 

@@ -1,7 +1,7 @@
 """
 .. module:: ssh
     :platform: Linux
-    :synopsis: module defining SSH SUT
+    :synopsis: module implementing SSH protocol
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
@@ -14,8 +14,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 import libkirk.types
-from libkirk.errors import KernelPanicError, SUTError
-from libkirk.sut import SUT, IOBuffer
+from libkirk.com import COM, SUT, IOBuffer
+from libkirk.errors import CommunicationError, KernelPanicError
 
 try:
     import asyncssh
@@ -58,13 +58,15 @@ try:
             Return the list containing stored stdout/stderr messages.
             """
             return self._output
+
+
 except ModuleNotFoundError:
     pass
 
 
-class SSHSUT(SUT):
+class SSHCOMHandler(COM):
     """
-    A SUT that is using SSH protocol con communicate and transfer data.
+    SSH communication handler.
     """
 
     def __init__(self) -> None:
@@ -89,12 +91,12 @@ class SSHSUT(SUT):
     @property
     def config_help(self) -> Dict[str, str]:
         return {
-            "host": "IP address of the SUT (default: localhost)",
+            "host": "IP address of the target (default: localhost)",
             "port": "TCP port of the service (default: 22)",
             "user": "name of the user (default: root)",
             "password": "root password",
             "key_file": "private key location",
-            "reset_cmd": "command to reset the remote SUT",
+            "reset_cmd": "command to reset the remote target",
             "sudo": "use sudo to access to root shell (default: 0)",
             "known_hosts": "path to custom known_hosts file (optional)",
         }
@@ -115,7 +117,7 @@ class SSHSUT(SUT):
         )
 
         if not proc or not proc.stdout:
-            raise SUTError("Can't communicate with the host shell")
+            raise CommunicationError("Can't communicate with the target shell")
 
         while True:
             line = await proc.stdout.read(1024)
@@ -159,9 +161,9 @@ class SSHSUT(SUT):
 
     def setup(self, **kwargs: Dict[str, Any]) -> None:
         if not importlib.util.find_spec("asyncssh"):
-            raise SUTError("'asyncssh' library is not available")
+            raise CommunicationError("'asyncssh' library is not available")
 
-        self._logger.info("Initialize SUT")
+        self._logger.info("Initialize SSH")
 
         self._host = libkirk.types.dict_item(kwargs, "host", str, default="localhost")
         self._reset_cmd = libkirk.types.dict_item(
@@ -183,14 +185,16 @@ class SSHSUT(SUT):
             if 1 > self._port > 65535:
                 raise ValueError()
         except ValueError as err:
-            raise SUTError("'port' must be an integer between 1-65535") from err
+            raise CommunicationError(
+                "'port' must be an integer between 1-65535"
+            ) from err
 
         try:
             self._sudo = (
                 int(libkirk.types.dict_item(kwargs, "sudo", str, default="0")) == 1
             )
         except ValueError as err:
-            raise SUTError("'sudo' must be 0 or 1") from err
+            raise CommunicationError("'sudo' must be 0 or 1") from err
 
     @property
     def parallel_execution(self) -> bool:
@@ -202,7 +206,7 @@ class SSHSUT(SUT):
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if await self.is_running:
-            raise SUTError("SUT is already running")
+            raise CommunicationError("SSH connection is already up and running")
 
         try:
             if self._key_file:
@@ -240,7 +244,7 @@ class SSHSUT(SUT):
             self._session_sem = asyncio.Semaphore(max_sessions)
         except asyncssh.misc.Error as err:
             if not self._stop:
-                raise SUTError(err) from err
+                raise CommunicationError(err) from err
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if not await self.is_running:
@@ -271,7 +275,7 @@ class SSHSUT(SUT):
 
     async def ping(self) -> float:
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("No SSH connection")
 
         start_t = time.time()
 
@@ -281,11 +285,11 @@ class SSHSUT(SUT):
             # pyrefly: ignore[missing-attribute]
             await self._conn.run("test .", check=True)
         except asyncssh.Error as err:
-            raise SUTError(err) from err
+            raise CommunicationError(err) from err
 
         end_t = time.time() - start_t
 
-        self._logger.info("SUT replied after %.3f seconds", end_t)
+        self._logger.info("Target replied after %.3f seconds", end_t)
 
         return end_t
 
@@ -300,7 +304,7 @@ class SSHSUT(SUT):
             raise ValueError("command is empty")
 
         if not await self.is_running:
-            raise SUTError("SSH connection is not present")
+            raise CommunicationError("SSH connection is not present")
 
         async with self._session_sem:
             cmd = self._create_command(command, cwd, env)
@@ -333,7 +337,7 @@ class SSHSUT(SUT):
                 stdout = session.get_output()
             except asyncssh.misc.ChannelOpenError as err:
                 if not self._stop:
-                    raise SUTError(err)
+                    raise CommunicationError(err)
             finally:
                 if channel:
                     self._channels.remove(channel)
@@ -355,7 +359,7 @@ class SSHSUT(SUT):
             raise ValueError("target path is empty")
 
         if not await self.is_running:
-            raise SUTError("SSH connection is not present")
+            raise CommunicationError("SSH connection is not present")
 
         data = bytes()
         try:
@@ -365,6 +369,12 @@ class SSHSUT(SUT):
             data = bytes(ret.stdout)
         except asyncssh.Error as err:
             if not self._stop:
-                raise SUTError(err) from err
+                raise CommunicationError(err) from err
 
         return data
+
+
+class SSHSUT(SSHCOMHandler, SUT):
+    """
+    SUT communicating only with ``SSHCOMHandler``.
+    """
