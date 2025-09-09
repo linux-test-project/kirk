@@ -495,3 +495,34 @@ class TestMain:
 
         report = self.read_report(temp)
         assert len(report["results"]) >= 2
+
+    def test_plugins(self, tmpdir):
+        """
+        Test --plugins options.
+        """
+        sut = tmpdir / "sutA.py"
+
+        sut.write(
+            "from libkirk.com import SUT\n\n"
+            "class MySUT(SUT):\n"
+            "    @property\n"
+            "    def name(self) -> str:\n"
+            "        return 'mysut'"
+        )
+
+        cmd_args = [
+            "--plugins",
+            str(tmpdir),
+            "--sut",
+            "help"
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        sut = libkirk.com.get_loaded_sut()
+
+        assert len(sut) > 0
+        assert [item for item in sut if item.name == "mysut"]

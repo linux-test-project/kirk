@@ -452,6 +452,9 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     generic_opts.add_argument(
         "--monitor", "-m", type=str, help="Location of the monitor file"
     )
+    generic_opts.add_argument(
+        "--plugins", "-P", type=str, help="Location of custom plugins"
+    )
 
     conf_opts = parser.add_argument_group("Configuration options")
     conf_opts.add_argument(
@@ -546,6 +549,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     # output arguments
     # parse comand line
     args = parser.parse_args(cmd_args)
+
+    if args.plugins:
+        if not os.path.isdir(args.plugins):
+            parser.error(f"'{args.plugins}' plugins directory doesn't exist")
+
+        libkirk.com.discover(args.plugins, reset=False)
 
     if args.sut and "help" in args.sut:
         print(args.sut["help"])
