@@ -1,7 +1,7 @@
 """
 .. module:: ltx
     :platform: Linux
-    :synopsis: module containing LTX communication class
+    :synopsis: module implementing the LTX communication
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """

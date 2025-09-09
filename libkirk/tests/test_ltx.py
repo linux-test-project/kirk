@@ -10,7 +10,7 @@ import time
 import pytest
 
 from libkirk.ltx import LTX, Requests
-from libkirk.ltx_sut import LTXSUT
+from libkirk.ltx_com import LTXSUT
 from libkirk.tests.test_session import _TestSession
 from libkirk.tests.test_sut import _TestSUT
 
@@ -295,7 +295,7 @@ async def sut(tmpdir):
 
 class TestLTXSUT(_TestSUT):
     """
-    Test HostSUT implementation.
+    Test LTXSUT implementation.
     """
 
     async def test_fetch_file_stop(self):

@@ -1,7 +1,7 @@
 """
-.. module:: ltx
+.. module:: ltx_com
     :platform: Linux
-    :synopsis: module containing LTX communication class
+    :synopsis: module implementing LTX communication handler
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
@@ -14,14 +14,14 @@ import time
 from typing import Any, Dict, List, Optional
 
 import libkirk.types
-from libkirk.errors import LTXError, SUTError
+from libkirk.com import COM, SUT, IOBuffer
+from libkirk.errors import CommunicationError, LTXError
 from libkirk.ltx import LTX, Request, Requests
-from libkirk.sut import SUT, IOBuffer
 
 
-class LTXSUT(SUT):
+class LTXCOMHandler(COM):
     """
-    A SUT using LTX as executor.
+    Handler to communicate with LTX client.
     """
 
     def __init__(self) -> None:
@@ -46,7 +46,7 @@ class LTXSUT(SUT):
 
     def setup(self, **kwargs: Dict[str, Any]) -> None:
         if not importlib.util.find_spec("msgpack"):
-            raise SUTError("'msgpack' library is not available")
+            raise CommunicationError("'msgpack' library is not available")
 
         self._logger.info("Initialize SUT")
 
@@ -54,10 +54,10 @@ class LTXSUT(SUT):
         self._outfile = libkirk.types.dict_item(kwargs, "outfile", str)
 
         if not self._infile or not os.path.exists(self._infile):
-            raise SUTError(f"'{self._infile}' input file doesn't exist")
+            raise CommunicationError(f"'{self._infile}' input file doesn't exist")
 
         if not self._outfile or not os.path.exists(self._outfile):
-            raise SUTError(f"'{self._outfile}' output file doesn't exist")
+            raise CommunicationError(f"'{self._outfile}' output file doesn't exist")
 
     @property
     def parallel_execution(self) -> bool:
@@ -89,7 +89,7 @@ class LTXSUT(SUT):
             # pyrefly: ignore[missing-attribute]
             await self._ltx.disconnect()
         except LTXError as err:
-            raise SUTError(err) from err
+            raise CommunicationError(err) from err
 
         while await self.is_running:
             await asyncio.sleep(1e-2)
@@ -103,7 +103,7 @@ class LTXSUT(SUT):
             # pyrefly: ignore[missing-attribute]
             reply = await self._ltx.gather(requests)
         except LTXError as err:
-            raise SUTError(err) from err
+            raise CommunicationError(err) from err
 
         return reply
 
@@ -119,7 +119,7 @@ class LTXSUT(SUT):
                     break
 
             if slot_id == -1:
-                raise SUTError("No execution slots available")
+                raise CommunicationError("No execution slots available")
 
             self._slots.append(slot_id)
 
@@ -134,7 +134,7 @@ class LTXSUT(SUT):
 
     async def ping(self) -> float:
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("No LTX communication")
 
         req = Requests.ping()
         start_t = time.monotonic()
@@ -144,14 +144,14 @@ class LTXSUT(SUT):
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if await self.is_running:
-            raise SUTError("SUT is already running")
+            raise CommunicationError("LTX communication is already up and running")
 
         self._ltx = LTX(self._infile, self._outfile)
 
         try:
             await self._ltx.connect()
         except LTXError as err:
-            raise SUTError(err) from err
+            raise CommunicationError(err) from err
 
         await self._send_requests([Requests.version()])
 
@@ -166,7 +166,7 @@ class LTXSUT(SUT):
             raise ValueError("command is empty")
 
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("No LTX communication")
 
         self._logger.info("Running command: %s", repr(command))
 
@@ -214,7 +214,7 @@ class LTXSUT(SUT):
             raise ValueError("target path is empty")
 
         if not await self.is_running:
-            raise SUTError("SSH connection is not present")
+            raise CommunicationError("No LTX communication")
 
         async with self._fetch_lock:
             req = Requests.get_file(target_path)
@@ -222,3 +222,9 @@ class LTXSUT(SUT):
             reply = replies[req]
 
             return reply[1]
+
+
+class LTXSUT(LTXCOMHandler, SUT):
+    """
+    SUT communicating only via ``LTXCOMHandler``.
+    """
