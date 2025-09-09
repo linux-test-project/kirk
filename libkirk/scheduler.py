@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 
 import libkirk
 import libkirk.data
+from libkirk.com import SUT, IOBuffer
 from libkirk.data import Suite, Test
 from libkirk.errors import (
     KernelPanicError,
@@ -25,7 +26,6 @@ from libkirk.errors import (
 )
 from libkirk.framework import Framework
 from libkirk.results import Results, SuiteResults, TestResults
-from libkirk.sut import SUT, IOBuffer
 
 
 class Scheduler:

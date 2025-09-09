@@ -20,12 +20,6 @@ class CommunicationError(KirkException):
     """
 
 
-class SUTError(KirkException):
-    """
-    Raised when an error occurs in SUT.
-    """
-
-
 class KernelPanicError(KirkException):
     """
     Raised during kernel panic.

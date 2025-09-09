@@ -13,16 +13,16 @@ import re
 from typing import Dict, List, Optional
 
 import libkirk
+import libkirk.com
 import libkirk.data
 import libkirk.plugin
-import libkirk.sut
 from libkirk import __version__
-from libkirk.errors import FrameworkError, KirkException, SUTError
+from libkirk.com import SUT
+from libkirk.errors import CommunicationError, FrameworkError, KirkException
 from libkirk.framework import Framework
 from libkirk.monitor import JSONFileMonitor
 from libkirk.plugin import Plugin
 from libkirk.session import Session
-from libkirk.sut import SUT
 from libkirk.tempfile import TempDir
 from libkirk.ui import ParallelUserInterface, SimpleUserInterface, VerboseUserInterface
 
@@ -266,7 +266,7 @@ def _get_sut(
     try:
         # pyrefly: ignore[missing-attribute]
         sut.setup(**sut_config)
-    except SUTError as err:
+    except CommunicationError as err:
         parser.error(str(err))
 
     # pyrefly: ignore[bad-return]
@@ -468,7 +468,7 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     conf_opts.add_argument(
         "--sut",
         "-u",
-        default="host",
+        default="shell",
         type=_sut_config,
         help="System Under Test parameters. For help please use '--sut help'",
     )

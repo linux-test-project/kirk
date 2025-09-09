@@ -5,7 +5,30 @@ Unittests for framework module.
 import libkirk
 import libkirk.plugin
 from libkirk.framework import Framework
-from libkirk.sut import SUT
+from libkirk.com import SUT, COM
+
+
+def test_com(tmpdir):
+    """
+    Test if COM implementations are correctly loaded.
+    """
+    suts = []
+    suts.append(tmpdir / "sutA.py")
+    suts.append(tmpdir / "sutB.py")
+    suts.append(tmpdir / "sutC.txt")
+
+    for index in range(0, len(suts)):
+        suts[index].write(
+            "from libkirk.com import COM\n\n"
+            f"class SUT{index}(COM):\n"
+            "    @property\n"
+            "    def name(self) -> str:\n"
+            f"        return 'mysut{index}'\n"
+        )
+
+    suts = libkirk.plugin.discover(COM, str(tmpdir))
+
+    assert len(suts) == 2
 
 
 def test_sut(tmpdir):
@@ -19,7 +42,7 @@ def test_sut(tmpdir):
 
     for index in range(0, len(suts)):
         suts[index].write(
-            "from libkirk.sut import SUT\n\n"
+            "from libkirk.com import SUT\n\n"
             f"class SUT{index}(SUT):\n"
             "    @property\n"
             "    def name(self) -> str:\n"
