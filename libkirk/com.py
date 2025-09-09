@@ -11,7 +11,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import libkirk.plugin
-from libkirk.errors import CommunicationError, KirkException
+from libkirk.errors import CommunicationError, KirkException, PluginError
 from libkirk.plugin import Plugin
 
 # these are the loaded plugins
@@ -396,5 +396,43 @@ def get_com(name: str) -> Optional[COM]:
         if p.name == name:
             plugin = p
             break
+
+    return plugin
+
+
+def _clone(plugins: List[Plugin], name: str, new_name: str) -> Plugin:
+    """
+    Clone a plugin named ``name`` in within ``plugins``, rename it
+    ``new_name``, then return it.
+    """
+    plugin = None
+    for p in plugins:
+        if p.name == new_name:
+            raise PluginError(f"Plugin named '{new_name}' is already registered")
+
+        if p.name == name:
+            plugin = p
+
+    if not plugin:
+        raise PluginError(f"Can't find plugin with name '{name}'")
+
+    return plugin.clone(new_name)
+
+
+def clone_com(name: str, new_name: str) -> Plugin:
+    """
+    Clone a ``COM`` implementation named ``name`` and rename it with
+    ``new_name``. The new plugin will be registered with the other
+    communication plugins.
+
+    :param name: plugin name
+    :type name: str
+    :param new_name: new cloned plugin name
+    :type new_name: str
+    :return: new plugin object
+    """
+    global _COM
+    plugin = _clone(_COM, name, new_name)
+    _COM.append(plugin)
 
     return plugin

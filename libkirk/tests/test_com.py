@@ -20,9 +20,7 @@ def setup(tmpdir):
         coms[index].write(
             "from libkirk.com import COM\n\n"
             f"class MyCOM{index}(COM):\n"
-            "    @property\n"
-            "    def name(self) -> str:\n"
-            f"        return 'mycom{index}'\n"
+            f"      _name = 'mycom{index}'\n"
         )
 
     suts = []
@@ -34,9 +32,7 @@ def setup(tmpdir):
         suts[index].write(
             "from libkirk.com import SUT\n\n"
             f"class SUT{index}(SUT):\n"
-            "    @property\n"
-            "    def name(self) -> str:\n"
-            f"        return 'mysut{index}'\n"
+            f"      _name = 'mysut{index}'\n"
         )
 
 
@@ -89,3 +85,14 @@ def test_get_com(tmpdir):
     libkirk.com.discover(str(tmpdir))
 
     assert libkirk.com.get_com("mycom0")
+
+
+def test_clone_com(tmpdir):
+    """
+    Verify that COM object can be cloned.
+    """
+    libkirk.com.discover(str(tmpdir))
+    assert libkirk.com.clone_com("mycom0", "newcom0")
+
+    names = [com.name for com in libkirk.com.get_loaded_com()]
+    assert "newcom0" in names

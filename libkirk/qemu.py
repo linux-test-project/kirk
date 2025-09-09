@@ -29,6 +29,8 @@ class QemuCOMHandler(COM):
     Qemu handler that spawn a new VM using qemu and execute commands inside it.
     """
 
+    _name = "qemu"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.qemu")
         self._comm_lock = asyncio.Lock()
@@ -203,10 +205,6 @@ class QemuCOMHandler(COM):
             "virtfs": "directory to mount inside VM",
             "options": "user defined options",
         }
-
-    @property
-    def name(self) -> str:
-        return "qemu"
 
     @property
     def parallel_execution(self) -> bool:

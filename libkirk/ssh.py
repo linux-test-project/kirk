@@ -69,6 +69,8 @@ class SSHCOMHandler(COM):
     SSH communication handler.
     """
 
+    _name = "ssh"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.ssh")
         self._host = ""
@@ -83,10 +85,6 @@ class SSHCOMHandler(COM):
         self._stop = False
         self._conn = None
         self._channels = []
-
-    @property
-    def name(self) -> str:
-        return "ssh"
 
     @property
     def config_help(self) -> Dict[str, str]:

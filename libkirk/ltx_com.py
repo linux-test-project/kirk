@@ -24,6 +24,8 @@ class LTXCOMHandler(COM):
     Handler to communicate with LTX client.
     """
 
+    _name = "ltx"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.ltx")
         self._release_lock = asyncio.Lock()
@@ -32,10 +34,6 @@ class LTXCOMHandler(COM):
         self._outfile = ""
         self._infile = ""
         self._slots = []
-
-    @property
-    def name(self) -> str:
-        return "ltx"
 
     @property
     def config_help(self) -> Dict[str, str]:

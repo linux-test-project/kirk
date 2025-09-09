@@ -10,13 +10,38 @@ import importlib
 import importlib.util
 import inspect
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypeVar
+
+_Self = TypeVar("_Self", bound="Plugin")
 
 
 class Plugin:
     """
     Generic plugin definition.
     """
+
+    _name = ""
+
+    @property
+    def name(self) -> str:
+        """
+        Unique name identifier of the plugin.
+        """
+        return self._name
+
+    def clone(self, name: str) -> _Self:
+        """
+        Deep copy the plugin and return a new instance with a given ``name``.
+        Make sure that ``name`` is unique, so external modules can
+        recognize it.
+        :param name: unique identifier string given to the plugin
+        :type name: str
+        """
+        obj = self.__class__()
+        obj._name = name
+
+        # pyrefly:ignore[bad-return]
+        return obj
 
     def setup(self, **kwargs: Dict[str, Any]) -> None:
         """
@@ -32,13 +57,6 @@ class Plugin:
         Associate each configuration option with a help message.
         This is used by the main menu application to generate --help message.
         :returns: dict
-        """
-        raise NotImplementedError()
-
-    @property
-    def name(self) -> str:
-        """
-        Name of the plugin.
         """
         raise NotImplementedError()
 

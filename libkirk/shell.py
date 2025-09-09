@@ -27,6 +27,8 @@ class ShellCOMHandler(COM):
 
     BUFFSIZE = 1024
 
+    _name = "shell"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.shell")
         self._fetch_lock = asyncio.Lock()
@@ -41,10 +43,6 @@ class ShellCOMHandler(COM):
     def config_help(self) -> Dict[str, str]:
         # cwd and env are given by default, so no options are needed
         return {}
-
-    @property
-    def name(self) -> str:
-        return "shell"
 
     @property
     def parallel_execution(self) -> bool:
