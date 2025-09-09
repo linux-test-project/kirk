@@ -13,11 +13,11 @@ import re
 from typing import Any, Dict, List, Optional
 
 import libkirk.types
+from libkirk.com import SUT
 from libkirk.data import Suite, Test
 from libkirk.errors import FrameworkError
 from libkirk.framework import Framework
 from libkirk.results import ResultStatus, TestResults
-from libkirk.sut import SUT
 
 
 class LTPFramework(Framework):
