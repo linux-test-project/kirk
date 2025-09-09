@@ -8,10 +8,15 @@
 
 import asyncio
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import libkirk.plugin
 from libkirk.errors import CommunicationError, KirkException
 from libkirk.plugin import Plugin
+
+# these are the loaded plugins
+_COM = []
+_SUT = []
 
 
 class IOBuffer:
@@ -336,3 +341,60 @@ class SUT(COM):
             await _set_value(times, f"{path}/times")
             await _set_value(interval, f"{path}/interval")
             await _set_value(prob, f"{path}/probability")
+
+
+def discover(path: str, reset: bool = True) -> None:
+    """
+    Discover all ``COM`` and ``SUT`` implementations inside ``path``.
+    :param path: directory where to search
+    :type path: str
+    :param reset: if True, clear previous fetched plugins. If False, keep them
+    :type reset: bool
+    """
+    global _COM
+    global _SUT
+
+    if reset:
+        _COM.clear()
+        _SUT.clear()
+
+    obj = libkirk.plugin.discover(COM, path)
+    while obj:
+        item = obj.pop()
+        if isinstance(item, SUT):
+            _SUT.append(item)
+        else:
+            _COM.append(item)
+
+
+def get_loaded_sut() -> List[Union[SUT, Plugin]]:
+    """
+    :return: List of loaded SUT.
+    """
+    global _SUT
+    return _SUT
+
+
+def get_loaded_com() -> List[Union[COM, Plugin]]:
+    """
+    :return: List of loaded COM.
+    """
+    global _COM
+    return _COM
+
+
+def get_com(name: str) -> Optional[COM]:
+    """
+    :param name: name of the COM object
+    :type name: str
+    :return: COM object with given ``name``
+    """
+    global _COM
+
+    plugin = None
+    for p in _COM:
+        if p.name == name:
+            plugin = p
+            break
+
+    return plugin

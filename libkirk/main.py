@@ -26,9 +26,6 @@ from libkirk.session import Session
 from libkirk.tempfile import TempDir
 from libkirk.ui import ParallelUserInterface, SimpleUserInterface, VerboseUserInterface
 
-# runtime loaded SUT(s)
-LOADED_SUT = []
-
 # runtime loaded Framework(s)
 LOADED_FRAMEWORK = []
 
@@ -105,7 +102,7 @@ def _sut_config(value: str) -> Dict[str, str]:
     """
     Return a SUT configuration according with input string.
     """
-    return _dict_config("sut", LOADED_SUT, value)
+    return _dict_config("sut", libkirk.com.get_loaded_sut(), value)
 
 
 def _framework_config(value: str) -> Dict[str, str]:
@@ -197,14 +194,6 @@ def _finjection_config(value: str) -> int:
     return ret
 
 
-def _discover_sut(path: str) -> None:
-    """
-    Discover new SUT implementations.
-    """
-    objs = libkirk.plugin.discover(SUT, path)
-    LOADED_SUT.extend(objs)
-
-
 def _discover_frameworks(path: str) -> None:
     """
     Discover new Framework implementations.
@@ -259,7 +248,7 @@ def _get_sut(
     sut_config["tmpdir"] = tmpdir.abspath
 
     sut_name = args.sut["name"]
-    sut = _get_plugin(LOADED_SUT, sut_name)
+    sut = _get_plugin(libkirk.com.get_loaded_sut(), sut_name)
     if not sut:
         parser.error(f"'{sut_name}' SUT is not available")
 
@@ -434,7 +423,7 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     Entry point of the application.
     """
     currdir = os.path.dirname(os.path.realpath(__file__))
-    _discover_sut(currdir)
+    libkirk.com.discover(currdir)
     _discover_frameworks(currdir)
 
     parser = argparse.ArgumentParser(

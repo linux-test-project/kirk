@@ -9,6 +9,7 @@ import sys
 
 import pytest
 
+import libkirk.com
 import libkirk.main
 
 
@@ -376,7 +377,7 @@ class TestMain:
             libkirk.main.run(cmd_args=cmd_args)
 
         assert excinfo.value.code == libkirk.main.RC_OK
-        assert len(libkirk.main.LOADED_SUT) > 0
+        assert len(libkirk.com.get_loaded_sut()) > 0
 
     def test_framework_help(self):
         """
