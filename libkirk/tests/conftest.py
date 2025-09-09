@@ -2,11 +2,13 @@
 Generic stuff for pytest.
 """
 
+import os
 from typing import Dict, List
 
 import pytest
 
 import libkirk
+import libkirk.com
 from libkirk.data import Suite, Test
 from libkirk.framework import Framework
 from libkirk.results import TestResults
@@ -26,6 +28,16 @@ def event_loop():
 
     if not loop.is_closed():
         loop.close()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _discover_plugins():
+    """
+    Discover plugins before running tests.
+    """
+    currdir = os.path.dirname(os.path.realpath(__file__))
+
+    libkirk.com.discover(os.path.join(currdir, "..", "channels"))
 
 
 class DummyFramework(Framework):
