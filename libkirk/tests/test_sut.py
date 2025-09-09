@@ -10,8 +10,8 @@ import time
 import pytest
 
 import libkirk
-from libkirk.errors import SUTError
-from libkirk.sut import IOBuffer
+from libkirk.errors import CommunicationError
+from libkirk.com import IOBuffer
 
 pytestmark = pytest.mark.asyncio
 
@@ -53,7 +53,7 @@ class _TestSUT:
         """
         Test ping method with no running sut.
         """
-        with pytest.raises(SUTError):
+        with pytest.raises(CommunicationError):
             await sut.ping()
 
     async def test_ping(self, sut):
@@ -91,7 +91,7 @@ class _TestSUT:
         Test communicate method.
         """
         await sut.communicate(iobuffer=Printer())
-        with pytest.raises(SUTError):
+        with pytest.raises(CommunicationError):
             await sut.communicate(iobuffer=Printer())
 
     async def test_ensure_communicate(self, sut):
@@ -99,7 +99,7 @@ class _TestSUT:
         Test ensure_communicate method.
         """
         await sut.ensure_communicate(iobuffer=Printer())
-        with pytest.raises(SUTError):
+        with pytest.raises(CommunicationError):
             await sut.ensure_communicate(iobuffer=Printer(), retries=1)
 
     @pytest.fixture
@@ -210,7 +210,7 @@ class _TestSUT:
         with pytest.raises(ValueError):
             await sut.fetch_file(None)
 
-        with pytest.raises(SUTError):
+        with pytest.raises(CommunicationError):
             await sut.fetch_file("this_file_doesnt_exist")
 
     async def test_fetch_file(self, sut):

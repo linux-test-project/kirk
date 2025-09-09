@@ -1,7 +1,7 @@
 """
-.. module:: host
+.. module:: shell
     :platform: Linux
-    :synopsis: module containing host SUT implementation
+    :synopsis: module implementing the shell communication
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
@@ -15,20 +15,20 @@ import time
 from asyncio.subprocess import Process
 from typing import Any, Dict, Optional
 
-from libkirk.errors import KernelPanicError, SUTError
+from libkirk.com import COM, SUT, IOBuffer
+from libkirk.errors import CommunicationError, KernelPanicError
 from libkirk.io import AsyncFile
-from libkirk.sut import SUT, IOBuffer
 
 
-class HostSUT(SUT):
+class ShellCOMHandler(COM):
     """
-    SUT implementation using host's shell.
+    Handler for shell communication.
     """
 
     BUFFSIZE = 1024
 
     def __init__(self) -> None:
-        self._logger = logging.getLogger("kirk.host")
+        self._logger = logging.getLogger("kirk.shell")
         self._fetch_lock = asyncio.Lock()
         self._procs = []
         self._running = False
@@ -44,7 +44,7 @@ class HostSUT(SUT):
 
     @property
     def name(self) -> str:
-        return "host"
+        return "shell"
 
     @property
     def parallel_execution(self) -> bool:
@@ -80,11 +80,11 @@ class HostSUT(SUT):
 
     async def ping(self) -> float:
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("Protocol is not connected")
 
         ret = await self.run_command("test .")
         if not ret:
-            raise SUTError("Can't ping SUT")
+            raise CommunicationError("Can't connect to the shell")
 
         reply_t = ret["exec_time"]
 
@@ -92,7 +92,7 @@ class HostSUT(SUT):
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if await self.is_running:
-            raise SUTError("SUT is running")
+            raise CommunicationError("Shell is not connected")
 
         self._running = True
 
@@ -100,7 +100,7 @@ class HostSUT(SUT):
         if not await self.is_running:
             return
 
-        self._logger.info("Stopping SUT")
+        self._logger.info("Exiting from shell")
         self._stop = True
 
         try:
@@ -122,7 +122,7 @@ class HostSUT(SUT):
         finally:
             self._stop = False
             self._running = False
-            self._logger.info("SUT has stopped")
+            self._logger.info("Shell exited")
 
     async def run_command(
         self,
@@ -135,7 +135,7 @@ class HostSUT(SUT):
             raise ValueError("command is empty")
 
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("Shell is not connected")
 
         self._logger.info("Executing command: '%s'", command)
 
@@ -159,7 +159,7 @@ class HostSUT(SUT):
 
             proc = await asyncio.create_subprocess_shell(command, **kwargs)
             if not proc or not proc.stdout:
-                raise SUTError(f"Can't create any subprocess for '{command}'")
+                raise CommunicationError(f"Can't create any subprocess for '{command}'")
 
             self._procs.append(proc)
 
@@ -210,10 +210,10 @@ class HostSUT(SUT):
             raise ValueError("target path is empty")
 
         if not os.path.isfile(target_path):
-            raise SUTError(f"'{target_path}' file doesn't exist")
+            raise CommunicationError(f"'{target_path}' file doesn't exist")
 
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("Protocol is not connected")
 
         async with self._fetch_lock:
             self._logger.info("Downloading '%s'", target_path)
@@ -227,8 +227,14 @@ class HostSUT(SUT):
                         assert isinstance(data, bytes)
                         retdata = data
             except IOError as err:
-                raise SUTError(err) from err
+                raise CommunicationError(err) from err
 
             self._logger.info("File copied")
 
             return retdata
+
+
+class ShellSUT(ShellCOMHandler, SUT):
+    """
+    SUT communicating only via ``ShellCOMHandler``.
+    """

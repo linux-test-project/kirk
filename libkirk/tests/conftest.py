@@ -10,7 +10,7 @@ import libkirk
 from libkirk.data import Suite, Test
 from libkirk.framework import Framework
 from libkirk.results import TestResults
-from libkirk.sut import SUT
+from libkirk.com import SUT
 
 
 @pytest.fixture(scope="session")
