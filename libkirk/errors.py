@@ -14,6 +14,12 @@ class KirkException(Exception):
     """
 
 
+class CommunicationError(KirkException):
+    """
+    Raised when there's a new communication error.
+    """
+
+
 class SUTError(KirkException):
     """
     Raised when an error occurs in SUT.
