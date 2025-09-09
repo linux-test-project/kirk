@@ -1,7 +1,7 @@
 """
 .. module:: qemu
     :platform: Linux
-    :synopsis: module containing qemu SUT implementation
+    :synopsis: module implementing the Qemu communication
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
@@ -19,16 +19,14 @@ import time
 from typing import Any, Dict, Optional
 
 import libkirk.types
-from libkirk.errors import KernelPanicError, SUTError
+from libkirk.com import COM, SUT, IOBuffer
+from libkirk.errors import CommunicationError, KernelPanicError
 from libkirk.io import AsyncFile
-from libkirk.sut import SUT, IOBuffer
 
 
-class QemuSUT(SUT):
+class QemuCOMHandler(COM):
     """
-    Qemu SUT spawn a new VM using qemu and execute commands inside it.
-    This SUT implementation can be used to run commands inside
-    a protected, virtualized environment.
+    Qemu handler that spawn a new VM using qemu and execute commands inside it.
     """
 
     def __init__(self) -> None:
@@ -143,7 +141,7 @@ class QemuSUT(SUT):
         return cmd
 
     def setup(self, **kwargs: Dict[str, Any]) -> None:
-        self._logger.info("Initialize SUT")
+        self._logger.info("Initialize Qemu")
 
         self._tmpdir = libkirk.types.dict_item(kwargs, "tmpdir", str, None)
         self._user = libkirk.types.dict_item(kwargs, "user", str, None)
@@ -162,28 +160,32 @@ class QemuSUT(SUT):
         self._qemu_cmd = f"qemu-system-{system}"
 
         if not self._tmpdir or not os.path.isdir(self._tmpdir):
-            raise SUTError(f"Temporary directory doesn't exist: {self._tmpdir}")
+            raise CommunicationError(
+                f"Temporary directory doesn't exist: {self._tmpdir}"
+            )
 
         if self._image and not os.path.isfile(self._image):
-            raise SUTError(f"Image location doesn't exist: {self._image}")
+            raise CommunicationError(f"Image location doesn't exist: {self._image}")
 
         if self._kernel and not os.path.isfile(self._kernel):
-            raise SUTError(f"Kernel location doesn't exist: {self._kernel}")
+            raise CommunicationError(f"Kernel location doesn't exist: {self._kernel}")
 
         if self._initrd and not os.path.isfile(self._initrd):
-            raise SUTError(f"initrd location doesn't exist: {self._initrd}")
+            raise CommunicationError(f"initrd location doesn't exist: {self._initrd}")
 
         if not self._ram:
-            raise SUTError("RAM is not defined")
+            raise CommunicationError("RAM is not defined")
 
         if not self._smp:
-            raise SUTError("CPU is not defined")
+            raise CommunicationError("CPU is not defined")
 
         if self._virtfs and not os.path.isdir(self._virtfs):
-            raise SUTError(f"Virtual FS directory doesn't exist: {self._virtfs}")
+            raise CommunicationError(
+                f"Virtual FS directory doesn't exist: {self._virtfs}"
+            )
 
         if self._serial_type not in ["isa", "virtio"]:
-            raise SUTError("Serial protocol must be isa or virtio")
+            raise CommunicationError("Serial protocol must be isa or virtio")
 
     @property
     def config_help(self) -> Dict[str, str]:
@@ -222,7 +224,7 @@ class QemuSUT(SUT):
 
     async def ping(self) -> float:
         if not await self.is_running:
-            raise SUTError("SUT is not running")
+            raise CommunicationError("Qemu is not running")
 
         _, _, exec_time = await self._exec("test .", None)
 
@@ -255,7 +257,7 @@ class QemuSUT(SUT):
             self._proc.stdin.write(wdata)
         except BrokenPipeError as err:
             if not self._stop:
-                raise SUTError(err) from err
+                raise CommunicationError(err) from err
 
     async def _wait_for(
         self, message: str, iobuffer: Optional[IOBuffer] = None
@@ -305,7 +307,7 @@ class QemuSUT(SUT):
 
     async def _wait_lockers(self) -> None:
         """
-        Wait for SUT lockers to be released.
+        Wait for lockers to be released.
         """
         async with self._comm_lock:
             pass
@@ -343,7 +345,9 @@ class QemuSUT(SUT):
             if stdout and stdout.rstrip():
                 match = re.search(f"(?P<retcode>\\d+)-{code}", stdout)
                 if not match:
-                    raise SUTError(f"Can't read return code from reply {repr(stdout)}")
+                    raise CommunicationError(
+                        f"Can't read return code from reply {repr(stdout)}"
+                    )
 
                 # first character is '\n'
                 stdout = stdout[1 : match.start()]
@@ -407,10 +411,10 @@ class QemuSUT(SUT):
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
         if not shutil.which(self._qemu_cmd):
-            raise SUTError(f"Command not found: {self._qemu_cmd}")
+            raise CommunicationError(f"Command not found: {self._qemu_cmd}")
 
         if await self.is_running:
-            raise SUTError("Virtual machine is already running")
+            raise CommunicationError("Virtual machine is already running")
 
         error = None
 
@@ -452,19 +456,19 @@ class QemuSUT(SUT):
 
                 _, retcode, _ = await self._exec("export PS1=''", None)
                 if retcode != 0:
-                    raise SUTError("Can't setup prompt string")
+                    raise CommunicationError("Can't setup prompt string")
 
                 if self._virtfs:
                     _, retcode, _ = await self._exec(
                         "mount -t 9p -o trans=virtio host0 /mnt", None
                     )
                     if retcode != 0:
-                        raise SUTError("Failed to mount virtfs")
+                        raise CommunicationError("Failed to mount virtfs")
 
                 self._logged_in = True
 
                 self._logger.info("Virtual machine started")
-            except SUTError as err:
+            except CommunicationError as err:
                 error = err
 
         if not self._stop and error:
@@ -472,7 +476,7 @@ class QemuSUT(SUT):
             # something happened during commands execution
             await self.stop(iobuffer=iobuffer)
 
-            raise SUTError(error)
+            raise CommunicationError(error)
 
     async def run_command(
         self,
@@ -485,7 +489,7 @@ class QemuSUT(SUT):
             raise ValueError("command is empty")
 
         if not await self.is_running:
-            raise SUTError("Virtual machine is not running")
+            raise CommunicationError("Virtual machine is not running")
 
         async with self._cmd_lock:
             self._logger.info("Running command: %s", command)
@@ -493,13 +497,17 @@ class QemuSUT(SUT):
             if cwd:
                 stdout, retcode, _ = await self._exec(f"cd {cwd}", None)
                 if retcode != 0:
-                    raise SUTError(f"Can't setup current working directory: {stdout}")
+                    raise CommunicationError(
+                        f"Can't setup current working directory: {stdout}"
+                    )
 
             if env:
                 for key, value in env.items():
                     stdout, retcode, _ = await self._exec(f"export {key}={value}", None)
                     if retcode != 0:
-                        raise SUTError(f"Can't setup env {key}={value}: {stdout}")
+                        raise CommunicationError(
+                            f"Can't setup env {key}={value}: {stdout}"
+                        )
 
             stdout, retcode, exec_time = await self._exec(f"{command}", iobuffer)
 
@@ -519,14 +527,14 @@ class QemuSUT(SUT):
             raise ValueError("target path is empty")
 
         if not await self.is_running:
-            raise SUTError("Virtual machine is not running")
+            raise CommunicationError("Virtual machine is not running")
 
         async with self._fetch_lock:
             self._logger.info("Downloading %s", target_path)
 
             _, retcode, _ = await self._exec(f"test -f {target_path}", None)
             if retcode != 0:
-                raise SUTError(f"'{target_path}' doesn't exist")
+                raise CommunicationError(f"'{target_path}' doesn't exist")
 
             transport_dev, transport_path = self._get_transport()
 
@@ -538,7 +546,9 @@ class QemuSUT(SUT):
                 return bytes()
 
             if retcode not in [0, signal.SIGHUP, signal.SIGKILL]:
-                raise SUTError(f"Can't send file to {transport_dev}: {stdout}")
+                raise CommunicationError(
+                    f"Can't send file to {transport_dev}: {stdout}"
+                )
 
             # read back data and send it to the local file path
             file_size = os.path.getsize(transport_path)
@@ -556,10 +566,16 @@ class QemuSUT(SUT):
 
                     pos = await transport.tell()
                     if not pos:
-                        raise SUTError("Can't read file position")
+                        raise CommunicationError("Can't read file position")
 
                     self._last_pos = pos
 
             self._logger.info("File downloaded")
 
             return bytes(retdata)
+
+
+class QemuSUT(QemuCOMHandler, SUT):
+    """
+    SUT communicating only via ``QemuCOMHandler``.
+    """
