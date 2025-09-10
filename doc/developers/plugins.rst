@@ -57,7 +57,7 @@ Our ``SUT`` will use our utilities to obtain the initialized objects as follows:
         """
         _name = "mysut"
 
-        def setup(self, **kwargs: Dict[str, Any]) -> None:
+        def setup(self, **kwargs: Dict[str, str]) -> None:
             self._ssh_host0 = libkirk.com.get_com("ssh_host0")
             self._ssh_host1 = libkirk.com.get_com("ssh_host1")
             self._ssh_host2 = libkirk.com.get_com("ssh_host2")

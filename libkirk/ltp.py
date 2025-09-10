@@ -53,7 +53,7 @@ class LTPFramework(Framework):
             "max_runtime": "filter out all tests above this time value",
         }
 
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._env = {
             "LTPROOT": self._root,

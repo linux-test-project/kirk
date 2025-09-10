@@ -10,7 +10,7 @@ import importlib
 import importlib.util
 import inspect
 import os
-from typing import Any, Dict, List, TypeVar
+from typing import Dict, List, TypeVar
 
 _Self = TypeVar("_Self", bound="Plugin")
 
@@ -43,7 +43,7 @@ class Plugin:
         # pyrefly:ignore[bad-return]
         return obj
 
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         """
         Initialize plugin using configuration dictionary.
         :param kwargs: SUT configuration

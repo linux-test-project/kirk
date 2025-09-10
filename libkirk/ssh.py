@@ -157,7 +157,7 @@ class SSHCOMHandler(COM):
 
         return script
 
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         if not importlib.util.find_spec("asyncssh"):
             raise CommunicationError("'asyncssh' library is not available")
 

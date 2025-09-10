@@ -42,7 +42,7 @@ class LTXCOMHandler(COM):
             "outfile": "file where ltx is writing data",
         }
 
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         if not importlib.util.find_spec("msgpack"):
             raise CommunicationError("'msgpack' library is not available")
 

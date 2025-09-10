@@ -36,7 +36,7 @@ class ShellCOMHandler(COM):
         self._running = False
         self._stop = False
 
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         pass
 
     @property
