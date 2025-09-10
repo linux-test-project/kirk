@@ -367,6 +367,18 @@ class TestMain:
         report = self.read_report(temp)
         assert len(report["results"]) == 2
 
+    def test_com_help(self):
+        """
+        Test "--com help" command and check if COM class(es) are loaded.
+        """
+        cmd_args = ["--com", "help"]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+        assert len(libkirk.com.get_loaded_com()) > 0
+
     def test_sut_help(self):
         """
         Test "--sut help" command and check if SUT class(es) are loaded.
@@ -507,7 +519,10 @@ class TestMain:
             "class MySUT(SUT):\n"
             "    @property\n"
             "    def name(self) -> str:\n"
-            "        return 'mysut'"
+            "        return 'mysut'\n\n"
+            "    @property\n"
+            "    def config_help(self) -> dict:\n"
+            "        return {}"
         )
 
         cmd_args = [
@@ -526,3 +541,27 @@ class TestMain:
 
         assert len(sut) > 0
         assert [item for item in sut if item.name == "mysut"]
+
+    def test_com(self, tmpdir):
+        """
+        Test --com option.
+        """
+        temp = tmpdir.mkdir("temp")
+        cmd_args = [
+            "--tmp-dir",
+            str(temp),
+            "--com",
+            "shell:id=myshell",
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        names = [com.name for com in libkirk.com.get_loaded_com()]
+        assert "myshell" in names
