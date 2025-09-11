@@ -8,7 +8,7 @@ import os
 import pytest
 
 from libkirk.data import Test
-from libkirk.host import HostSUT
+from libkirk.shell import ShellSUT
 from libkirk.ltp import LTPFramework
 
 pytestmark = pytest.mark.asyncio
@@ -27,7 +27,7 @@ class TestLTPFramework:
         """
         Host SUT communication object.
         """
-        obj = HostSUT()
+        obj = ShellSUT()
         obj.setup()
 
         await obj.communicate()

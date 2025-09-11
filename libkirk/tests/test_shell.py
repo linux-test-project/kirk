@@ -4,16 +4,16 @@ Unittests for host SUT implementations.
 
 import pytest
 
-from libkirk.host import HostSUT
 from libkirk.tests.test_session import _TestSession
 from libkirk.tests.test_sut import _TestSUT
+from libkirk.shell import ShellSUT
 
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
 async def sut():
-    _sut = HostSUT()
+    _sut = ShellSUT()
     _sut.setup()
 
     yield _sut
@@ -22,9 +22,9 @@ async def sut():
         await _sut.stop()
 
 
-class TestHostSUT(_TestSUT):
+class TestShellSUT(_TestSUT):
     """
-    Test HostSUT implementation.
+    Test ShellSUT implementation.
     """
 
     @pytest.fixture

@@ -10,16 +10,15 @@ import pytest
 
 from libkirk.data import Suite, Test
 from libkirk.errors import KernelPanicError, KernelTaintedError, KernelTimeoutError
-from libkirk.host import HostSUT
+from libkirk.shell import ShellSUT
 from libkirk.scheduler import SuiteScheduler, TestScheduler
-from libkirk.sut import TAINTED_MSG
 
 pytestmark = pytest.mark.asyncio
 
 
-class MockHostSUT(HostSUT):
+class MockShellSUT(ShellSUT):
     """
-    HostSUT mock.
+    ShellSUT mock.
     """
 
     async def get_info(self) -> dict:
@@ -81,7 +80,7 @@ async def sut():
     """
     SUT object.
     """
-    obj = MockHostSUT()
+    obj = MockShellSUT()
     obj.setup()
     await obj.communicate()
     yield obj
@@ -394,7 +393,7 @@ class TestSuiteScheduler:
         index = 0
         value = 0
 
-        for msg in TAINTED_MSG:
+        for msg in sut.TAINTED_MSG:
             tainted.append((value, [msg]))
             value = pow(2, index)
             index += 1

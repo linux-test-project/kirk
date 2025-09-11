@@ -13,21 +13,21 @@ import re
 from typing import Dict, List, Optional
 
 import libkirk
+import libkirk.com
 import libkirk.data
 import libkirk.plugin
-import libkirk.sut
 from libkirk import __version__
-from libkirk.errors import FrameworkError, KirkException, SUTError
+from libkirk.com import SUT
+from libkirk.errors import CommunicationError, FrameworkError, KirkException
 from libkirk.framework import Framework
 from libkirk.monitor import JSONFileMonitor
 from libkirk.plugin import Plugin
 from libkirk.session import Session
-from libkirk.sut import SUT
 from libkirk.tempfile import TempDir
 from libkirk.ui import ParallelUserInterface, SimpleUserInterface, VerboseUserInterface
 
-# runtime loaded SUT(s)
-LOADED_SUT = []
+# Maximum number of COM instances
+MAX_COM_INSTANCES = 128
 
 # runtime loaded Framework(s)
 LOADED_FRAMEWORK = []
@@ -70,49 +70,72 @@ def _dict_config(opt_name: str, plugins: List[Plugin], value: str) -> Dict[str, 
     Generic dictionary option configuration.
     """
     if value == "help":
-        msg = f"--{opt_name} option supports the following syntax:\n"
-        msg += "\n\t<name>:<param1>=<value1>:<param2>=<value2>:..\n"
-        msg += "\nSupported plugins: | "
-
-        for plugin in plugins:
-            msg += f"{plugin.name} | "
-
-        msg += "\n"
-
-        for plugin in plugins:
-            if not plugin.config_help:
-                msg += f"\n{plugin.name} has not configuration\n"
-            else:
-                msg += f"\n{plugin.name} configuration:\n"
-                for opt, desc in plugin.config_help.items():
-                    msg += f"\t{opt}: {desc}\n"
-
-        return {"help": msg}
+        return {"help": ""}
 
     if not value:
         raise argparse.ArgumentTypeError("Parameters list can't be empty")
 
     params = value.split(":")
-    name = params[0]
 
     config = _from_params_to_config(params[1:])
-    config["name"] = name
+    config["name"] = params[0]
 
     return config
 
 
-def _sut_config(value: str) -> Dict[str, str]:
+def _print_plugin_help(opt_name: str, plugins: List[Plugin]) -> None:
     """
-    Return a SUT configuration according with input string.
+    Print the ``plugins`` help for ``opt_name`` option.
     """
-    return _dict_config("sut", LOADED_SUT, value)
+    msg = f"--{opt_name} option supports the following syntax:\n"
+    msg += "\n\t<name>:<param1>=<value1>:<param2>=<value2>:..\n"
+    msg += "\nSupported plugins: | "
+
+    for plugin in plugins:
+        msg += f"{plugin.name} | "
+
+    msg += "\n"
+
+    for plugin in plugins:
+        if not plugin.config_help:
+            msg += f"\n{plugin.name} has not configuration\n"
+        else:
+            msg += f"\n{plugin.name} configuration:\n"
+            for opt, desc in plugin.config_help.items():
+                msg += f"\t{opt}: {desc}\n"
+
+    print(msg)
 
 
-def _framework_config(value: str) -> Dict[str, str]:
+def _com_config(value: str) -> Optional[Dict[str, str]]:
     """
-    Return a Framework configuration according with input string.
+    Return the list of communication handlers configurations.
     """
-    return _dict_config("framework", LOADED_FRAMEWORK, value)
+    plugins = libkirk.com.get_loaded_com()
+    config = _dict_config("com", plugins, value)
+
+    if "help" in config:
+        return config
+
+    if "id" not in config:
+        raise argparse.ArgumentTypeError(
+            "'id' must be present when registering a new communication handler"
+        )
+
+    plugin = None
+    name = config["name"]
+
+    for p in plugins:
+        if p.name == name:
+            plugin = p
+            break
+
+    if not plugin:
+        raise argparse.ArgumentTypeError(
+            f"Can't find communication handler with name '{name}'"
+        )
+
+    return config
 
 
 def _env_config(value: str) -> Optional[Dict[str, str]]:
@@ -197,14 +220,6 @@ def _finjection_config(value: str) -> int:
     return ret
 
 
-def _discover_sut(path: str) -> None:
-    """
-    Discover new SUT implementations.
-    """
-    objs = libkirk.plugin.discover(SUT, path)
-    LOADED_SUT.extend(objs)
-
-
 def _discover_frameworks(path: str) -> None:
     """
     Discover new Framework implementations.
@@ -249,6 +264,22 @@ def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     return skip
 
 
+def _init_com_handlers(
+    com_configs: List[Dict[str, str]], parser: argparse.ArgumentParser
+) -> None:
+    """
+    Initialize communication handlers according to the configuration.
+    """
+    for config in com_configs:
+        plugin = libkirk.com.clone_com(config["name"], config["id"])
+
+        try:
+            # pyrefly: ignore[bad-argument-type]
+            plugin.setup(**config)
+        except CommunicationError as err:
+            parser.error(str(err))
+
+
 def _get_sut(
     args: argparse.Namespace, parser: argparse.ArgumentParser, tmpdir: TempDir
 ) -> SUT:
@@ -259,14 +290,14 @@ def _get_sut(
     sut_config["tmpdir"] = tmpdir.abspath
 
     sut_name = args.sut["name"]
-    sut = _get_plugin(LOADED_SUT, sut_name)
+    sut = _get_plugin(libkirk.com.get_loaded_sut(), sut_name)
     if not sut:
         parser.error(f"'{sut_name}' SUT is not available")
 
     try:
         # pyrefly: ignore[missing-attribute]
         sut.setup(**sut_config)
-    except SUTError as err:
+    except CommunicationError as err:
         parser.error(str(err))
 
     # pyrefly: ignore[bad-return]
@@ -331,6 +362,10 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
         tmpdir = TempDir(args.tmp_dir)
     else:
         tmpdir = TempDir("/tmp")
+
+    # initialize COM objects
+    if args.com:
+        _init_com_handlers(args.com, parser)
 
     # create SUT and Framework objects
     sut = _get_sut(args, parser, tmpdir)
@@ -434,7 +469,7 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     Entry point of the application.
     """
     currdir = os.path.dirname(os.path.realpath(__file__))
-    _discover_sut(currdir)
+    libkirk.com.discover(currdir)
     _discover_frameworks(currdir)
 
     parser = argparse.ArgumentParser(
@@ -463,20 +498,30 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     generic_opts.add_argument(
         "--monitor", "-m", type=str, help="Location of the monitor file"
     )
+    generic_opts.add_argument(
+        "--plugins", "-P", type=str, help="Location of custom plugins"
+    )
 
     conf_opts = parser.add_argument_group("Configuration options")
     conf_opts.add_argument(
+        "--com",
+        "-C",
+        action="append",
+        type=_com_config,
+        help="Communication handler parameters. For help please use --com help",
+    )
+    conf_opts.add_argument(
         "--sut",
         "-u",
-        default="host",
-        type=_sut_config,
+        default="shell",
+        type=lambda x: _dict_config("sut", libkirk.com.get_loaded_sut(), x),
         help="System Under Test parameters. For help please use '--sut help'",
     )
     conf_opts.add_argument(
         "--framework",
         "-U",
         default="ltp",
-        type=_framework_config,
+        type=lambda x: _dict_config("framework", LOADED_FRAMEWORK, x),
         help="Framework parameters. For help please use '--framework help'",
     )
     conf_opts.add_argument(
@@ -554,16 +599,27 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         help="Probability of failure (0-100)",
     )
 
-    # output arguments
-    # parse comand line
     args = parser.parse_args(cmd_args)
 
+    if args.plugins:
+        if not os.path.isdir(args.plugins):
+            parser.error(f"'{args.plugins}' plugins directory doesn't exist")
+
+        libkirk.com.discover(args.plugins, reset=False)
+
+    if args.com and [obj for obj in args.com if "help" in obj]:
+        _print_plugin_help("--com", libkirk.com.get_loaded_com())
+        parser.exit(RC_OK)
+
+    if args.com and len(args.com) >= MAX_COM_INSTANCES:
+        parser.error(f"Maximum number of communication objects is {MAX_COM_INSTANCES}")
+
     if args.sut and "help" in args.sut:
-        print(args.sut["help"])
+        _print_plugin_help("--sut", libkirk.com.get_loaded_sut())
         parser.exit(RC_OK)
 
     if args.framework and "help" in args.framework:
-        print(args.framework["help"])
+        _print_plugin_help("--framework", LOADED_FRAMEWORK)
         parser.exit(RC_OK)
 
     if args.json_report and os.path.exists(args.json_report):

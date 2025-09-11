@@ -13,11 +13,11 @@ import re
 from typing import Any, Dict, List, Optional
 
 import libkirk.types
+from libkirk.com import SUT
 from libkirk.data import Suite, Test
 from libkirk.errors import FrameworkError
 from libkirk.framework import Framework
 from libkirk.results import ResultStatus, TestResults
-from libkirk.sut import SUT
 
 
 class LTPFramework(Framework):
@@ -36,6 +36,8 @@ class LTPFramework(Framework):
         "max_runtime",
     ]
 
+    _name = "ltp"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("libkirk.ltp")
         self._root = ""
@@ -51,7 +53,7 @@ class LTPFramework(Framework):
             "max_runtime": "filter out all tests above this time value",
         }
 
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+    def setup(self, **kwargs: Dict[str, str]) -> None:
         self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._env = {
             "LTPROOT": self._root,
@@ -227,10 +229,6 @@ class LTPFramework(Framework):
         self._logger.info("Collected testing suite: %s", suite_name)
 
         return suite
-
-    @property
-    def name(self) -> str:
-        return "ltp"
 
     async def get_suites(self, sut: SUT) -> List[str]:
         if not sut:

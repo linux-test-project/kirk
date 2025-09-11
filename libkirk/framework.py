@@ -8,10 +8,10 @@
 
 from typing import List
 
+from libkirk.com import SUT
 from libkirk.data import Suite, Test
 from libkirk.plugin import Plugin
 from libkirk.results import TestResults
-from libkirk.sut import SUT
 
 
 class Framework(Plugin):

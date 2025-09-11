@@ -14,9 +14,15 @@ class KirkException(Exception):
     """
 
 
-class SUTError(KirkException):
+class PluginError(KirkException):
     """
-    Raised when an error occurs in SUT.
+    Raised when plugins operations have failed.
+    """
+
+
+class CommunicationError(KirkException):
+    """
+    Raised when there's a new communication error.
     """
 
 
