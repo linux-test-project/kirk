@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Andrea Cervesato <andrea.cervesato@suse.com>
 
 name: "Test SSH"
-on: [push, pull_request]
+on: push
 
 env:
   PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 build asyncssh
