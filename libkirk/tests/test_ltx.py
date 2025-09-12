@@ -9,10 +9,9 @@ import time
 
 import pytest
 
-from libkirk.ltx import LTX, Requests
-from libkirk.ltx_sut import LTXSUT
-from libkirk.tests.test_session import _TestSession
-from libkirk.tests.test_sut import _TestSUT
+from libkirk.channels.ltx import LTX, Requests
+from libkirk.channels.ltx_chan import LTXComChannel
+from libkirk.tests.test_com import _TestComChannel
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
 
@@ -262,9 +261,9 @@ class TestLTX:
 
 
 @pytest.fixture
-async def sut(tmpdir):
+async def com(tmpdir):
     """
-    LTXSUT instance object.
+    LTXComChannel instance object.
     """
     infile = str(tmpdir / "transport.in")
     outfile = str(tmpdir / "transport.out")
@@ -281,28 +280,23 @@ async def sut(tmpdir):
         stdout=stdout,
     )
 
-    sut = LTXSUT()
-    sut.setup(cwd=str(tmpdir), env=dict(HELLO="WORLD"), infile=infile, outfile=outfile)
+    obj = LTXComChannel()
+    obj.setup(cwd=str(tmpdir), env=dict(HELLO="WORLD"), infile=infile, outfile=outfile)
 
-    yield sut
+    yield obj
 
-    if await sut.is_running:
-        await sut.stop()
+    if await obj.active:
+        await obj.stop()
 
     proc.kill()
     proc.wait()
 
 
-class TestLTXSUT(_TestSUT):
+class TestLTXComChannel(_TestComChannel):
     """
-    Test HostSUT implementation.
+    Test LTXComChannel implementation.
     """
 
     async def test_fetch_file_stop(self):
         pytest.skip(reason="LTX doesn't support stop for GET_FILE")
 
-
-class TestLTXSession(_TestSession):
-    """
-    Test Session implementation using LTX SUT.
-    """
