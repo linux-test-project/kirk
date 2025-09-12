@@ -32,7 +32,7 @@ try:
             self._iobuffer = iobuffer
             self._panic = False
 
-        # pyrefly: ignore[bad-override]
+        # pyrefly: ignore[bad-param-name-override]
         def data_received(self, data: str, _: asyncssh.DataType) -> None:
             """
             Override default data_received callback, storing stdout/stderr inside
