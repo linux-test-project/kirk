@@ -38,6 +38,7 @@ def _discover_plugins():
     currdir = os.path.dirname(os.path.realpath(__file__))
 
     libkirk.com.discover(os.path.join(currdir, "..", "channels"))
+    libkirk.sut.discover(os.path.join(currdir, ".."))
 
 
 class DummyFramework(Framework):

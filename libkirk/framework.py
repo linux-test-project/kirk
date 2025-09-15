@@ -8,10 +8,10 @@
 
 from typing import List
 
+from libkirk.com import ComChannel
 from libkirk.data import Suite, Test
 from libkirk.plugin import Plugin
 from libkirk.results import TestResults
-from libkirk.sut import SUT
 
 
 class Framework(Plugin):
@@ -20,33 +20,33 @@ class Framework(Plugin):
     testing frameworks inside the application.
     """
 
-    async def get_suites(self, sut: SUT) -> List[str]:
+    async def get_suites(self, channel: ComChannel) -> List[str]:
         """
-        Return the list of available suites inside SUT.
-        :param sut: SUT object to communicate with
-        :type sut: SUT
+        Return the list of available suites.
+        :param channel: communication channel
+        :type channel: ComChannel
         :returns: list
         """
         raise NotImplementedError()
 
-    async def find_command(self, sut: SUT, command: str) -> Test:
+    async def find_command(self, channel: ComChannel, command: str) -> Test:
         """
         Search for command inside Framework folder and, if it's not found,
-        search for command in the operating system. Then return a Test object
-        which can be used to execute command.
-        :param sut: SUT object to communicate with
-        :type sut: SUT
+        search for command in the SUT. Then return a Test object which can be
+        used to execute command.
+        :param channel: communication channel
+        :type channel: ComChannel
         :param command: command to execute
         :type command: str
         :returns: Test
         """
         raise NotImplementedError()
 
-    async def find_suite(self, sut: SUT, name: str) -> Suite:
+    async def find_suite(self, channel: ComChannel, name: str) -> Suite:
         """
-        Search for suite with given name inside SUT.
-        :param sut: SUT object to communicate with
-        :type sut: SUT
+        Search for suite with given name inside the SUT.
+        :param channel: communication channel
+        :type channel: ComChannel
         :param suite: name of the suite
         :type suite: str
         :returns: Suite

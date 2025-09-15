@@ -13,11 +13,11 @@ import re
 from typing import Any, Dict, List, Optional
 
 import libkirk.types
+from libkirk.com import ComChannel
 from libkirk.data import Suite, Test
 from libkirk.errors import FrameworkError
 from libkirk.framework import Framework
 from libkirk.results import ResultStatus, TestResults
-from libkirk.sut import SUT
 
 
 class LTPFramework(Framework):
@@ -84,7 +84,7 @@ class LTPFramework(Framework):
 
             self._max_runtime = runtime
 
-    async def _read_path(self, sut: SUT) -> Dict[str, str]:
+    async def _read_path(self, channel: ComChannel) -> Dict[str, str]:
         """
         Read PATH and initialize it with testcases folder as well.
         """
@@ -92,7 +92,7 @@ class LTPFramework(Framework):
         if "PATH" in env:
             env["PATH"] = env["PATH"] + f":{self._tc_folder}"
         else:
-            ret = await sut.run_command("echo -n $PATH")
+            ret = await channel.run_command("echo -n $PATH")
             if not ret or ret["returncode"] != 0:
                 raise FrameworkError("Can't read PATH variable")
 
@@ -143,7 +143,11 @@ class LTPFramework(Framework):
         return parts
 
     async def _read_runtest(
-        self, sut: SUT, suite_name: str, content: str, metadata: Optional[dict] = None
+        self,
+        channel: ComChannel,
+        suite_name: str,
+        content: str,
+        metadata: Optional[dict] = None,
     ) -> Suite:
         """
         It reads a runtest file content and it returns a Suite object.
@@ -155,7 +159,7 @@ class LTPFramework(Framework):
             self._logger.info("Reading metadata content")
             metadata_tests = metadata.get("tests", None)
 
-        env = await self._read_path(sut)
+        env = await self._read_path(channel)
 
         tests = []
         lines = content.split("\n")
@@ -233,20 +237,20 @@ class LTPFramework(Framework):
     def name(self) -> str:
         return "ltp"
 
-    async def get_suites(self, sut: SUT) -> List[str]:
-        if not sut:
+    async def get_suites(self, channel: ComChannel) -> List[str]:
+        if not channel:
             raise ValueError("SUT is None")
 
-        ret = await sut.run_command(f"test -d {self._root}")
+        ret = await channel.run_command(f"test -d {self._root}")
         if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         runtest_dir = os.path.join(self._root, "runtest")
-        ret = await sut.run_command(f"test -d {runtest_dir}")
+        ret = await channel.run_command(f"test -d {runtest_dir}")
         if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"'{runtest_dir}' doesn't exist inside SUT")
 
-        ret = await sut.run_command(f"ls --format=single-column {runtest_dir}")
+        ret = await channel.run_command(f"ls --format=single-column {runtest_dir}")
         if not ret:
             raise FrameworkError("Can't communicate with SUT")
 
@@ -257,8 +261,8 @@ class LTPFramework(Framework):
         suites = [line for line in stdout.split("\n") if line]
         return suites
 
-    async def find_command(self, sut: SUT, command: str) -> Test:
-        if not sut:
+    async def find_command(self, channel: ComChannel, command: str) -> Test:
+        if not channel:
             raise ValueError("SUT is None")
 
         if not command:
@@ -269,10 +273,10 @@ class LTPFramework(Framework):
         cwd = None
         env = None
 
-        ret = await sut.run_command(f"test -d {self._tc_folder}")
+        ret = await channel.run_command(f"test -d {self._tc_folder}")
         if ret and ret["returncode"] == 0:
             cwd = self._tc_folder
-            env = await self._read_path(sut)
+            env = await self._read_path(channel)
 
         test = Test(
             name=cmd_args[0],
@@ -285,34 +289,34 @@ class LTPFramework(Framework):
 
         return test
 
-    async def find_suite(self, sut: SUT, name: str) -> Suite:
-        if not sut:
+    async def find_suite(self, channel: ComChannel, name: str) -> Suite:
+        if not channel:
             raise ValueError("SUT is None")
 
         if not name:
             raise ValueError("name is empty")
 
-        ret = await sut.run_command(f"test -d {self._root}")
+        ret = await channel.run_command(f"test -d {self._root}")
         if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         suite_path = os.path.join(self._root, "runtest", name)
 
-        ret = await sut.run_command(f"test -f {suite_path}")
+        ret = await channel.run_command(f"test -f {suite_path}")
         if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"'{name}' suite doesn't exist")
 
-        runtest_data = await sut.fetch_file(suite_path)
+        runtest_data = await channel.fetch_file(suite_path)
         runtest_str = runtest_data.decode(encoding="utf-8", errors="ignore")
 
         metadata_path = os.path.join(self._root, "metadata", "ltp.json")
         metadata_dict = None
-        ret = await sut.run_command(f"test -f {metadata_path}")
+        ret = await channel.run_command(f"test -f {metadata_path}")
         if ret and ret["returncode"] == 0:
-            metadata_data = await sut.fetch_file(metadata_path)
+            metadata_data = await channel.fetch_file(metadata_path)
             metadata_dict = json.loads(metadata_data)
 
-        suite = await self._read_runtest(sut, name, runtest_str, metadata_dict)
+        suite = await self._read_runtest(channel, name, runtest_str, metadata_dict)
 
         return suite
 
