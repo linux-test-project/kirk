@@ -1,58 +1,50 @@
 """
 .. module:: sut
     :platform: Linux
-    :synopsis: sut definition
+    :synopsis: module implementing SUT
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
 import asyncio
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from libkirk.errors import KirkException, SUTError
+import libkirk.plugin
+from libkirk.com import ComChannel, IOBuffer
+from libkirk.errors import SUTError
 from libkirk.plugin import Plugin
 
-
-class IOBuffer:
-    """
-    IO stdout buffer. The API is similar to ``IO`` types.
-    """
-
-    async def write(self, data: str) -> None:
-        """
-        Write data.
-        """
-        raise NotImplementedError()
-
-
-TAINTED_MSG = [
-    "proprietary module was loaded",
-    "module was force loaded",
-    "kernel running on an out of specification system",
-    "module was force unloaded",
-    "processor reported a Machine Check Exception (MCE)",
-    "bad page referenced or some unexpected page flags",
-    "taint requested by userspace application",
-    "kernel died recently, i.e. there was an OOPS or BUG",
-    "ACPI table overridden by user",
-    "kernel issued warning",
-    "staging driver was loaded",
-    "workaround for bug in platform firmware applied",
-    "externally-built (“out-of-tree”) module was loaded",
-    "unsigned module was loaded",
-    "soft lockup occurred",
-    "kernel has been live patched",
-    "auxiliary taint, defined for and used by distros",
-    "kernel was built with the struct randomization plugin",
-]
+# discovered SUT implementations
+_SUT = []
 
 
 class SUT(Plugin):
     """
     SUT abstraction class. It could be a remote host, a local host, a virtual
-    machine instance, etc.
+    machine instance, or any complex system we want to test.
     """
+
+    TAINTED_MSG = [
+        "proprietary module was loaded",
+        "module was force loaded",
+        "kernel running on an out of specification system",
+        "module was force unloaded",
+        "processor reported a Machine Check Exception (MCE)",
+        "bad page referenced or some unexpected page flags",
+        "taint requested by userspace application",
+        "kernel died recently, i.e. there was an OOPS or BUG",
+        "ACPI table overridden by user",
+        "kernel issued warning",
+        "staging driver was loaded",
+        "workaround for bug in platform firmware applied",
+        "externally-built (“out-of-tree”) module was loaded",
+        "unsigned module was loaded",
+        "soft lockup occurred",
+        "kernel has been live patched",
+        "auxiliary taint, defined for and used by distros",
+        "kernel was built with the struct randomization plugin",
+    ]
 
     FAULT_INJECTION_FILES = [
         "fail_io_timeout",
@@ -61,106 +53,37 @@ class SUT(Plugin):
         "failslab",
     ]
 
-    @property
-    def parallel_execution(self) -> bool:
+    def get_channel(self) -> ComChannel:
         """
-        If True, SUT supports commands parallel execution.
+        Return the main channel used to communicate with the SUT.
+        :return: communication channel.
+        """
+        raise NotImplementedError()
+
+    async def start(self, iobuffer: Optional[IOBuffer] = None) -> None:
+        """
+        Start the SUT.
+        """
+        raise NotImplementedError()
+
+    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
+        """
+        Stop the SUT.
+        """
+        raise NotImplementedError()
+
+    async def restart(self, iobuffer: Optional[IOBuffer] = None) -> None:
+        """
+        Restart the SUT.
         """
         raise NotImplementedError()
 
     @property
     async def is_running(self) -> bool:
         """
-        Return True if SUT is running.
+        Return True if system under test is up and running. False otherwise.
         """
         raise NotImplementedError()
-
-    async def ping(self) -> float:
-        """
-        If SUT is replying and it's available, ping will return time needed to
-        wait for SUT reply.
-        :returns: float
-        """
-        raise NotImplementedError()
-
-    async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        """
-        Start communicating with the SUT.
-        :param iobuffer: buffer used to write SUT stdout
-        :type iobuffer: IOBuffer
-        """
-        raise NotImplementedError()
-
-    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        """
-        Stop the current SUT session.
-        :param iobuffer: buffer used to write SUT stdout
-        :type iobuffer: IOBuffer
-        """
-        raise NotImplementedError()
-
-    async def run_command(
-        self,
-        command: str,
-        cwd: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        iobuffer: Optional[IOBuffer] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Coroutine to run command on target.
-        :param command: command to execute
-        :type command: str
-        :param cwd: current working directory
-        :type cwd: str
-        :param env: environment variables
-        :type env: dict
-        :param iobuffer: buffer used to write SUT stdout
-        :type iobuffer: IOBuffer
-        :returns: dictionary containing command execution information
-
-            {
-                "command": <str>,
-                "returncode": <int>,
-                "stdout": <str>,
-                "exec_time": <float>,
-            }
-
-            If None is returned, then callback failed.
-        """
-        raise NotImplementedError()
-
-    async def fetch_file(self, target_path: str) -> bytes:
-        """
-        Fetch file from target path and return data from target path.
-        :param target_path: path of the file to download from target
-        :type target_path: str
-        :returns: bytes contained in target_path
-        """
-        raise NotImplementedError()
-
-    async def ensure_communicate(
-        self, iobuffer: Optional[IOBuffer], retries: int = 10
-    ) -> None:
-        """
-        Ensure that `communicate` is completed, retrying as many times we
-        want in case of `KirkException` error. After each `communicate` error
-        the SUT is stopped and a new communication is tried.
-        :param iobuffer: buffer used to write SUT stdout
-        :type iobuffer: IOBuffer
-        :param retries: number of times we retry communicating with SUT
-        :type retries: int
-        """
-        retries = max(retries, 1)
-
-        for retry in range(retries):
-            try:
-                await self.communicate(iobuffer=iobuffer)
-                break
-            except KirkException as err:
-                if retry >= retries - 1:
-                    raise err
-
-                await self.stop(iobuffer=iobuffer)
 
     async def get_info(self) -> Dict[str, str]:
         """
@@ -178,6 +101,8 @@ class SUT(Plugin):
             }
 
         """
+        if not await self.is_running:
+            raise SUTError("SUT is not running")
 
         # create suite results
         async def _run_cmd(cmd: str) -> str:
@@ -186,7 +111,8 @@ class SUT(Plugin):
             """
             stdout = "unknown"
             try:
-                ret = await asyncio.wait_for(self.run_command(cmd), 1.5)
+                channel = self.get_channel()
+                ret = await asyncio.wait_for(channel.run_command(cmd), 1.5)
                 if ret and ret["returncode"] == 0:
                     stdout = ret["stdout"].rstrip()
             except asyncio.TimeoutError:
@@ -238,16 +164,20 @@ class SUT(Plugin):
         Return information about kernel if tainted.
         :returns: (int, list[str])
         """
+        if not await self.is_running:
+            raise SUTError("SUT is not running")
+
         if self._tainted_lock.locked() and self._tainted_status.qsize() > 0:
             status = await self._tainted_status.get()
             return status
 
         async with self._tainted_lock:
-            ret = await self.run_command("cat /proc/sys/kernel/tainted")
+            channel = self.get_channel()
+            ret = await channel.run_command("cat /proc/sys/kernel/tainted")
             if not ret or ret["returncode"] != 0:
                 raise SUTError("Can't read tainted kernel information")
 
-            tainted_num = len(TAINTED_MSG)
+            tainted_num = len(self.TAINTED_MSG)
             code = ret["stdout"].strip()
 
             # output is likely message in stderr
@@ -260,7 +190,7 @@ class SUT(Plugin):
             messages = []
             for i in range(0, tainted_num):
                 if bits[i] == "1":
-                    msg = TAINTED_MSG[i]
+                    msg = self.TAINTED_MSG[i]
                     messages.append(msg)
 
             if self._tainted_status.qsize() > 0:
@@ -274,7 +204,11 @@ class SUT(Plugin):
         """
         Return True if we are logged as root inside the SUT. False otherwise.
         """
-        ret = await self.run_command("id -u")
+        if not self.is_running:
+            raise SUTError("SUT is not running")
+
+        channel = self.get_channel()
+        ret = await channel.run_command("id -u")
         if not ret or ret["returncode"] != 0:
             raise SUTError("Can't determine if we are running as root")
 
@@ -292,8 +226,13 @@ class SUT(Plugin):
         Return True if fault injection is enabled in the kernel.
         False otherwise.
         """
+        if not await self.is_running:
+            raise SUTError("SUT is not running")
+
+        channel = self.get_channel()
+
         for ftype in self.FAULT_INJECTION_FILES:
-            ret = await self.run_command(f"test -d /sys/kernel/debug/{ftype}")
+            ret = await channel.run_command(f"test -d /sys/kernel/debug/{ftype}")
             if ret and ret["returncode"] != 0:
                 return False
 
@@ -305,6 +244,9 @@ class SUT(Plugin):
         injection is set to default values.
         :param prob: Fault probabilty in between 0-100
         """
+        if not await self.is_running:
+            raise SUTError("SUT is not running")
+
         interval = 1 if prob == 0 else 100
         times = 1 if prob == 0 else -1
 
@@ -312,7 +254,8 @@ class SUT(Plugin):
             """
             Set the value to the path
             """
-            ret = await self.run_command(f"echo {value} > {path}")
+            channel = self.get_channel()
+            ret = await channel.run_command(f"echo {value} > {path}")
             if ret and ret["returncode"] != 0:
                 raise SUTError(f"Can't setup {path}. {ret['stdout']}")
 
@@ -323,3 +266,29 @@ class SUT(Plugin):
             await _set_value(times, f"{path}/times")
             await _set_value(interval, f"{path}/interval")
             await _set_value(prob, f"{path}/probability")
+
+
+def discover(path: str, extend: bool = True) -> None:
+    """
+    Discover all SUT implementations inside `path`.
+    :param path: directory where searching for SUT implementations
+    :type path: str
+    :param extend: if True, it will add new discovered SUT on top of the
+        ones already found. If False, previous discovered SUT will be
+        cleared.
+    """
+    global _SUT
+
+    obj = libkirk.plugin.discover(SUT, path)
+    if not extend:
+        _SUT.clear()
+
+    _SUT.extend(obj)
+
+
+def get_suts() -> List[ComChannel]:
+    """
+    :return: list of loaded SUT implementations.
+    """
+    global _SUT
+    return _SUT

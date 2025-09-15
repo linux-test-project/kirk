@@ -9,6 +9,8 @@ import time
 
 import pytest
 
+from libkirk.sut_base import GenericSUT
+from libkirk.tests.test_sut import _TestSUT
 from libkirk.channels.ltx import LTX, Requests
 from libkirk.channels.ltx_chan import LTXComChannel
 from libkirk.tests.test_com import _TestComChannel
@@ -300,3 +302,22 @@ class TestLTXComChannel(_TestComChannel):
     async def test_fetch_file_stop(self):
         pytest.skip(reason="LTX doesn't support stop for GET_FILE")
 
+
+@pytest.fixture
+async def sut(com):
+    """
+    SUT object to test.
+    """
+    obj = GenericSUT()
+    obj.setup(com="ltx")
+
+    yield obj
+
+    if await obj.is_running:
+        await obj.stop()
+
+
+class TestSUTLTX(_TestSUT):
+    """
+    Test LTXComChannel implementation in within SUT.
+    """

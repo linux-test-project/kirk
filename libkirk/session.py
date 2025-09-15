@@ -97,7 +97,7 @@ class Session:
         self._setup_debug_log()
         self._setup_test_save()
 
-        if not self._sut.parallel_execution:
+        if not self._sut.get_channel().parallel_execution:
             self._logger.info(
                 "SUT doesn't support parallel execution. Forcing workers=1."
             )
@@ -179,7 +179,7 @@ class Session:
         Start communicating with SUT.
         """
         await libkirk.events.fire("sut_start", self._sut.name)
-        await self._sut.ensure_communicate(iobuffer=RedirectSUTStdout(self._sut, False))
+        await self._sut.start(iobuffer=RedirectSUTStdout(self._sut, False))
 
     async def _stop_sut(self) -> None:
         """
@@ -197,7 +197,7 @@ class Session:
         """
         coros = []
         for suite in names:
-            coros.append(self._framework.find_suite(self._sut, suite))
+            coros.append(self._framework.find_suite(self._sut.get_channel(), suite))
 
         if not coros:
             raise KirkException(f"Can't find suites: {names}")
@@ -325,10 +325,11 @@ class Session:
             try:
                 await libkirk.events.fire("run_cmd_start", command)
 
-                test = await self._framework.find_command(self._sut, command)
+                channel = self._sut.get_channel()
+                test = await self._framework.find_command(channel, command)
 
                 ret = await asyncio.wait_for(
-                    self._sut.run_command(
+                    channel.run_command(
                         test.full_command,
                         cwd=test.cwd,
                         env=test.env,
@@ -477,7 +478,7 @@ class Session:
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
 
-            if not self._sut.parallel_execution:
+            if not self._sut.get_channel().parallel_execution:
                 await libkirk.events.fire(
                     "session_warning", "SUT doesn't support parallel execution"
                 )
