@@ -10,16 +10,16 @@ import pytest
 
 from libkirk.data import Suite, Test
 from libkirk.errors import KernelPanicError, KernelTaintedError, KernelTimeoutError
-from libkirk.host import HostSUT
+from libkirk.sut_base import GenericSUT
+from libkirk.channels.shell import ShellComChannel
 from libkirk.scheduler import SuiteScheduler, TestScheduler
-from libkirk.sut import TAINTED_MSG
 
 pytestmark = pytest.mark.asyncio
 
 
-class MockHostSUT(HostSUT):
+class MockSUT(GenericSUT):
     """
-    HostSUT mock.
+    GenericSUT mock.
     """
 
     async def get_info(self) -> dict:
@@ -66,8 +66,7 @@ class MockSuiteScheduler(SuiteScheduler):
         self._logger.info("Rebooting the SUT")
 
         await self._scheduler.stop()
-        await self._sut.stop()
-        await self._sut.communicate()
+        await self._sut.restart()
 
         self._rebooted += 1
 
@@ -81,11 +80,13 @@ async def sut():
     """
     SUT object.
     """
-    obj = MockHostSUT()
-    obj.setup()
-    await obj.communicate()
+    obj = MockSUT()
+    obj.setup(com="shell")
+    await obj.start()
     yield obj
-    await obj.stop()
+
+    if await obj.is_running:
+        await obj.stop()
 
 
 class TestTestScheduler:
@@ -260,7 +261,7 @@ class TestTestScheduler:
         async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
-        sut.run_command = kernel_timeout
+        sut.get_channel().run_command = kernel_timeout
         runner = create_runner(max_workers=workers)
 
         tests = []
@@ -394,7 +395,7 @@ class TestSuiteScheduler:
         index = 0
         value = 0
 
-        for msg in TAINTED_MSG:
+        for msg in sut.TAINTED_MSG:
             tainted.append((value, [msg]))
             value = pow(2, index)
             index += 1
@@ -466,7 +467,7 @@ class TestSuiteScheduler:
         async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
-        sut.run_command = kernel_timeout
+        sut.get_channel().run_command = kernel_timeout
         runner = create_runner(max_workers=workers)
 
         tests = []

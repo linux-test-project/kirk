@@ -153,7 +153,9 @@ class TestScheduler(Scheduler):
         """
         self._logger.info("Writing test information on /dev/kmsg")
 
-        ret = await self._sut.run_command("id -u")
+        channel = self._sut.get_channel()
+
+        ret = await channel.run_command("id -u")
         if not ret or ret["stdout"] != "0\n":
             self._logger.info("Can't write on /dev/kmsg from user")
             return
@@ -169,7 +171,7 @@ class TestScheduler(Scheduler):
                 f"{test.name}: start (command: {test.full_command})\n"
             )
 
-        await self._sut.run_command(f'echo -n "{message}" > /dev/kmsg')
+        await channel.run_command(f'echo -n "{message}" > /dev/kmsg')
 
     @property
     def results(self) -> List[Results]:
@@ -222,13 +224,14 @@ class TestScheduler(Scheduler):
             test_data: Dict[str, Any] = {}
             tainted_msg = None
             status = self.STATUS_OK
+            channel = self._sut.get_channel()
 
             try:
                 tainted_code1, _ = await self._get_tainted_status()
 
                 # pyrefly: ignore[bad-assignment]
                 test_data = await asyncio.wait_for(
-                    self._sut.run_command(
+                    channel.run_command(
                         cmd, cwd=test.cwd, env=test.env, iobuffer=iobuffer
                     ),
                     timeout=self._timeout,
@@ -255,7 +258,7 @@ class TestScheduler(Scheduler):
                 self._logger.info("Got test timeout. Checking if SUT is still replying")
 
                 try:
-                    await asyncio.wait_for(self._sut.ping(), timeout=10)
+                    await asyncio.wait_for(channel.ping(), timeout=10)
 
                     self._logger.info("SUT replied")
                 except asyncio.TimeoutError:
@@ -447,7 +450,7 @@ class SuiteScheduler(Scheduler):
 
     async def _restart_sut(self) -> None:
         """
-        Reboot the SUT.
+        Restart the SUT after stopping the tests scheduling.
         """
         async with self._reboot_lock:
             self._logger.info("Rebooting SUT")
@@ -457,8 +460,7 @@ class SuiteScheduler(Scheduler):
             iobuffer = RedirectSUTStdout(self._sut)
 
             await self._scheduler.stop()
-            await self._sut.stop(iobuffer=iobuffer)
-            await self._sut.ensure_communicate(iobuffer=iobuffer)
+            await self._sut.restart(iobuffer=iobuffer)
 
             self._logger.info("SUT rebooted")
 
