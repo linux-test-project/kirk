@@ -12,6 +12,7 @@ from libkirk.errors import KernelPanicError
 from libkirk.channels.qemu import QemuComChannel
 from libkirk.tests.test_com import Printer, _TestComChannel
 from libkirk.tests.test_sut import _TestSUT
+from libkirk.tests.test_session import _TestSession
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.qemu]
 
@@ -144,21 +145,25 @@ class TestQemuComChannelBusybox(_TestQemuComChannel):
             await runner.stop()
 
 
+@pytest.fixture
+async def sut(com_isa):
+    obj = GenericSUT()
+    obj.setup(com="qemu")
+
+    yield obj
+
+    if await obj.is_running:
+        await obj.stop()
+
+
 class TestSUTQemu(_TestSUT):
     """
     Test GenericSUT using Qemu support. We don't need varius supports, because
     we are only testing SUT API.
     """
-    @pytest.fixture
-    async def com(self, com_isa):
-        yield com_isa
 
-    @pytest.fixture
-    async def sut(self, com):
-        obj = GenericSUT()
-        obj.setup(com="qemu")
 
-        yield obj
-
-        if await obj.is_running:
-            await obj.stop()
+class TestSessionQemu(_TestSession):
+    """
+    Test Session using QemuComChannel.
+    """
