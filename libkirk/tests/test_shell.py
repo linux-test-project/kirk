@@ -4,6 +4,8 @@ Unittests for ShellComChannel.
 
 import pytest
 
+from libkirk.sut_base import GenericSUT
+from libkirk.tests.test_sut import _TestSUT
 from libkirk.channels.shell import ShellComChannel
 from libkirk.tests.test_com import _TestComChannel
 
@@ -36,3 +38,23 @@ class TestShellComChannel(_TestComChannel):
 
     async def test_fetch_file_stop(self):
         pytest.skip(reason="Coroutines don't support I/O file handling")
+
+
+@pytest.fixture
+async def sut(com):
+    """
+    SUT object to test.
+    """
+    obj = GenericSUT()
+    obj.setup(com="shell")
+
+    yield obj
+
+    if await obj.is_running:
+        await obj.stop()
+
+
+class TestSUTShellComChannel(_TestSUT):
+    """
+    Test GenericSUT using ShellComChannel.
+    """

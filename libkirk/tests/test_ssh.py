@@ -12,6 +12,8 @@ import libkirk.com
 from libkirk.errors import KernelPanicError
 from libkirk.channels.ssh import SSHComChannel
 from libkirk.com import IOBuffer
+from libkirk.sut_base import GenericSUT
+from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_com import _TestComChannel
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
@@ -178,7 +180,41 @@ class TestSSHComChannelPassword(_TestSSHComChannel):
 
 class TestSSHComChannelKeyfile(_TestSSHComChannel):
     """
-    Test SSHComChannel implementation using username/password.
+    Test SSHComChannel implementation using keyfile.
+    """
+
+    @pytest.fixture
+    def config(self, config_keyfile):
+        yield config_keyfile
+
+
+@pytest.fixture
+async def sut(com):
+    """
+    SUT object to test.
+    """
+    obj = GenericSUT()
+    obj.setup(com="ssh")
+
+    yield obj
+
+    if await obj.is_running:
+        await obj.stop()
+
+
+class TestSUTSSHComChannelPassword(_TestSUT):
+    """
+    Test SSHComChannel implementation using username/password in within SUT.
+    """
+
+    @pytest.fixture
+    def config(self, config_password):
+        yield config_password
+
+
+class TestSUTSSHComChannelKeyfile(_TestSUT):
+    """
+    Test SSHComChannel implementation using keyfile in within SUT.
     """
 
     @pytest.fixture
