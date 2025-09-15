@@ -15,6 +15,7 @@ from libkirk.com import IOBuffer
 from libkirk.sut_base import GenericSUT
 from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_com import _TestComChannel
+from libkirk.tests.test_session import _TestSession
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
 
@@ -215,6 +216,26 @@ class TestSUTSSHComChannelPassword(_TestSUT):
 class TestSUTSSHComChannelKeyfile(_TestSUT):
     """
     Test SSHComChannel implementation using keyfile in within SUT.
+    """
+
+    @pytest.fixture
+    def config(self, config_keyfile):
+        yield config_keyfile
+
+
+class TestSessionSSHComChannelPassword(_TestSession):
+    """
+    Test SSHComChannel implementation using username/password in within Session.
+    """
+
+    @pytest.fixture
+    def config(self, config_password):
+        yield config_password
+
+
+class TestSessionSSHComChannelKeyfile(_TestSession):
+    """
+    Test SSHComChannel implementation using keyfile in within Session.
     """
 
     @pytest.fixture
