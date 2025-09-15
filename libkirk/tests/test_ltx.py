@@ -9,10 +9,11 @@ import time
 
 import pytest
 
+import libkirk.com
 from libkirk.sut_base import GenericSUT
 from libkirk.tests.test_sut import _TestSUT
+from libkirk.tests.test_session import _TestSession
 from libkirk.channels.ltx import LTX, Requests
-from libkirk.channels.ltx_chan import LTXComChannel
 from libkirk.tests.test_com import _TestComChannel
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
@@ -282,7 +283,7 @@ async def com(tmpdir):
         stdout=stdout,
     )
 
-    obj = LTXComChannel()
+    obj = next((c for c in libkirk.com.get_channels() if c.name == "ltx"), None)
     obj.setup(cwd=str(tmpdir), env=dict(HELLO="WORLD"), infile=infile, outfile=outfile)
 
     yield obj
@@ -320,4 +321,10 @@ async def sut(com):
 class TestSUTLTX(_TestSUT):
     """
     Test LTXComChannel implementation in within SUT.
+    """
+
+
+class TestSessionLTXComChannel(_TestSession):
+    """
+    Test Session using LTXComChannel.
     """
