@@ -26,9 +26,6 @@ from libkirk.sut import SUT
 from libkirk.tempfile import TempDir
 from libkirk.ui import ParallelUserInterface, SimpleUserInterface, VerboseUserInterface
 
-# runtime loaded SUT(s)
-LOADED_SUT = []
-
 # runtime loaded Framework(s)
 LOADED_FRAMEWORK = []
 
@@ -105,7 +102,7 @@ def _sut_config(value: str) -> Dict[str, str]:
     """
     Return a SUT configuration according with input string.
     """
-    return _dict_config("sut", LOADED_SUT, value)
+    return _dict_config("sut", libkirk.sut.get_suts(), value)
 
 
 def _framework_config(value: str) -> Dict[str, str]:
@@ -197,14 +194,6 @@ def _finjection_config(value: str) -> int:
     return ret
 
 
-def _discover_sut(path: str) -> None:
-    """
-    Discover new SUT implementations.
-    """
-    objs = libkirk.plugin.discover(SUT, path)
-    LOADED_SUT.extend(objs)
-
-
 def _discover_frameworks(path: str) -> None:
     """
     Discover new Framework implementations.
@@ -259,7 +248,7 @@ def _get_sut(
     sut_config["tmpdir"] = tmpdir.abspath
 
     sut_name = args.sut["name"]
-    sut = _get_plugin(LOADED_SUT, sut_name)
+    sut = _get_plugin(libkirk.sut.get_suts(), sut_name)
     if not sut:
         parser.error(f"'{sut_name}' SUT is not available")
 
@@ -434,7 +423,8 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     Entry point of the application.
     """
     currdir = os.path.dirname(os.path.realpath(__file__))
-    _discover_sut(currdir)
+    libkirk.sut.discover(currdir)
+
     _discover_frameworks(currdir)
 
     parser = argparse.ArgumentParser(
@@ -462,6 +452,9 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     )
     generic_opts.add_argument(
         "--monitor", "-m", type=str, help="Location of the monitor file"
+    )
+    generic_opts.add_argument(
+        "--plugins", "-P", type=str, help="Location of custom plugins"
     )
 
     conf_opts = parser.add_argument_group("Configuration options")
@@ -557,6 +550,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     # output arguments
     # parse comand line
     args = parser.parse_args(cmd_args)
+
+    if args.plugins:
+        if not os.path.isdir(args.plugins):
+            parser.error(f"'{args.plugins}' plugins directory doesn't exist")
+
+        libkirk.sut.discover(args.plugins)
 
     if args.sut and "help" in args.sut:
         print(args.sut["help"])
