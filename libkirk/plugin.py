@@ -10,13 +10,17 @@ import importlib
 import importlib.util
 import inspect
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypeVar
+
+_Self = TypeVar("_Self", bound="Plugin")
 
 
 class Plugin:
     """
     Generic plugin definition.
     """
+
+    _name = ""
 
     def setup(self, **kwargs: Dict[str, Any]) -> None:
         """
@@ -38,9 +42,23 @@ class Plugin:
     @property
     def name(self) -> str:
         """
-        Name of the plugin.
+        Unique name identifier of the plugin.
         """
-        raise NotImplementedError()
+        return self._name
+
+    def clone(self, name: str) -> _Self:
+        """
+        Copy plugin and return a new instance with a given ``name``.
+        Make sure that ``name`` is unique, so external modules can
+        recognize it.
+        :param name: unique identifier string given to the plugin
+        :type name: str
+        """
+        obj = self.__class__()
+        obj._name = name
+
+        # pyrefly:ignore[bad-return]
+        return obj
 
 
 def discover(mytype: type, folder: str) -> List[Plugin]:
