@@ -15,7 +15,7 @@
    :hidden:
    :caption: For developers
 
-   developers/sut
+   developers/plugins
    developers/framework
 
 .. toctree::
@@ -42,7 +42,7 @@ For developers
 
 .. descriptions here are active
 
-:doc:`developers/sut`
+:doc:`developers/plugins`
    How to develop a new SUT
 
 :doc:`developers/framework`
