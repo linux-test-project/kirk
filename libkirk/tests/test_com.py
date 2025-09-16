@@ -10,7 +10,7 @@ import time
 import pytest
 
 import libkirk
-from libkirk.errors import CommunicationError
+from libkirk.errors import CommunicationError, PluginError
 from libkirk.com import IOBuffer
 
 
@@ -260,9 +260,7 @@ def test_discover(tmpdir):
         impl[index].write(
             "from libkirk.com import ComChannel\n\n"
             f"class ComChannel{index}(ComChannel):\n"
-            "    @property\n"
-            "    def name(self) -> str:\n"
-            f"        return 'channel{index}'\n"
+            f"  _name = 'channel{index}'\n"
         )
 
     libkirk.com.discover(str(tmpdir), extend=False)
@@ -273,3 +271,29 @@ def test_discover(tmpdir):
     names = [c.name for c in channels]
     assert "channel0" in names
     assert "channel1" in names
+
+
+def test_clone_channel(tmpdir):
+    """
+    Verify that channel can be cloned.
+    """
+    chanf = tmpdir / "chan.py"
+    chanf.write(
+        "from libkirk.com import ComChannel\n\n"
+        "class MyChannel(ComChannel):\n"
+        "  _name = 'mychan'\n"
+    )
+
+    libkirk.com.discover(str(tmpdir), extend=False)
+    assert libkirk.com.clone_channel("mychan", "newchan")
+
+    com = next((c for c in libkirk.com.get_channels() if c.name == "newchan"), None)
+    assert com
+
+
+def test_clone_channel_error(tmpdir):
+    """
+    Verify that unkown channel can't be cloned.
+    """
+    with pytest.raises(PluginError):
+        libkirk.com.clone_channel("mychan", "newchan")

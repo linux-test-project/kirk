@@ -36,6 +36,8 @@ class LTPFramework(Framework):
         "max_runtime",
     ]
 
+    _name = "ltp"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("libkirk.ltp")
         self._root = ""
@@ -232,10 +234,6 @@ class LTPFramework(Framework):
         self._logger.info("Collected testing suite: %s", suite_name)
 
         return suite
-
-    @property
-    def name(self) -> str:
-        return "ltp"
 
     async def get_suites(self, channel: ComChannel) -> List[str]:
         if not channel:
