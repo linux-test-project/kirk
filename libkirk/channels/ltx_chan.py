@@ -24,6 +24,8 @@ class LTXComChannel(ComChannel):
     Communication channel using LTX as executor.
     """
 
+    _name = "ltx"
+
     def __init__(self) -> None:
         self._logger = logging.getLogger("kirk.ltx")
         self._release_lock = asyncio.Lock()
@@ -32,10 +34,6 @@ class LTXComChannel(ComChannel):
         self._outfile = ""
         self._infile = ""
         self._slots = []
-
-    @property
-    def name(self) -> str:
-        return "ltx"
 
     @property
     def config_help(self) -> Dict[str, str]:

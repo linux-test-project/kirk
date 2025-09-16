@@ -9,7 +9,7 @@
 from typing import Any, Dict, List, Optional
 
 import libkirk.plugin
-from libkirk.errors import KirkException
+from libkirk.errors import KirkException, PluginError
 from libkirk.plugin import Plugin
 
 # discovered communication channels
@@ -166,3 +166,26 @@ def get_channels() -> List[ComChannel]:
     global _COM
     # pyrefly: ignore[bad-return]
     return _COM
+
+
+def clone_channel(name: str, new_name: str) -> Plugin:
+    """
+    Clone a channel implementation named ``name`` and rename it with
+    ``new_name``. The new plugin will be registered with the other
+    plugins.
+    :param name: plugin name
+    :type name: str
+    :param new_name: new cloned plugin name
+    :type new_name: str
+    :return: new plugin object
+    """
+    global _COM
+
+    plugin = next((c for c in _COM if c.name == name), None)
+    if not plugin:
+        raise PluginError(f"Can't find plugin '{name}'")
+
+    channel = plugin.clone(new_name)
+    _COM.append(channel)
+
+    return channel
