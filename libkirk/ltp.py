@@ -64,7 +64,8 @@ class LTPFramework(Framework):
             self._env.update(env)
 
         timeout = libkirk.types.dict_item(kwargs, "test_timeout", float)
-        if timeout:
+        user_timeout_mul = os.environ.get("LTP_TIMEOUT_MUL")
+        if timeout and not user_timeout_mul:
             self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
         root = libkirk.types.dict_item(kwargs, "root", str)
