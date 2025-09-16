@@ -14,6 +14,12 @@ class KirkException(Exception):
     """
 
 
+class PluginError(KirkException):
+    """
+    Raised when plugins operations have failed.
+    """
+
+
 class CommunicationError(KirkException):
     """
     Raised when there's a new communication error.
