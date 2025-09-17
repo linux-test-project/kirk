@@ -36,23 +36,26 @@ Some basic commands are the following:
     kirk --run-suite syscalls
 
     # run LTP syscalls testing suite on qemu VM
-    kirk --sut qemu:image=folder/image.qcow2:user=root:password=root \
-           --run-suite syscalls
+    kirk --com qemu:image=folder/image.qcow2:user=root:password=root \
+         --sut default:com=qemu \
+         --run-suite syscalls
 
     # run LTP syscalls testing suite via SSH
-    kirk --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
-           --run-suite syscalls
+    kirk --com ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
+         --sut default:com=ssh \
+         --run-suite syscalls
 
     # run LTP syscalls testing suite in parallel on host using 16 workers
     kirk --run-suite syscalls --workers 16
 
     # run LTP syscalls testing suite in parallel via SSH using 16 workers
-    kirk --sut ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
-           --run-suite syscalls --workers 16
+    kirk --com ssh:host=myhost.com:user=root:key_file=myhost_id_rsa \
+         --sut default:com=ssh \
+         --run-suite syscalls --workers 16
 
     # pass environment variables (list of key=value separated by ':')
     kirk --run-suite net.features \
-           --env 'VIRT_PERF_THRESHOLD=180:LTP_NET_FEATURES_IGNORE_PERFORMANCE_FAILURE=1'
+         --env 'VIRT_PERF_THRESHOLD=180:LTP_NET_FEATURES_IGNORE_PERFORMANCE_FAILURE=1'
 
 It's possible to run a single command before running testing suites using
 ``--run-command`` option as following:
@@ -60,5 +63,6 @@ It's possible to run a single command before running testing suites using
 .. code-block:: bash
 
     kirk --run-command ./setup_sut.sh \
-           --sut qemu:image=folder/image.qcow
+           --com qemu:image=folder/image.qcow \
+           --sut default:com=qemu
 
