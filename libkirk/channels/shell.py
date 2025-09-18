@@ -1,7 +1,7 @@
 """
-.. module:: host
+.. module:: shell
     :platform: Linux
-    :synopsis: module containing host SUT implementation
+    :synopsis: module containing shell communication channel
 
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
@@ -15,23 +15,25 @@ import time
 from asyncio.subprocess import Process
 from typing import Any, Dict, Optional
 
-from libkirk.errors import KernelPanicError, SUTError
+from libkirk.com import ComChannel, IOBuffer
+from libkirk.errors import CommunicationError, KernelPanicError
 from libkirk.io import AsyncFile
-from libkirk.sut import SUT, IOBuffer
 
 
-class HostSUT(SUT):
+class ShellComChannel(ComChannel):
     """
-    SUT implementation using host's shell.
+    Channel implementing host's shell communication.
     """
 
     BUFFSIZE = 1024
 
+    _name = "shell"
+
     def __init__(self) -> None:
-        self._logger = logging.getLogger("kirk.host")
+        self._logger = logging.getLogger("kirk.shell")
         self._fetch_lock = asyncio.Lock()
         self._procs = []
-        self._running = False
+        self._active = False
         self._stop = False
 
     def setup(self, **kwargs: Dict[str, Any]) -> None:
@@ -43,16 +45,12 @@ class HostSUT(SUT):
         return {}
 
     @property
-    def name(self) -> str:
-        return "host"
-
-    @property
     def parallel_execution(self) -> bool:
         return True
 
     @property
-    async def is_running(self) -> bool:
-        return self._running
+    async def active(self) -> bool:
+        return self._active
 
     @staticmethod
     async def _process_alive(proc: Process) -> bool:
@@ -79,28 +77,28 @@ class HostSUT(SUT):
             pass
 
     async def ping(self) -> float:
-        if not await self.is_running:
-            raise SUTError("SUT is not running")
+        if not await self.active:
+            raise CommunicationError("Shell is not running")
 
         ret = await self.run_command("test .")
         if not ret:
-            raise SUTError("Can't ping SUT")
+            raise CommunicationError("'test' command failed in shell")
 
         reply_t = ret["exec_time"]
 
         return reply_t
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if await self.is_running:
-            raise SUTError("SUT is running")
+        if await self.active:
+            raise CommunicationError("Shell is running")
 
-        self._running = True
+        self._active = True
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if not await self.is_running:
+        if not await self.active:
             return
 
-        self._logger.info("Stopping SUT")
+        self._logger.info("Stopping shell communication")
         self._stop = True
 
         try:
@@ -121,8 +119,8 @@ class HostSUT(SUT):
                     pass
         finally:
             self._stop = False
-            self._running = False
-            self._logger.info("SUT has stopped")
+            self._active = False
+            self._logger.info("Shell communication has stopped")
 
     async def run_command(
         self,
@@ -134,8 +132,8 @@ class HostSUT(SUT):
         if not command:
             raise ValueError("command is empty")
 
-        if not await self.is_running:
-            raise SUTError("SUT is not running")
+        if not await self.active:
+            raise CommunicationError("Shell is not running")
 
         self._logger.info("Executing command: '%s'", command)
 
@@ -159,7 +157,7 @@ class HostSUT(SUT):
 
             proc = await asyncio.create_subprocess_shell(command, **kwargs)
             if not proc or not proc.stdout:
-                raise SUTError(f"Can't create any subprocess for '{command}'")
+                raise CommunicationError(f"Can't create any subprocess for '{command}'")
 
             self._procs.append(proc)
 
@@ -210,10 +208,10 @@ class HostSUT(SUT):
             raise ValueError("target path is empty")
 
         if not os.path.isfile(target_path):
-            raise SUTError(f"'{target_path}' file doesn't exist")
+            raise CommunicationError(f"'{target_path}' file doesn't exist")
 
-        if not await self.is_running:
-            raise SUTError("SUT is not running")
+        if not await self.active:
+            raise CommunicationError("Shell is not running")
 
         async with self._fetch_lock:
             self._logger.info("Downloading '%s'", target_path)
@@ -227,7 +225,7 @@ class HostSUT(SUT):
                         assert isinstance(data, bytes)
                         retdata = data
             except IOError as err:
-                raise SUTError(err) from err
+                raise CommunicationError(err) from err
 
             self._logger.info("File copied")
 

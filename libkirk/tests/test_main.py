@@ -22,7 +22,8 @@ class TestMain:
         """
         Setup main before running tests.
         """
-        libkirk.main.LOADED_FRAMEWORK.append(dummy_framework)
+        if len(libkirk.main.LOADED_FRAMEWORK) < 2:
+            libkirk.main.LOADED_FRAMEWORK.append(dummy_framework)
 
     def read_report(self, temp) -> dict:
         """
@@ -376,7 +377,7 @@ class TestMain:
             libkirk.main.run(cmd_args=cmd_args)
 
         assert excinfo.value.code == libkirk.main.RC_OK
-        assert len(libkirk.main.LOADED_SUT) > 0
+        assert len(libkirk.sut.get_suts()) > 0
 
     def test_framework_help(self):
         """
@@ -494,3 +495,89 @@ class TestMain:
 
         report = self.read_report(temp)
         assert len(report["results"]) >= 2
+
+    def test_plugins_channels(self, tmpdir):
+        """
+        Test --plugins discovery option with ComChannel.
+        """
+        impl = tmpdir / "chan.py"
+        impl.write(
+            "from libkirk.com import ComChannel\n\n"
+            "class MyChannel(ComChannel):\n"
+            "    @property\n"
+            "    def name(self) -> str:\n"
+            "        return 'mychan'"
+        )
+
+        cmd_args = [
+            "--plugins",
+            str(tmpdir),
+            "--sut",
+            "help"
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        channels = libkirk.com.get_channels()
+
+        assert len(channels) > 0
+        assert [item for item in channels if item.name == "mychan"]
+
+    def test_plugins_suts(self, tmpdir):
+        """
+        Test --plugins discovery option with SUT.
+        """
+        impl = tmpdir / "sut.py"
+        impl.write(
+            "from libkirk.sut_base import GenericSUT\n\n"
+            "class MySUT(GenericSUT):\n"
+            "    @property\n"
+            "    def name(self) -> str:\n"
+            "        return 'mysut'"
+        )
+
+        cmd_args = [
+            "--plugins",
+            str(tmpdir),
+            "--sut",
+            "help"
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        suts = libkirk.sut.get_suts()
+
+        assert len(suts) > 0
+        assert [item for item in suts if item.name == "mysut"]
+
+    def test_com(self, tmpdir):
+        """
+        Test --com option.
+        """
+        temp = tmpdir.mkdir("temp")
+        cmd_args = [
+            "--tmp-dir",
+            str(temp),
+            "--com",
+            "shell:id=myshell",
+            "--sut",
+            "default:com=myshell",
+            "--framework",
+            "dummy",
+            "--run-suite",
+            "suite01",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        names = [com.name for com in libkirk.com.get_channels()]
+        assert "myshell" in names
