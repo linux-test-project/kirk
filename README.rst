@@ -8,6 +8,12 @@ and it's the official `LTP <https://github.com/linux-test-project>`_ tests
 executor. It provides support for remote testing via Qemu, SSH, LTX, parallel
 execution and much more.
 
+.. WARNING::
+
+   The `master` branch might be affected by breaking changes. Make sure to use
+   one of the `latest <https://github.com/linux-test-project/kirk/tags>`_
+   available versions.
+
 .. code-block:: bash
 
     Host information
