@@ -32,8 +32,7 @@ try:
             self._iobuffer = iobuffer
             self._panic = False
 
-        # pyrefly: ignore[bad-override]
-        def data_received(self, data: str, _: asyncssh.DataType) -> None:
+        def data_received(self, data: str, datatype: asyncssh.DataType) -> None:
             """
             Override default data_received callback, storing stdout/stderr inside
             a buffer and checking for kernel panic.
@@ -58,6 +57,8 @@ try:
             Return the list containing stored stdout/stderr messages.
             """
             return self._output
+
+
 except ModuleNotFoundError:
     pass
 
