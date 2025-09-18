@@ -15,4 +15,4 @@ To enable console on a tty device for a VM, follow these steps:
 
 .. warning::
 
-    If you set the ``serial=virtio`` backend option, then use ``hvc0`` instead.
+    If you set the ``serial=virtio`` backend option, then use ``console=hvc0`` instead.
