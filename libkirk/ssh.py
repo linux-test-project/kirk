@@ -19,7 +19,6 @@ from libkirk.sut import SUT, IOBuffer
 
 try:
     import asyncssh
-    import asyncssh.misc
 
     class MySSHClientSession(asyncssh.SSHClientSession):
         """
@@ -239,7 +238,7 @@ class SSHSUT(SUT):
 
             self._logger.info("Maximum SSH sessions: %d", max_sessions)
             self._session_sem = asyncio.Semaphore(max_sessions)
-        except asyncssh.misc.Error as err:
+        except (asyncssh.Error, ConnectionError) as err:
             if not self._stop:
                 raise SUTError(err) from err
 
@@ -332,7 +331,7 @@ class SSHSUT(SUT):
 
                 panic = session.kernel_panic()
                 stdout = session.get_output()
-            except asyncssh.misc.ChannelOpenError as err:
+            except asyncssh.Error as err:
                 if not self._stop:
                     raise SUTError(err)
             finally:
