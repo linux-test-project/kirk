@@ -476,7 +476,7 @@ class SuiteScheduler(Scheduler):
         start_t = 0.0
         timed_out = False
         exec_times = []
-        tests_results = []
+        tests_results: List[TestResults] = []
         tests_left = list(suite.tests)
         reboot_event = asyncio.Event()
 
@@ -505,6 +505,7 @@ class SuiteScheduler(Scheduler):
                         reboot_event.set()
                 finally:
                     exec_times.append(time.time() - start_t)
+                    # pyrefly: ignore[bad-argument-type]
                     tests_results.extend(self._scheduler.results)
 
                 # tests_left array will be populated when SUT is
