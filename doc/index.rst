@@ -24,6 +24,7 @@
    :caption: For maintainers
 
    maintainers/release
+   maintainers/architecture
    kirk/modules
 
 For users
@@ -55,6 +56,9 @@ For maintainers
 
 :doc:`maintainers/release`
    How to create a kirk release
+
+:doc:`maintainers/architecture`
+   Internal kirk architecture
 
 :doc:`kirk/modules`
    Internal kirk API

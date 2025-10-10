@@ -21,6 +21,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
+    "sphinx.ext.graphviz",
+    "sphinx.ext.inheritance_diagram",
     "myst_parser",
 ]
 
