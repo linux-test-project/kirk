@@ -1,19 +1,14 @@
 """
-Test AsyncSUT implementations.
+Test GenericSUT implementations.
 """
 
 import asyncio
 import logging
-import os
-import time
 
 import pytest
 
-import libkirk
-from libkirk.errors import SUTError
-from libkirk.sut import IOBuffer
-
-pytestmark = pytest.mark.asyncio
+import libkirk.sut
+from libkirk.com import IOBuffer
 
 
 class Printer(IOBuffer):
@@ -22,85 +17,39 @@ class Printer(IOBuffer):
     """
 
     def __init__(self) -> None:
-        self._logger = logging.getLogger("test.host")
+        self._logger = logging.getLogger("test.sut")
 
     async def write(self, data: str) -> None:
         print(data, end="")
 
 
 @pytest.fixture
-def sut():
+async def sut():
     """
-    Expose the SUT implementation via this fixture in order to test it.
+    SUT object to test.
     """
     raise NotImplementedError()
 
 
+@pytest.mark.asyncio
 class _TestSUT:
     """
-    Generic tests for SUT implementation.
+    Unittest for GenericSUT implementations.
     """
 
-    _logger = logging.getLogger("test.asyncsut")
+    async def test_get_channel(self, sut):
+        """
+        Test if get_channel() returns a communication channel when SUT has
+        been initialized.
+        """
+        assert sut.get_channel()
 
-    async def test_config_help(self, sut):
+    async def test_start(self, sut):
         """
-        Test if config_help has the right type.
+        Test start method.
         """
-        assert isinstance(sut.config_help, dict)
-
-    async def test_ping_no_running(self, sut):
-        """
-        Test ping method with no running sut.
-        """
-        with pytest.raises(SUTError):
-            await sut.ping()
-
-    async def test_ping(self, sut):
-        """
-        Test ping method.
-        """
-        await sut.communicate(iobuffer=Printer())
-        ping_t = await sut.ping()
-        assert ping_t > 0
-
-    async def test_get_info(self, sut):
-        """
-        Test get_info method.
-        """
-        await sut.communicate(iobuffer=Printer())
-        info = await sut.get_info()
-
-        assert info["distro"]
-        assert info["distro_ver"]
-        assert info["kernel"]
-        assert info["arch"]
-
-    async def test_get_tainted_info(self, sut):
-        """
-        Test get_tainted_info.
-        """
-        await sut.communicate(iobuffer=Printer())
-        code, messages = await sut.get_tainted_info()
-
-        assert code >= 0
-        assert isinstance(messages, list)
-
-    async def test_communicate(self, sut):
-        """
-        Test communicate method.
-        """
-        await sut.communicate(iobuffer=Printer())
-        with pytest.raises(SUTError):
-            await sut.communicate(iobuffer=Printer())
-
-    async def test_ensure_communicate(self, sut):
-        """
-        Test ensure_communicate method.
-        """
-        await sut.ensure_communicate(iobuffer=Printer())
-        with pytest.raises(SUTError):
-            await sut.ensure_communicate(iobuffer=Printer(), retries=1)
+        await sut.start(iobuffer=Printer())
+        assert await sut.is_running
 
     @pytest.fixture
     def sut_stop_sleep(self, request):
@@ -112,159 +61,75 @@ class _TestSUT:
         return request.param * 1.0
 
     @pytest.mark.parametrize("sut_stop_sleep", [1, 2], indirect=True)
-    async def test_communicate_stop(self, sut, sut_stop_sleep):
+    async def test_start_stop(self, sut, sut_stop_sleep):
         """
-        Test stop method when running communicate.
+        Test stop method when running start.
         """
-
         async def stop():
             await asyncio.sleep(sut_stop_sleep)
             await sut.stop(iobuffer=Printer())
 
         await asyncio.gather(
-            *[sut.communicate(iobuffer=Printer()), stop()], return_exceptions=True
+            *[sut.start(iobuffer=Printer()), stop()], return_exceptions=True
         )
 
-    async def test_run_command(self, sut):
+    async def test_config_help(self, sut):
         """
-        Execute run_command once.
+        Test if config_help has the right type.
         """
-        await sut.communicate(iobuffer=Printer())
-        res = await sut.run_command("echo 0")
+        assert isinstance(sut.config_help, dict)
 
-        assert res["returncode"] == 0
-        assert int(res["stdout"]) == 0
-        assert 0 < res["exec_time"] < time.time()
-
-    async def test_run_command_stop(self, sut):
+    async def test_get_info(self, sut):
         """
-        Execute run_command once, then call stop().
+        Test get_info method.
         """
-        await sut.communicate(iobuffer=Printer())
+        await sut.start(iobuffer=Printer())
+        info = await sut.get_info()
 
-        async def stop():
-            await asyncio.sleep(0.2)
-            await sut.stop(iobuffer=Printer())
+        assert info["distro"]
+        assert info["distro_ver"]
+        assert info["kernel"]
+        assert info["arch"]
 
-        async def test():
-            res = await sut.run_command("sleep 2")
-
-            assert res["returncode"] != 0
-            assert 0 < res["exec_time"] < 2
-
-        await asyncio.gather(*[test(), stop()])
-
-    async def test_run_command_parallel(self, sut):
+    async def test_get_tainted_info(self, sut):
         """
-        Execute run_command in parallel.
+        Test get_tainted_info.
         """
-        if not sut.parallel_execution:
-            pytest.skip(reason="Parallel execution is not supported")
+        await sut.start(iobuffer=Printer())
+        code, messages = await sut.get_tainted_info()
 
-        await sut.communicate(iobuffer=Printer())
+        assert code >= 0
+        assert isinstance(messages, list)
 
-        exec_count = os.cpu_count()
-        coros = [sut.run_command(f"echo {i}") for i in range(exec_count)]
+    # TODO: test the following
+    # - tainted info
+    # - fault injection
+    # - is root
 
-        results = await asyncio.gather(*coros)
 
-        for data in results:
-            assert data["returncode"] == 0
-            assert 0 <= int(data["stdout"]) < exec_count
-            assert 0 < data["exec_time"] < time.time()
+def test_discover(tmpdir):
+    """
+    Test if SUT implementations are correctly discovered.
+    """
+    impl = []
+    impl.append(tmpdir / "sutA.py")
+    impl.append(tmpdir / "sutB.py")
+    impl.append(tmpdir / "sutC.txt")
 
-    async def test_run_command_stop_parallel(self, sut):
-        """
-        Execute multiple run_command in parallel, then call stop().
-        """
-        if not sut.parallel_execution:
-            pytest.skip(reason="Parallel execution is not supported")
-
-        await sut.communicate(iobuffer=Printer())
-
-        async def stop():
-            await asyncio.sleep(0.2)
-            await sut.stop(iobuffer=Printer())
-
-        async def test():
-            exec_count = os.cpu_count()
-            coros = [sut.run_command("sleep 2") for i in range(exec_count)]
-            results = await asyncio.gather(*coros, return_exceptions=True)
-
-            for data in results:
-                if not isinstance(data, dict):
-                    # we also have stop() return
-                    continue
-
-                assert data["returncode"] != 0
-                assert 0 < data["exec_time"] < 2
-
-        await asyncio.gather(*[test(), stop()])
-
-    async def test_fetch_file_bad_args(self, sut):
-        """
-        Test fetch_file method with bad arguments.
-        """
-        await sut.communicate(iobuffer=Printer())
-
-        with pytest.raises(ValueError):
-            await sut.fetch_file(None)
-
-        with pytest.raises(SUTError):
-            await sut.fetch_file("this_file_doesnt_exist")
-
-    async def test_fetch_file(self, sut):
-        """
-        Test fetch_file method.
-        """
-        await sut.communicate(iobuffer=Printer())
-
-        for i in range(0, 5):
-            myfile = f"/tmp/myfile{i}"
-            await sut.run_command(f"echo -n 'mytests' > {myfile}")
-            data = await sut.fetch_file(myfile)
-
-            assert data == b"mytests"
-
-    async def test_fetch_file_stop(self, sut):
-        """
-        Test stop method when running fetch_file.
-        """
-        target = "/tmp/target_file"
-        await sut.communicate(iobuffer=Printer())
-
-        async def fetch():
-            (await sut.run_command(f"truncate -s {1024 * 1024 * 1024} {target}"),)
-            await sut.fetch_file(target)
-
-        async def stop():
-            await asyncio.sleep(2)
-            await sut.stop(iobuffer=Printer())
-
-        libkirk.create_task(fetch())
-
-        await stop()
-
-    async def test_cwd(self, sut):
-        """
-        Test CWD constructor argument.
-        """
-        await sut.communicate(iobuffer=Printer())
-
-        ret = await sut.run_command("echo -n $PWD", cwd="/tmp", iobuffer=Printer())
-
-        assert ret["returncode"] == 0
-        assert ret["stdout"].strip() == "/tmp"
-
-    async def test_env(self, sut):
-        """
-        Test ENV constructor argument.
-        """
-        await sut.communicate(iobuffer=Printer())
-
-        ret = await sut.run_command(
-            "echo -n $HELLO", env=dict(HELLO="ciao"), iobuffer=Printer()
+    for index in range(0, len(impl)):
+        impl[index].write(
+            "from libkirk.sut import SUT\n\n"
+            f"class MySUT{index}(SUT):\n"
+            "    @property\n"
+            "    def name(self) -> str:\n"
+            f"        return 'sut{index}'\n"
         )
 
-        assert ret["returncode"] == 0
-        assert ret["stdout"].strip() == "ciao"
+    libkirk.sut.discover(str(tmpdir), extend=False)
+
+    suts = libkirk.sut.get_suts()
+    assert len(suts) == 2
+
+    names = [c.name for c in suts]
+    assert "sut0" in names
+    assert "sut1" in names

@@ -2,33 +2,29 @@
 Unittests for framework module.
 """
 
+import pytest
 import libkirk
 import libkirk.plugin
+from libkirk.plugin import Plugin
 from libkirk.framework import Framework
-from libkirk.sut import SUT
 
 
-def test_sut(tmpdir):
+@pytest.fixture(autouse=True)
+def setup(tmpdir):
     """
-    Test if SUT implementations are correctly loaded.
+    Setup the temporary folder before tests.
     """
-    suts = []
-    suts.append(tmpdir / "sutA.py")
-    suts.append(tmpdir / "sutB.py")
-    suts.append(tmpdir / "sutC.txt")
+    plugins = []
+    plugins.append(tmpdir / "pluginA.py")
+    plugins.append(tmpdir / "pluginB.py")
+    plugins.append(tmpdir / "pluginC.txt")
 
-    for index in range(0, len(suts)):
-        suts[index].write(
-            "from libkirk.sut import SUT\n\n"
-            f"class SUT{index}(SUT):\n"
-            "    @property\n"
-            "    def name(self) -> str:\n"
-            f"        return 'mysut{index}'\n"
+    for index in range(0, len(plugins)):
+        plugins[index].write(
+            "from libkirk.plugin import Plugin\n\n"
+            "class MyPlugin(Plugin):\n"
+            "    _name = 'myplug'\n"
         )
-
-    suts = libkirk.plugin.discover(SUT, str(tmpdir))
-
-    assert len(suts) == 2
 
 
 def test_framework(tmpdir):
@@ -52,3 +48,13 @@ def test_framework(tmpdir):
     suts = libkirk.plugin.discover(Framework, str(tmpdir))
 
     assert len(suts) == 2
+
+
+def test_clone(tmpdir):
+    """
+    Test if ``clone`` method properly forks inside ``Plugin``.
+    """
+    plugins = libkirk.plugin.discover(Plugin, str(tmpdir))
+    newplugin = plugins[0].clone("myclone")
+
+    assert newplugin.name == "myclone"
