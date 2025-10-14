@@ -1,5 +1,5 @@
 """
-Unittests for ssh module.
+Unittests for SSHComChannel.
 """
 
 import asyncio
@@ -8,11 +8,11 @@ import subprocess
 
 import pytest
 
+import libkirk.com
 from libkirk.errors import KernelPanicError
-from libkirk.ssh import SSHSUT
-from libkirk.sut import IOBuffer
-from libkirk.tests.test_session import _TestSession
-from libkirk.tests.test_sut import _TestSUT
+from libkirk.channels.ssh import SSHComChannel
+from libkirk.com import IOBuffer
+from libkirk.tests.test_com import _TestComChannel
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
 
@@ -34,28 +34,29 @@ if not TEST_SSH_KEY_FILE:
 @pytest.fixture
 def config():
     """
-    Base configuration to connect to SUT.
+    Base configuration to connect to ComChannel.
     """
     raise NotImplementedError()
 
 
 @pytest.fixture
-async def sut(config):
+async def com(config):
     """
-    SSH SUT communication object.
+    SSH communication object.
     """
-    _sut = SSHSUT()
-    _sut.setup(**config)
+    obj = SSHComChannel()
+    obj = next((c for c in libkirk.com.get_channels() if c.name == "ssh"), None)
+    obj.setup(**config)
 
-    yield _sut
+    yield obj
 
-    if await _sut.is_running:
-        await _sut.stop()
+    if await obj.active:
+        await obj.stop()
 
 
-class _TestSSHSUT(_TestSUT):
+class _TestSSHComChannel(_TestComChannel):
     """
-    Test SSHSUT implementation using username/password.
+    Test SSHComChannel implementation using username/password.
     """
 
     async def test_reset_cmd(self, config):
@@ -65,9 +66,9 @@ class _TestSSHSUT(_TestSUT):
         kwargs = dict(reset_cmd="echo ciao")
         kwargs.update(config)
 
-        sut = SSHSUT()
-        sut.setup(**kwargs)
-        await sut.communicate()
+        com = SSHComChannel()
+        com.setup(**kwargs)
+        await com.communicate()
 
         class MyBuffer(IOBuffer):
             data = ""
@@ -78,7 +79,7 @@ class _TestSSHSUT(_TestSUT):
                 await asyncio.sleep(0.1)
 
         buffer = MyBuffer()
-        await sut.stop(iobuffer=buffer)
+        await com.stop(iobuffer=buffer)
 
         assert buffer.data == "ciao\n"
 
@@ -90,40 +91,40 @@ class _TestSSHSUT(_TestSUT):
         kwargs = dict(sudo=enable)
         kwargs.update(config)
 
-        sut = SSHSUT()
-        sut.setup(**kwargs)
-        await sut.communicate()
-        ret = await sut.run_command("whoami")
+        com = SSHComChannel()
+        com.setup(**kwargs)
+        await com.communicate()
+        ret = await com.run_command("whoami")
 
         if enable == "1":
             assert ret["stdout"] == "root\n"
         else:
             assert ret["stdout"] != "root\n"
 
-    async def test_kernel_panic(self, sut):
+    async def test_kernel_panic(self, com):
         """
         Test kernel panic recognition.
         """
-        await sut.communicate()
+        await com.communicate()
 
         with pytest.raises(KernelPanicError):
-            await sut.run_command("echo 'Kernel panic\nThis is a generic message'")
+            await com.run_command("echo 'Kernel panic\nThis is a generic message'")
 
-    async def test_stderr(self, sut):
+    async def test_stderr(self, com):
         """
         Test if we are correctly reading stderr.
         """
-        await sut.communicate()
+        await com.communicate()
 
-        ret = await sut.run_command(">&2 echo ciao_stderr && echo ciao_stdout")
+        ret = await com.run_command(">&2 echo ciao_stderr && echo ciao_stdout")
         assert "ciao_stdout" in ret["stdout"]
         assert "ciao_stderr" in ret["stdout"]
 
-    async def test_long_stdout(self, sut):
+    async def test_long_stdout(self, com):
         """
         Test really long stdout.
         """
-        await sut.communicate()
+        await com.communicate()
 
         result = subprocess.run(
             "tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 10000",
@@ -133,7 +134,7 @@ class _TestSSHSUT(_TestSUT):
             check=True,
         )
 
-        ret = await sut.run_command(f"echo -n {result.stdout}")
+        ret = await com.run_command(f"echo -n {result.stdout}")
         assert ret["stdout"] == result.stdout
 
 
@@ -165,29 +166,9 @@ def config_keyfile(tmpdir):
     )
 
 
-class TestSSHSUTPassword(_TestSSHSUT):
+class TestSSHComChannelPassword(_TestSSHComChannel):
     """
-    Test SSHSUT implementation using username/password.
-    """
-
-    @pytest.fixture
-    def config(self, config_password):
-        yield config_password
-
-
-class TestSSHSUTKeyfile(_TestSSHSUT):
-    """
-    Test SSHSUT implementation using username/password.
-    """
-
-    @pytest.fixture
-    def config(self, config_keyfile):
-        yield config_keyfile
-
-
-class TestSessionSSHPassword(_TestSession):
-    """
-    Test Session implementation using SSH SUT in password mode.
+    Test SSHComChannel implementation using username/password.
     """
 
     @pytest.fixture
@@ -195,9 +176,9 @@ class TestSessionSSHPassword(_TestSession):
         yield config_password
 
 
-class TestSessionSSHKeyfile(_TestSession):
+class TestSSHComChannelKeyfile(_TestSSHComChannel):
     """
-    Test Session implementation using SSH SUT in keyfile mode.
+    Test SSHComChannel implementation using username/password.
     """
 
     @pytest.fixture
