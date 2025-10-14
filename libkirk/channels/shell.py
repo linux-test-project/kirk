@@ -1,0 +1,234 @@
+"""
+.. module:: shell
+    :platform: Linux
+    :synopsis: module containing shell communication channel
+
+.. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
+"""
+
+import asyncio
+import contextlib
+import logging
+import os
+import signal
+import time
+from asyncio.subprocess import Process
+from typing import Any, Dict, Optional
+
+from libkirk.com import ComChannel, IOBuffer
+from libkirk.errors import CommunicationError, KernelPanicError
+from libkirk.io import AsyncFile
+
+
+class ShellComChannel(ComChannel):
+    """
+    Channel implementing host's shell communication.
+    """
+
+    BUFFSIZE = 1024
+
+    def __init__(self) -> None:
+        self._logger = logging.getLogger("kirk.shell")
+        self._fetch_lock = asyncio.Lock()
+        self._procs = []
+        self._active = False
+        self._stop = False
+
+    def setup(self, **kwargs: Dict[str, Any]) -> None:
+        pass
+
+    @property
+    def config_help(self) -> Dict[str, str]:
+        # cwd and env are given by default, so no options are needed
+        return {}
+
+    @property
+    def name(self) -> str:
+        return "shell"
+
+    @property
+    def parallel_execution(self) -> bool:
+        return True
+
+    @property
+    async def active(self) -> bool:
+        return self._active
+
+    @staticmethod
+    async def _process_alive(proc: Process) -> bool:
+        """
+        Return True if process is alive and running.
+        """
+        with contextlib.suppress(asyncio.TimeoutError):
+            returncode = await asyncio.wait_for(proc.wait(), 1e-6)
+            if returncode is not None:
+                return False
+
+        return True
+
+    async def _kill_process(self, proc: Process) -> None:
+        """
+        Kill a process and all its subprocesses.
+        """
+        self._logger.info("Kill process %d", proc.pid)
+
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            # process has been killed already
+            pass
+
+    async def ping(self) -> float:
+        if not await self.active:
+            raise CommunicationError("Shell is not running")
+
+        ret = await self.run_command("test .")
+        if not ret:
+            raise CommunicationError("'test' command failed in shell")
+
+        reply_t = ret["exec_time"]
+
+        return reply_t
+
+    async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
+        if await self.active:
+            raise CommunicationError("Shell is running")
+
+        self._active = True
+
+    async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
+        if not await self.active:
+            return
+
+        self._logger.info("Stopping shell communication")
+        self._stop = True
+
+        try:
+            if self._procs:
+                self._logger.info("Terminating %d process(es)", len(self._procs))
+
+                for proc in self._procs:
+                    await self._kill_process(proc)
+
+                await asyncio.gather(*[proc.wait() for proc in self._procs])
+
+                self._logger.info("Process(es) terminated")
+
+            if self._fetch_lock.locked():
+                self._logger.info("Terminating data fetch")
+
+                async with self._fetch_lock:
+                    pass
+        finally:
+            self._stop = False
+            self._active = False
+            self._logger.info("Shell communication has stopped")
+
+    async def run_command(
+        self,
+        command: str,
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+        iobuffer: Optional[IOBuffer] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if not command:
+            raise ValueError("command is empty")
+
+        if not await self.active:
+            raise CommunicationError("Shell is not running")
+
+        self._logger.info("Executing command: '%s'", command)
+
+        ret = None
+        proc = None
+        t_end = 0
+        stdout = ""
+
+        try:
+            kwargs: Dict[str, Any] = {
+                "stdout": asyncio.subprocess.PIPE,
+                "stderr": asyncio.subprocess.STDOUT,
+                "cwd": cwd if cwd else None,
+                "start_new_session": True,
+            }
+
+            if env:
+                # commands can fail when env is defined, so we just skip
+                # env usage if dictionary is empty
+                kwargs["env"] = env
+
+            proc = await asyncio.create_subprocess_shell(command, **kwargs)
+            if not proc or not proc.stdout:
+                raise CommunicationError(f"Can't create any subprocess for '{command}'")
+
+            self._procs.append(proc)
+
+            t_start = time.time()
+            panic = False
+
+            while True:
+                line = await proc.stdout.read(self.BUFFSIZE)
+                sline = line.decode(encoding="utf-8", errors="ignore")
+
+                if iobuffer:
+                    await iobuffer.write(sline)
+
+                stdout += sline
+                panic = "Kernel panic" in stdout[-2 * self.BUFFSIZE :]
+
+                if not await self._process_alive(proc):
+                    break
+
+            await proc.wait()
+
+            t_end = time.time() - t_start
+
+            if panic:
+                raise KernelPanicError()
+        finally:
+            if proc:
+                self._procs.remove(proc)
+
+                await self._kill_process(proc)
+                await proc.wait()
+
+                ret = {
+                    "command": command,
+                    "stdout": stdout,
+                    "returncode": proc.returncode,
+                    "exec_time": t_end,
+                }
+
+                self._logger.debug("return data=%s", ret)
+
+        self._logger.info("Command executed")
+
+        return ret
+
+    async def fetch_file(self, target_path: str) -> bytes:
+        if not target_path:
+            raise ValueError("target path is empty")
+
+        if not os.path.isfile(target_path):
+            raise CommunicationError(f"'{target_path}' file doesn't exist")
+
+        if not await self.active:
+            raise CommunicationError("Shell is not running")
+
+        async with self._fetch_lock:
+            self._logger.info("Downloading '%s'", target_path)
+
+            retdata = bytes()
+
+            try:
+                async with AsyncFile(target_path, "rb") as ftarget:
+                    data = await ftarget.read()
+                    if data:
+                        assert isinstance(data, bytes)
+                        retdata = data
+            except IOError as err:
+                raise CommunicationError(err) from err
+
+            self._logger.info("File copied")
+
+            return retdata
