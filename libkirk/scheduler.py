@@ -24,7 +24,7 @@ from libkirk.errors import (
     SchedulerError,
 )
 from libkirk.framework import Framework
-from libkirk.results import Results, SuiteResults, TestResults
+from libkirk.results import Results, ResultStatus, SuiteResults, TestResults
 from libkirk.sut import SUT, IOBuffer
 
 
@@ -537,6 +537,7 @@ class SuiteScheduler(Scheduler):
                                 exec_time=0.0,
                                 retcode=32,
                                 stdout="",
+                                status=ResultStatus.CONF,
                             )
                         )
 

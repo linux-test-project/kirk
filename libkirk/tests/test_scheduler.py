@@ -9,6 +9,7 @@ import sys
 import pytest
 
 from libkirk.data import Suite, Test
+from libkirk.results import ResultStatus
 from libkirk.errors import KernelPanicError, KernelTaintedError, KernelTimeoutError
 from libkirk.sut_base import GenericSUT
 from libkirk.channels.shell import ShellComChannel
@@ -518,3 +519,4 @@ class TestSuiteScheduler:
             assert 0 <= res.exec_time < 0.4
             assert res.return_code == 32
             assert res.stdout == ""
+            assert res.status == ResultStatus.CONF
