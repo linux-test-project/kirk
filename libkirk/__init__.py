@@ -83,9 +83,11 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
         task.cancel()
 
     if sys.version_info >= (3, 10):
+        # pyrefly: ignore[bad-argument-type]
         loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
     else:
         loop.run_until_complete(
+            # pyrefly: ignore[bad-argument-type]
             asyncio.gather(*tasks, loop=loop, return_exceptions=True)
         )
 

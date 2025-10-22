@@ -437,6 +437,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
     try:
         loop.run_until_complete(
+            # pyrefly: ignore[bad-argument-type]
             asyncio.gather(*[libkirk.events.start(), session_run()])
         )
     except KeyboardInterrupt:
@@ -448,6 +449,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
             # at this point loop has been closed, so we can collect all
             # tasks and cancel them
             loop.run_until_complete(
+                # pyrefly: ignore[bad-argument-type]
                 asyncio.gather(
                     *[
                         session.stop(),
