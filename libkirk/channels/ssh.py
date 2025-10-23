@@ -10,6 +10,7 @@ import asyncio
 import contextlib
 import importlib.util
 import logging
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -155,6 +156,37 @@ class SSHComChannel(ComChannel):
 
         return script
 
+    async def _read_max_sessions(self) -> int:
+        """
+        Read the SSH MaxSessions value and return it.
+        """
+        max_sessions = 10
+
+        # pyrefly: ignore[missing-attribute]
+        ret = await self._conn.run(
+            "grep -i '^MaxSessions' /etc/ssh/sshd_config",
+            timeout=5,
+        )
+        if ret.returncode == 0:
+            match = re.search(r"^MaxSessions (?P<value>\d+)", ret.stdout)
+            if match:
+                max_sessions = int(match.group("value"))
+                return max_sessions
+
+        # pyrefly: ignore[missing-attribute]
+        ret = await self._conn.run(
+            "sudo sshd -T | grep maxsessions",
+            timeout=5,
+        )
+        if ret.returncode == 0:
+            match = re.search(r"^maxsessions (?P<value>\d+)", ret.stdout)
+            if match:
+                max_sessions = int(match.group("value"))
+
+        self._logger.info("Maximum SSH sessions: %d", max_sessions)
+
+        return max_sessions
+
     def setup(self, **kwargs: Dict[str, Any]) -> None:
         if not importlib.util.find_spec("asyncssh"):
             raise CommunicationError("'asyncssh' library is not available")
@@ -226,17 +258,8 @@ class SSHComChannel(ComChannel):
                     known_hosts=self._known_hosts,
                 )
 
-            # pyrefly: ignore[missing-attribute]
-            # read maximum number of sessions and limit `run_command`
-            # concurrent calls to that by using a semaphore
-            ret = await self._conn.run(
-                r'sed -n "s/^MaxSessions\s*\([[:digit:]]*\)/\1/p" '
-                "/etc/ssh/sshd_config"
-            )
+            max_sessions = await self._read_max_sessions()
 
-            max_sessions = ret.stdout or 10
-
-            self._logger.info("Maximum SSH sessions: %d", max_sessions)
             self._session_sem = asyncio.Semaphore(max_sessions)
         except (asyncssh.Error, ConnectionError) as err:
             if not self._stop:
