@@ -20,9 +20,9 @@ class AsyncFile(AsyncContextManager):
 
     def __init__(self, filename: str, mode: str = "r") -> None:
         """
-        :param filename: file to open
+        :param filename: Location of the file to open.
         :type filename: str
-        :param mode: mode to open the file
+        :param mode: Mode used to open the file.
         :type mode: str
         """
         self._filename = filename
@@ -92,7 +92,8 @@ class AsyncFile(AsyncContextManager):
     async def seek(self, pos: int) -> None:
         """
         Asynchronous version of `seek()`.
-        :param pos: position to search
+
+        :param pos: Position to search.
         :type pos: int
         """
         if not self._file:
@@ -103,7 +104,9 @@ class AsyncFile(AsyncContextManager):
     async def tell(self) -> Optional[int]:
         """
         Asynchronous version of `tell()`.
-        :returns: current file position or None if file is not open.
+
+        :return: Current file position or None if file is not open.
+        :rtype: int | None
         """
         if not self._file:
             return None
@@ -113,7 +116,12 @@ class AsyncFile(AsyncContextManager):
     async def read(self, size: int = -1) -> Optional[Union[str, bytes]]:
         """
         Asynchronous version of `read()`.
-        :returns: data that has been read or None if file is not open.
+
+        :param size: Amount of data to read. Default is -1, that means all data
+            available.
+        :type size: int
+        :returns: Data that has been read or None if file is not open.
+        :rtype: str | bytes | None
         """
         if not self._file:
             return None
@@ -123,7 +131,9 @@ class AsyncFile(AsyncContextManager):
     async def readline(self) -> Optional[Union[str, bytes]]:
         """
         Asynchronous version of `readline()`.
-        :returns: data that has been read or None if file is not open.
+
+        :returns: Data that has been read or None if file is not open.
+        :rtype: str | bytes | None
         """
         if not self._file:
             return None
@@ -133,8 +143,9 @@ class AsyncFile(AsyncContextManager):
     async def write(self, data: Union[str, bytes]) -> None:
         """
         Asynchronous version of `write()`.
-        :param data: data to write inside file
-        :type data: str
+
+        :param data: Data to write inside file.
+        :type data: str | bytes
         """
         if not self._file:
             return

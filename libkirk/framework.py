@@ -23,9 +23,11 @@ class Framework(Plugin):
     async def get_suites(self, channel: ComChannel) -> List[str]:
         """
         Return the list of available suites.
-        :param channel: communication channel
+
+        :param channel: Communication channel.
         :type channel: ComChannel
-        :returns: list
+        :return: List of suites names.
+        :rtype: list(str)
         """
         raise NotImplementedError()
 
@@ -34,22 +36,26 @@ class Framework(Plugin):
         Search for command inside Framework folder and, if it's not found,
         search for command in the SUT. Then return a Test object which can be
         used to execute command.
-        :param channel: communication channel
+
+        :param channel: Communication channel.
         :type channel: ComChannel
-        :param command: command to execute
+        :param command: Command to execute.
         :type command: str
-        :returns: Test
+        :return: Test object that has been found.
+        :rtype: Test
         """
         raise NotImplementedError()
 
     async def find_suite(self, channel: ComChannel, name: str) -> Suite:
         """
         Search for suite with given name inside the SUT.
-        :param channel: communication channel
+
+        :param channel: Communication channel.
         :type channel: ComChannel
-        :param suite: name of the suite
+        :param suite: Name of the suite.
         :type suite: str
-        :returns: Suite
+        :return: Suite object that has been found.
+        :rtype: Suite
         """
         raise NotImplementedError()
 
@@ -58,14 +64,16 @@ class Framework(Plugin):
     ) -> TestResults:
         """
         Return test results accoding with runner output and Test definition.
-        :param test: Test definition object
+
+        :param test: Test definition object.
         :type test: Test
-        :param stdout: test stdout
+        :param stdout: Test stdout.
         :type stdout: str
-        :param retcode: test return code
+        :param retcode: Test return code.
         :type retcode: int
-        :param exec_t: test execution time in seconds
+        :param exec_t: Test execution time in seconds.
         :type exec_t: float
-        :returns: TestResults
+        :return: Test results.
+        :rtype: TestResults
         """
         raise NotImplementedError()

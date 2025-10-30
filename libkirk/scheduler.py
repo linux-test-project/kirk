@@ -38,14 +38,17 @@ class Scheduler:
         """
         Current results. It's reset before every `schedule` call and
         it's populated when a job completes the execution.
-        :returns: list(Results)
+
+        :return: List of results.
+        :rtype: list(Results)
         """
         raise NotImplementedError()
 
     @property
     def stopped(self) -> bool:
         """
-        Returns True when scheduler has been stopped.
+        :return: True when scheduler has been stopped. False otherwise.
+        :rtype: bool
         """
         raise NotImplementedError()
 
@@ -58,7 +61,8 @@ class Scheduler:
     async def schedule(self, jobs: List[Any]) -> None:
         """
         Schedule and execute a list of jobs.
-        :param jobs: object containing jobs definition
+
+        :param jobs: Object containing jobs definition
         :type jobs: list(object)
         """
         raise NotImplementedError()
@@ -106,13 +110,13 @@ class TestScheduler(Scheduler):
         self, sut: SUT, framework: Framework, timeout: float = 0.0, max_workers: int = 1
     ) -> None:
         """
-        :param sut: object to communicate with SUT
+        :param sut: Object to communicate with SUT.
         :type sut: SUT
-        :param framework: framework handler
+        :param framework: Framework handler.
         :type framework: Framework
-        :param timeout: timeout for tests execution
+        :param timeout: Timeout for tests execution.
         :type timeout: float
-        :param max_workers: maximum number of workers to schedule jobs
+        :param max_workers: Maximum number of workers to schedule jobs.
         :type max_workers: int
         """
         if not sut:
@@ -386,15 +390,15 @@ class SuiteScheduler(Scheduler):
         max_workers: int = 1,
     ) -> None:
         """
-        :param sut: object used to communicate with SUT
+        :param sut: Object used to communicate with SUT.
         :type sut: SUT
-        :param framework: framework handler
+        :param framework: Framework handler.
         :type framework: Framework
-        :param suite_timeout: timeout before stopping testing suite
+        :param suite_timeout: Timeout before stopping testing suite.
         :type suite_timeout: float
-        :param exec_timeout: timeout before stopping single execution
+        :param exec_timeout: Timeout before stopping single execution.
         :type exec_timeout: float
-        :param max_workers: maximum number of workers to schedule jobs
+        :param max_workers: Maximum number of workers to schedule jobs.
         :type max_workers: int
         """
         if not sut:

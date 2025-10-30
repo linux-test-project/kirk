@@ -1,5 +1,5 @@
 """
-.. module:: ui
+.. module:: monitor
     :platform: Linux
     :synopsis: modules used to generate real-time data from the executor
 
@@ -25,7 +25,7 @@ class JSONFileMonitor:
 
     def __init__(self, path: str) -> None:
         """
-        :param path: path of the file
+        :param path: Path of the file.
         :type path: str
         """
         self._logging = logging.getLogger("libkirk.monitor")

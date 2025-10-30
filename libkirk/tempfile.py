@@ -24,10 +24,10 @@ class TempDir:
 
     def __init__(self, root: Optional[str], max_rotate: int = 5) -> None:
         """
-        :param root: root directory (i.e. /tmp). If None, TempDir will handle
+        :param root: Root directory (i.e. /tmp). If None, TempDir will handle
             requests without adding any file or directory.
         :type root: str | None
-        :param max_rotate: maximum number of temporary directories
+        :param max_rotate: Maximum number of temporary directories.
         :type max_rotate: int
         """
         if root and not os.path.isdir(root):
@@ -86,26 +86,29 @@ class TempDir:
     @property
     def root(self) -> str:
         """
-        The root folder. For example, if temporary folder is
-        "/tmp/kirk.acer/tmpf547ftxv" the method will return "/tmp".
-        If root folder has not been given during object creation, this
-        method returns an empty string.
+        :return: The root folder. For example, if temporary folder is
+            "/tmp/kirk.acer/tmpf547ftxv" the method will return "/tmp".
+            If root folder has not been given during object creation, this
+            method returns an empty string.
+        :rtype: str
         """
         return self._root if self._root else ""
 
     @property
     def abspath(self) -> str:
         """
-        Absolute path of the temporary directory.
+        :return: Absolute path of the temporary directory.
+        :rtype: str
         """
         return self._folder
 
     def mkdir(self, path: str) -> None:
         """
         Create a directory inside temporary directory.
-        :param path: path of the directory
+
+        :param path: Path of the directory.
         :type path: str
-        :returns: folder path.
+        :returns: Folder path.
         """
         if not self._folder:
             return
@@ -116,9 +119,10 @@ class TempDir:
     def mkfile(self, path: str, content: str) -> None:
         """
         Create a file inside temporary directory.
-        :param path: path of the file
+
+        :param path: Path of the file.
         :type path: str
-        :param content: file content
+        :param content: File content.
         :type content: str
         """
         if not self._folder:

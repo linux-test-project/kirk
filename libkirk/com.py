@@ -18,12 +18,15 @@ _COM = []
 
 class IOBuffer:
     """
-    IO stdout buffer. The API is similar to ``IO`` types.
+    IO stdout buffer. The API is similar to IO types.
     """
 
     async def write(self, data: str) -> None:
         """
-        Write ``data`` inside the buffer.
+        Write data inside the buffer.
+
+        :param data: Data to write.
+        :type data: str
         """
         raise NotImplementedError()
 
@@ -38,14 +41,16 @@ class ComChannel(Plugin):
     @property
     def parallel_execution(self) -> bool:
         """
-        If True, communication supports commands parallel execution.
+        :return: If True, communication supports commands parallel execution.
+        :rtype: bool
         """
         raise NotImplementedError()
 
     @property
     async def active(self) -> bool:
         """
-        Return True if communication is active. False otherwise.
+        :return: Return True if communication is active. False otherwise.
+        :rtype: bool
         """
         raise NotImplementedError()
 
@@ -53,7 +58,7 @@ class ComChannel(Plugin):
         """
         Start communication.
 
-        :param iobuffer: buffer used to write stdout
+        :param iobuffer: Buffer used to write stdout.
         :type iobuffer: IOBuffer
         """
         raise NotImplementedError()
@@ -62,7 +67,7 @@ class ComChannel(Plugin):
         """
         Stop communication.
 
-        :param iobuffer: buffer used to write stdout
+        :param iobuffer: Buffer used to write stdout.
         :type iobuffer: IOBuffer
         """
         raise NotImplementedError()
@@ -70,7 +75,9 @@ class ComChannel(Plugin):
     async def ping(self) -> float:
         """
         Send a ping request and verify how much reply takes in seconds.
-        :returns: float
+
+        :return: Time between ping and pong.
+        :rtype: float
         """
         raise NotImplementedError()
 
@@ -84,24 +91,27 @@ class ComChannel(Plugin):
         """
         Run a command.
 
-        :param command: command to execute
+        :param command: Command to execute.
         :type command: str
-        :param cwd: current working directory
+        :param cwd: Current working directory.
         :type cwd: str
-        :param env: environment variables
+        :param env: Environment variables.
         :type env: dict
-        :param iobuffer: buffer used to write stdout
+        :param iobuffer: Buffer used to write stdout.
         :type iobuffer: IOBuffer
-        :returns: dictionary containing command execution information
+        :return: Dictionary containing information about the executed command.
 
-            {
-                "command": <str>,
-                "returncode": <int>,
-                "stdout": <str>,
-                "exec_time": <float>,
-            }
+            .. code-block:: python
 
-            If None is returned, then callback failed.
+                {
+                    "command": <str>,
+                    "returncode": <int>,
+                    "stdout": <str>,
+                    "exec_time": <float>,
+                }
+
+            If None is returned, then callback has failed.
+        :rtype: dict
         """
         raise NotImplementedError()
 
@@ -109,9 +119,10 @@ class ComChannel(Plugin):
         """
         Fetch file and return its content.
 
-        :param target_path: path of the file to download from target
+        :param target_path: Path of the file to download from target.
         :type target_path: str
-        :returns: bytes contained in target_path
+        :return: Data contained in target_path.
+        :rtype: bytes
         """
         raise NotImplementedError()
 
@@ -119,13 +130,13 @@ class ComChannel(Plugin):
         self, iobuffer: Optional[IOBuffer] = None, retries: int = 10
     ) -> None:
         """
-        Ensure that ``communicate`` is completed, retrying as many times we
-        want in case of ``KirkException`` error. After each error, the
+        Ensure that communicate is completed, retrying as many times we
+        want in case of KirkException error. After each error, the
         communication is stopped and a new communication is performed.
 
-        :param iobuffer: buffer used to write stdout
+        :param iobuffer: Buffer used to write stdout.
         :type iobuffer: IOBuffer
-        :param retries: number of times we retry to communicate
+        :param retries: Number of times we retry to communicate.
         :type retries: int
         """
         retries = max(retries, 1)
@@ -144,11 +155,13 @@ class ComChannel(Plugin):
 def discover(path: str, extend: bool = True) -> None:
     """
     Discover all ComChannel implementations inside `path`.
-    :param path: directory where searching for channel implementations
+
+    :param path: Directory where searching for channel implementations.
     :type path: str
-    :param extend: if True, it will add new discovered channels on top of the
+    :param extend: If True, it will add new discovered channels on top of the
         ones already found. If False, previous discovered channels will be
         cleared.
+    :rtype: bool
     """
     global _COM
 
@@ -161,7 +174,8 @@ def discover(path: str, extend: bool = True) -> None:
 
 def get_channels() -> List[ComChannel]:
     """
-    :return: list of loaded ComChannel implementations.
+    :return: List of loaded ComChannel implementations.
+    :rtype: list(ComChannel)
     """
     global _COM
     # pyrefly: ignore[bad-return]
@@ -170,14 +184,16 @@ def get_channels() -> List[ComChannel]:
 
 def clone_channel(name: str, new_name: str) -> Plugin:
     """
-    Clone a channel implementation named ``name`` and rename it with
-    ``new_name``. The new plugin will be registered with the other
+    Clone a channel implementation named name and rename it with
+    new_name. The new plugin will be registered with the other
     plugins.
-    :param name: plugin name
+
+    :param name: Plugin name.
     :type name: str
-    :param new_name: new cloned plugin name
+    :param new_name: New cloned plugin name.
     :type new_name: str
-    :return: new plugin object
+    :return: New plugin object.
+    :rtype: Plugin
     """
     global _COM
 

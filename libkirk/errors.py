@@ -9,8 +9,8 @@
 
 class KirkException(Exception):
     """
-    The most generic exception that is raised by any module when
-    something bad happens.
+    The most generic exception that is raised by any module. All kirk errors
+    derives from this class.
     """
 
 
@@ -22,13 +22,13 @@ class PluginError(KirkException):
 
 class CommunicationError(KirkException):
     """
-    Raised when there's a new communication error.
+    Raised when error occurs during channels communication.
     """
 
 
 class SUTError(KirkException):
     """
-    Raised when an error occurs in SUT.
+    Raised when error occurs in SUT.
     """
 
 
@@ -46,13 +46,13 @@ class KernelTaintedError(KirkException):
 
 class KernelTimeoutError(KirkException):
     """
-    Raised when kernel is not replying anymore.
+    Raised when kernel is not responding anymore.
     """
 
 
 class FrameworkError(KirkException):
     """
-    A generic framework exception.
+    Raised when an error occurs inside a framework.
     """
 
 

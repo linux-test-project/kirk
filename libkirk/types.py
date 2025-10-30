@@ -15,6 +15,17 @@ def dict_item(
     """
     Extract a value from a dictionary according to the key, ensuring that
     correct type is returned.
+
+    :param data: Dictionary from where we want to extract data.
+    :type data: dict
+    :param key: Key we are searching for.
+    :type key: str
+    :param cls: Type we want to extract.
+    :type cls: Type
+    :param default: Default value.
+    :type default: Any | None
+    :return: Type of the default value.
+    :rtype: Any
     """
     val = data.get(key, None)
     if not val:

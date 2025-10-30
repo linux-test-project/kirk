@@ -23,7 +23,7 @@ except ModuleNotFoundError:
 
 class Request:
     """
-    LTX request.
+    LTX client request.
     """
 
     ERROR = 0xFF
@@ -51,14 +51,16 @@ class Request:
     @property
     def completed(self) -> bool:
         """
-        If True the request has been completed.
+        :return: True if request has been completed. False otherwise.
+        :rtype: bool
         """
         return self._completed
 
     def add_done_coro(self, coro: Callable) -> None:
         """
         Add done event to request.
-        :param coro: called when request is done
+
+        :param coro: Called when request is completed.
         :type coro: Callable
         """
         self._done_coro.append(coro)
@@ -78,6 +80,9 @@ class Request:
     async def pack(self) -> bytes:
         """
         Pack LTX request into bytes.
+
+        :return: Request bytes.
+        :rtype: bytes
         """
         raise NotImplementedError()
 
@@ -85,7 +90,8 @@ class Request:
         """
         Feed request queue with data and return when the request
         has been completed.
-        :param message: processed msgpack message
+
+        :param message: Processed msgpack message.
         :type message: list
         """
         raise NotImplementedError()
@@ -158,12 +164,12 @@ class Requests:
 
         def __init__(self, slot_id: int, key: str, value: str) -> None:
             """
-            :param slot_id: command table ID. Can be None if we want to apply
-                the same environment variable to all executions
+            :param slot_id: Command table ID. Can be None if we want to apply
+                the same environment variable to all executions.
             :type slot_id: int
-            :param key: key of the environment variable
+            :param key: Key of the environment variable.
             :type key: str
-            :param value: value of the environment variable
+            :param value: Value of the environment variable.
             :type value: str
             """
             super().__init__()
@@ -207,10 +213,10 @@ class Requests:
 
         def __init__(self, slot_id: int, path: str) -> None:
             """
-            :param slot_id: command table ID. Can be None if we want to apply
+            :param slot_id: Command table ID. Can be None if we want to apply
                 the same current working directory to all executions
             :type slot_id: int
-            :param path: current working path
+            :param path: Current working path.
             :type path: str
             """
             super().__init__()
@@ -256,7 +262,7 @@ class Requests:
 
         def __init__(self, path: str) -> None:
             """
-            :param path: path of the file to read
+            :param path: Path of the file to read.
             :type path: str
             """
             super().__init__()
@@ -471,22 +477,24 @@ class LTX:
     """
     This class communicates with LTX by processing given requests.
     Typical usage is the following:
-    ```
-    async with LTX(infile, outfile) as ltx:
-        # create requests
-        request1 = Requests.execute("echo 'hello world' > myfile")
-        request2 = Requests.get_file("myfile")
 
-        # set the complete event
-        request1.add_done_coro(exec_complete_handler)
-        request2.add_done_coro(get_file_complete_handler)
+    .. code-block:: python
 
-        # send request
-        ltx.send([request1, request2])
+        async with LTX(infile, outfile) as ltx:
+            # create requests
+            request1 = Requests.execute("echo 'hello world' > myfile")
+            request2 = Requests.get_file("myfile")
 
-        # process events output
-        ...
-    ```
+            # set the complete event
+            request1.add_done_coro(exec_complete_handler)
+            request2.add_done_coro(get_file_complete_handler)
+
+            # send request
+            ltx.send([request1, request2])
+
+            # process events output
+            ...
+
     """
 
     BUFFSIZE = 1 << 21
@@ -575,7 +583,8 @@ class LTX:
         """
         Send requests to LTX service. The order is preserved during
         requests execution.
-        :param requests: list of requests to send
+
+        :param requests: List of requests to send.
         :type requests: list
         """
         if not requests:
@@ -599,6 +608,12 @@ class LTX:
         Gather multiple requests and wait for the response, then return all
         rquests' replies inside a dictionary that maps requests with their
         reply.
+
+        :param requests: List of requests to process.
+        :type requests: list(Request)
+        :return: Dictionary containing Request as keys and data from completed
+            requests as values.
+        :rtype: dict
         """
         req_len = len(requests)
         replies = {}

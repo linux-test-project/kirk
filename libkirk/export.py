@@ -25,9 +25,10 @@ class Exporter:
         """
         Save report into a file by taking information from SUT and testing
         results.
-        :param results: list of suite results to export.
+
+        :param results: List of suite results to export.
         :type results: list(SuiteResults)
-        :param path: path of the file to save.
+        :param path: Path of the file to save.
         :type path: str
         """
         raise NotImplementedError()

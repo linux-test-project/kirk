@@ -25,7 +25,8 @@ class Plugin:
     def setup(self, **kwargs: Dict[str, Any]) -> None:
         """
         Initialize plugin using configuration dictionary.
-        :param kwargs: SUT configuration
+
+        :param kwargs: SUT configuration.
         :type kwargs: dict
         """
         raise NotImplementedError()
@@ -35,24 +36,30 @@ class Plugin:
         """
         Associate each configuration option with a help message.
         This is used by the main menu application to generate --help message.
-        :returns: dict
+
+        :returns: Dictionary that associates options to help messages.
+        :rtype: dict
         """
         raise NotImplementedError()
 
     @property
     def name(self) -> str:
         """
-        Unique name identifier of the plugin.
+        :return: Unique name identifier of the plugin.
+        :rtype: str
         """
         return self._name
 
     def clone(self, name: str) -> _Self:
         """
-        Copy plugin and return a new instance with a given ``name``.
-        Make sure that ``name`` is unique, so external modules can
+        Copy plugin and return a new instance with a given name.
+        Make sure that name is unique, so external modules can
         recognize it.
-        :param name: unique identifier string given to the plugin
+
+        :param name: Unique identifier string given to the plugin.
         :type name: str
+        :return: Cloned plugin.
+        :rtype: Plugin
         """
         obj = self.__class__()
         obj._name = name
@@ -63,7 +70,14 @@ class Plugin:
 
 def discover(mytype: type, folder: str) -> List[Plugin]:
     """
-    Discover ``mytype`` implementations inside a specific folder.
+    Discover mytype implementations inside a specific folder.
+
+    :param mtype: Type of the object we are searching for.
+    :type mtype: type
+    :param folder: Folder where to search for mtype.
+    :type folder: str
+    :return: List of discovered plugins.
+    :rtype: list(Plugin)
     """
     if not folder or not os.path.isdir(folder):
         raise ValueError("Discover folder doesn't exist")

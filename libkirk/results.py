@@ -1,5 +1,5 @@
 """
-.. module:: data
+.. module:: results
     :platform: Linux
     :synopsis: module containing suites data definition
 
@@ -19,20 +19,30 @@ class ResultStatus:
     we assign a PASS status.
     """
 
-    # regular test run
     PASS = 0
+    """
+    Test has passed.
+    """
 
-    # test broken result
     BROK = 2
+    """
+    Test is broken.
+    """
 
-    # test warns
     WARN = 4
+    """
+    Test warnings received.
+    """
 
-    # test failure
     FAIL = 16
+    """
+    Test has failed.
+    """
 
-    # test configuration error
     CONF = 32
+    """
+    Test can't run because of configuration error.
+    """
 
 
 class Results:
@@ -43,48 +53,48 @@ class Results:
     @property
     def exec_time(self) -> float:
         """
-        Execution time.
-        :returns: float
+        :return: Test execution time in seconds.
+        :rtype: float
         """
         raise NotImplementedError()
 
     @property
     def failed(self) -> int:
         """
-        Number of TFAIL.
-        :returns: int
+        :return: Number of failures.
+        :rtype: int
         """
         raise NotImplementedError()
 
     @property
     def passed(self) -> int:
         """
-        Number of TPASS.
-        :returns: int
+        :return: Number of passed tests.
+        :rtype: int
         """
         raise NotImplementedError()
 
     @property
     def broken(self) -> int:
         """
-        Number of TBROK.
-        :returns: int
+        :return: Number of broken tests.
+        :rtype: int
         """
         raise NotImplementedError()
 
     @property
     def skipped(self) -> int:
         """
-        Number of TSKIP.
-        :returns: int
+        :return: Number of skipped tests.
+        :rtype: int
         """
         raise NotImplementedError()
 
     @property
     def warnings(self) -> int:
         """
-        Number of TWARN.
-        :returns: int
+        :return: Number of warnings.
+        :rtype: int
         """
         raise NotImplementedError()
 
@@ -108,25 +118,25 @@ class TestResults(Results):
         stdout: str = "",
     ) -> None:
         """
-        :param test: Test object declaration
+        :param test: Test object declaration.
         :type test: Test
-        :param failed: number of TFAIL
+        :param failed: number of TFAIL.
         :type failed: int
-        :param passed: number of TPASS
+        :param passed: number of TPASS.
         :type passed: int
-        :param broken: number of TBROK
+        :param broken: number of TBROK.
         :type broken: int
-        :param skipped: number of TSKIP
+        :param skipped: number of TSKIP.
         :type skipped: int
-        :param warnings: number of TWARN
+        :param warnings: number of TWARN.
         :type warnings: int
-        :param exec_time: time for test's execution
+        :param exec_time: Time for test's execution.
         :type exec_time: float
-        :param status: overall status of the test
+        :param status: Overall status of the test.
         :type status: int
-        :param retcode: return code of the executed test
+        :param retcode: Return code of the executed test.
         :type retcode: int
-        :param stdout: stdout of the test
+        :param stdout: Stdout of the test.
         :type stdout: str
         """
         if not test:
@@ -160,32 +170,32 @@ class TestResults(Results):
     @property
     def test(self) -> Test:
         """
-        Test object declaration.
-        :returns: Test
+        :return: Test object.
+        :rtype: Test
         """
         return self._test
 
     @property
     def return_code(self) -> int:
         """
-        Return code after execution.
-        :returns: int
+        :return: Return code after execution.
+        :rtype: int
         """
         return self._retcode
 
     @property
     def stdout(self) -> str:
         """
-        Return the ending stdout.
-        :returns: str
+        :return: Test process stdout.
+        :rtype: str
         """
         return self._stdout
 
     @property
     def status(self) -> int:
         """
-        Overall test result status.
-        :returns: int
+        :return: Test result status.
+        :rtype: int
         """
         return self._status
 
@@ -232,23 +242,23 @@ class SuiteResults(Results):
         ram: Optional[str] = None,
     ) -> None:
         """
-        :param suite: Test object declaration
+        :param suite: Test object declaration.
         :type suite: Suite
-        :param tests: List of the tests results
+        :param tests: List of the tests results.
         :type tests: list(TestResults)
-        :param distro: distribution name
+        :param distro: Distribution name.
         :type distro: str
-        :param distro_ver: distribution version
+        :param distro_ver: Distribution version.
         :type distro_ver: str
-        :param kernel: kernel version
+        :param kernel: Kernel version.
         :type kernel: str
-        :param arch: OS architecture
+        :param arch: OS architecture.
         :type arch: str
-        :param cpu: CPU type info
+        :param cpu: CPU type info.
         :type cpu: str
-        :param swap: swap memory info
+        :param swap: Swap memory info.
         :type swap: str
-        :param ram: RAM info
+        :param ram: RAM info.
         :type ram: str
         """
         if not suite:
@@ -280,16 +290,16 @@ class SuiteResults(Results):
     @property
     def suite(self) -> Suite:
         """
-        Suite object declaration.
-        :returns: Suite
+        :returns: Testing suite.
+        :rtype: Suite
         """
         return self._suite
 
     @property
     def tests_results(self) -> List[TestResults]:
         """
-        Results of all tests.
-        :returns: list(TestResults)
+        :returns: list of all tests results.
+        :rtype: list(TestResults)
         """
         return self._tests
 
@@ -306,49 +316,56 @@ class SuiteResults(Results):
     @property
     def distro(self) -> Optional[str]:
         """
-        Distribution name.
+        :return: Linux distribution name.
+        :rtype: str | None
         """
         return self._distro
 
     @property
     def distro_ver(self) -> Optional[str]:
         """
-        Distribution version.
+        :return: Linux distribution version.
+        :rtype: str | None
         """
         return self._distro_ver
 
     @property
     def kernel(self) -> Optional[str]:
         """
-        Kernel version.
+        :return: Kernel version.
+        :rtype: str | None
         """
         return self._kernel
 
     @property
     def arch(self) -> Optional[str]:
         """
-        Operating system architecture.
+        :return: Operating system architecture.
+        :rtype: str | None
         """
         return self._arch
 
     @property
     def cpu(self) -> Optional[str]:
         """
-        Current CPU type.
+        :return: Current CPU type.
+        :rtype: str | None
         """
         return self._cpu
 
     @property
     def swap(self) -> Optional[str]:
         """
-        Current swap memory occupation.
+        :return: Current swap memory occupation.
+        :rtype: str | None
         """
         return self._swap
 
     @property
     def ram(self) -> Optional[str]:
         """
-        Current RAM occupation.
+        :return: Current RAM occupation.
+        :rtype: str | None
         """
         return self._ram
 

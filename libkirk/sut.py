@@ -55,51 +55,65 @@ class SUT(Plugin):
 
     def get_channel(self) -> ComChannel:
         """
-        Return the main channel used to communicate with the SUT.
-        :return: communication channel.
+        :return: Main channel to communicated with SUT.
+        :rtype: ComChannel
         """
         raise NotImplementedError()
 
     async def start(self, iobuffer: Optional[IOBuffer] = None) -> None:
         """
         Start the SUT.
+
+        :param iobuffer: IO channel where to write stdout.
+        :type iobuffer: IOBuffer
         """
         raise NotImplementedError()
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
         """
         Stop the SUT.
+
+        :param iobuffer: IO channel where to write stdout.
+        :type iobuffer: IOBuffer
         """
         raise NotImplementedError()
 
     async def restart(self, iobuffer: Optional[IOBuffer] = None) -> None:
         """
         Restart the SUT.
+
+        :param iobuffer: IO channel where to write stdout.
+        :type iobuffer: IOBuffer
         """
         raise NotImplementedError()
 
     @property
     async def is_running(self) -> bool:
         """
-        Return True if system under test is up and running. False otherwise.
+        :return: True if system under test is up and running. False otherwise.
+        :rtype: bool
         """
         raise NotImplementedError()
 
     async def get_info(self) -> Dict[str, str]:
         """
         Return SUT information.
-        :returns: dict
 
-            {
-                "distro": str,
-                "distro_ver": str,
-                "kernel": str,
-                "arch": str,
-                "cpu" : str,
-                "swap" : str,
-                "ram" : str,
-            }
+        :return: Dictionary containing the SUT information in the form of:
 
+            .. code-block:: python
+
+                {
+                    "distro": str,
+                    "distro_ver": str,
+                    "kernel": str,
+                    "arch": str,
+                    "cpu" : str,
+                    "swap" : str,
+                    "ram" : str,
+                }
+
+        :rtype: dict
         """
         if not await self.is_running:
             raise SUTError("SUT is not running")
@@ -162,7 +176,10 @@ class SUT(Plugin):
     async def get_tainted_info(self) -> Tuple[int, List[str]]:
         """
         Return information about kernel if tainted.
-        :returns: (int, list[str])
+
+        :return: A tuple containing tainted information. First element is the
+            tainted code and the second element is the tainted message.
+        :rtype: (int, list[str])
         """
         if not await self.is_running:
             raise SUTError("SUT is not running")
@@ -202,7 +219,8 @@ class SUT(Plugin):
 
     async def logged_as_root(self) -> bool:
         """
-        Return True if we are logged as root inside the SUT. False otherwise.
+        :return: True if we are logged as root inside the SUT. False otherwise.
+        :rtype: bool
         """
         if not self.is_running:
             raise SUTError("SUT is not running")
@@ -223,8 +241,9 @@ class SUT(Plugin):
 
     async def is_fault_injection_enabled(self) -> bool:
         """
-        Return True if fault injection is enabled in the kernel.
-        False otherwise.
+        :return: True if fault injection is enabled in the kernel. False
+            otherwise.
+        :rtype: bool
         """
         if not await self.is_running:
             raise SUTError("SUT is not running")
@@ -240,9 +259,11 @@ class SUT(Plugin):
 
     async def setup_fault_injection(self, prob: int) -> None:
         """
-        Configure kernel fault injection. When `prob` is zero, the fault
+        Configure kernel fault injection. When prob is zero, the fault
         injection is set to default values.
-        :param prob: Fault probabilty in between 0-100
+
+        :param prob: Fault probabilty in between 0-100.
+        :type prob: int
         """
         if not await self.is_running:
             raise SUTError("SUT is not running")
@@ -270,12 +291,14 @@ class SUT(Plugin):
 
 def discover(path: str, extend: bool = True) -> None:
     """
-    Discover all SUT implementations inside `path`.
-    :param path: directory where searching for SUT implementations
+    Discover all SUT implementations inside path.
+
+    :param path: Directory where searching for SUT implementations.
     :type path: str
-    :param extend: if True, it will add new discovered SUT on top of the
+    :param extend: If True, it will add new discovered SUT on top of the
         ones already found. If False, previous discovered SUT will be
         cleared.
+    :type param: bool
     """
     global _SUT
 
@@ -288,7 +311,8 @@ def discover(path: str, extend: bool = True) -> None:
 
 def get_suts() -> List[ComChannel]:
     """
-    :return: list of loaded SUT implementations.
+    :return: List of loaded SUT implementations.
+    :rtype: list(ComChannel)
     """
     global _SUT
     return _SUT

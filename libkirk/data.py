@@ -14,7 +14,7 @@ LOGGER = logging.getLogger("kirk.data")
 
 class Test:
     """
-    Test definition class.
+    Test definition.
     """
 
     def __init__(
@@ -27,17 +27,17 @@ class Test:
         parallelizable: bool = False,
     ) -> None:
         """
-        :param name: name of the test
+        :param name: Name of the test.
         :type name: str
-        :param cmd: command to execute
+        :param cmd: Command to execute.
         :type cmd: str
-        :param cwd: current working directory of the command
+        :param cwd: Current working directory of the command.
         :type cwd: str
-        :param env: environment variables used to run the command
+        :param env: Environment variables used to run the command.
         :type env: dict
-        :param args: list of arguments
+        :param args: List of arguments.
         :type args: list(str)
-        :param parallelizable: if True, test can be run in parallel
+        :param parallelizable: If True, test can be run in parallel.
         :type parallelizable: bool
         """
         if not name:
@@ -66,51 +66,58 @@ class Test:
     @property
     def name(self) -> str:
         """
-        Name of the test.
+        :return: Name of the test.
+        :rtype: str
         """
         return self._name
 
     @property
     def command(self) -> str:
         """
-        Command to execute test.
+        :return: Command to execute test.
+        :rtype: str
         """
         return self._cmd
 
     @property
     def arguments(self) -> List[str]:
         """
-        Arguments of the command.
+        :return: Arguments of the command.
+        :rtype: list(str)
         """
         return self._args
 
     @property
     def parallelizable(self) -> bool:
         """
-        If True, test can be run in parallel.
+        :return: If True, test can be run in parallel.
+        :rtype: bool
         """
         return self._parallelizable
 
     @property
     def cwd(self) -> Optional[str]:
         """
-        Current working directory.
+        :return: Current working directory.
+        :rtype: str | None
         """
         return self._cwd
 
     @property
     def env(self) -> Dict[str, str]:
         """
-        Environment variables
+        :return: Environment variables
+        :rtype: dict
         """
         return self._env
 
     @property
     def full_command(self) -> str:
         """
-        Return the full command, with arguments as well.
-        For example, if `command="ls"` and `arguments="-l -a"`,
-        `full_command="ls -l -a"`.
+        :return: Return the full command, with arguments as well.
+            For example, if `command="ls"` and `arguments="-l -a"`,
+            `full_command="ls -l -a"`.
+        :rtype: str
         """
         cmd = self.command if self.command else ""
         if len(self.arguments) > 0:
@@ -121,7 +128,7 @@ class Test:
 
     def force_parallel(self) -> None:
         """
-        Force test to be parallelizable.
+        :return: Force test to be parallelizable.
         """
         self._parallelizable = True
 
@@ -133,9 +140,9 @@ class Suite:
 
     def __init__(self, name: str, tests: List[Test]) -> None:
         """
-        :param name: name of the testing suite
+        :param name: Name of the testing suite.
         :type name: str
-        :param tests: tests of the suite
+        :param tests: Tests of the suite.
         :type tests: list
         """
         self._name = name
@@ -147,7 +154,8 @@ class Suite:
     @property
     def name(self) -> str:
         """
-        Name of the testing suite.
+        :return: Name of the testing suite.
+        :rtype: str
         """
         return self._name
 
@@ -164,6 +172,7 @@ class Suite:
     @property
     def tests(self) -> List[Test]:
         """
-        Tests definitions.
+        :return: Tests definitions.
+        :rtype: list(Test)
         """
         return self._tests

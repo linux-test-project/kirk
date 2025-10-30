@@ -18,7 +18,7 @@ class Event:
 
     def __init__(self, ordered: bool = False) -> None:
         """
-        :param ordered: True if coroutines must be processed in order
+        :param ordered: True if coroutines must be processed in order.
         :type ordered: bool
         """
         self._coros = []
@@ -27,7 +27,8 @@ class Event:
     def remove(self, coro: Callable) -> None:
         """
         Remove a specific Callable associated to the event.
-        :param coro: Callable to remove
+
+        :param coro: Callable to remove.
         :type coro: Callable
         """
         for item in self._coros:
@@ -38,23 +39,32 @@ class Event:
     def has_coros(self) -> bool:
         """
         Check if there are still available registrations.
+
+        :return: True if there are registered coroutines.
+        :rtype: bool
         """
         return len(self._coros) > 0
 
     def register(self, coro: Callable) -> None:
         """
         Register a new Callable.
+
+        :param coro: Coroutine to register.
+        :type coro: Callable
         """
         self._coros.append(coro)
 
     def create_tasks(self, *args: List[Any], **kwargs: Dict[Any, Any]) -> List[Any]:
         """
         Create tasks to run according to registered coroutines.
+
         :param args: Arguments to be passed to callback functions execution.
         :type args: list
         :param kwargs: Keyword arguments to be passed to callback functions
             execution.
         :type kwargs: dict
+        :return: List of tasks to execute.
+        :rtype: list(asyncio.Task)
         """
         tasks = [coro(*args, **kwargs) for coro in self._coros]
 
@@ -82,7 +92,7 @@ class EventsHandler:
 
     def _get_event(self, name: str) -> Optional[Event]:
         """
-        Return an event according to its `name`.
+        Return an event according to its name.
         """
         return self._events.get(name, None)
 
@@ -95,10 +105,12 @@ class EventsHandler:
 
     def is_registered(self, event_name: str) -> bool:
         """
-        Returns True if ``event_name`` is registered.
-        :param event_name: name of the event
+        Returns True if event_name is registered.
+
+        :param event_name: Name of the event.
         :type event_name: str
-        :returns: True if registered, False otherwise
+        :return: True if registered, False otherwise.
+        :rtype: bool
         """
         if not event_name:
             raise ValueError("event_name is empty")
@@ -111,13 +123,14 @@ class EventsHandler:
 
     def register(self, event_name: str, coro: Callable, ordered: bool = False) -> None:
         """
-        Register an event with ``event_name``.
-        :param event_name: name of the event
+        Register an event with event_name.
+
+        :param event_name: Name of the event.
         :type event_name: str
-        :param coro: Callable associated with ``event_name``
+        :param coro: Callable associated with event_name.
         :type coro: Callable
-        :param ordered: if True, the event will raise coroutines in the order
-            they arrive
+        :param ordered: If True, the event will raise coroutines in the order
+            they arrive.
         :type ordered: bool
         """
         if not event_name:
@@ -137,11 +150,12 @@ class EventsHandler:
 
     def unregister(self, event_name: str, coro: Callable) -> None:
         """
-        Unregister a single event Callable with event_name`. If `coro` is None,
+        Unregister a single event Callable with event_name. If coro is None,
         all coroutines registered will be removed.
-        :param event_name: name of the event
+
+        :param event_name: Name of the event.
         :type event_name: str
-        :param coro: Callable to unregister
+        :param coro: Callable to unregister.
         :type coro: Callable
         """
         if not event_name:
@@ -160,7 +174,8 @@ class EventsHandler:
     async def fire(self, event_name: str, *args: Any, **kwargs: Any) -> None:
         """
         Fire a specific event.
-        :param event_name: name of the event
+
+        :param event_name: Name of the event.
         :type event_name: str
         :param args: Arguments to be passed to callback functions execution.
         :type args: Any

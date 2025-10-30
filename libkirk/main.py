@@ -467,6 +467,9 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 def run(cmd_args: Optional[List[str]] = None) -> None:
     """
     Entry point of the application.
+
+    :param cmd_args: Command line arguments.
+    :type cmd_args: list(str) | None
     """
     currdir = os.path.dirname(os.path.realpath(__file__))
 
