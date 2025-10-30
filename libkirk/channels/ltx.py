@@ -9,7 +9,14 @@
 import asyncio
 import logging
 from types import TracebackType
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
+)
 
 import libkirk
 from libkirk.errors import LTXError

@@ -16,11 +16,21 @@ import shutil
 import signal
 import string
 import time
-from typing import Any, Dict, Optional
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 
 import libkirk.types
-from libkirk.com import ComChannel, IOBuffer
-from libkirk.errors import CommunicationError, KernelPanicError
+from libkirk.com import (
+    ComChannel,
+    IOBuffer,
+)
+from libkirk.errors import (
+    CommunicationError,
+    KernelPanicError,
+)
 from libkirk.io import AsyncFile
 
 

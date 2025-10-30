@@ -7,7 +7,11 @@
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import (
+    Dict,
+    List,
+    Optional,
+)
 
 LOGGER = logging.getLogger("kirk.data")
 

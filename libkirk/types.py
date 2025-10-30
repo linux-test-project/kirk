@@ -6,7 +6,12 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-from typing import Any, Dict, Optional, Type
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    Type,
+)
 
 
 def dict_item(

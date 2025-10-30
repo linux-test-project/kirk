@@ -10,7 +10,12 @@ import argparse
 import asyncio
 import os
 import re
-from typing import Dict, List, Optional, Union
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Union,
+)
 
 import libkirk
 import libkirk.com
@@ -19,13 +24,22 @@ import libkirk.plugin
 import libkirk.sut
 from libkirk import __version__
 from libkirk.com import ComChannel
-from libkirk.errors import CommunicationError, FrameworkError, KirkException, SUTError
+from libkirk.errors import (
+    CommunicationError,
+    FrameworkError,
+    KirkException,
+    SUTError,
+)
 from libkirk.framework import Framework
 from libkirk.monitor import JSONFileMonitor
 from libkirk.session import Session
 from libkirk.sut import SUT
 from libkirk.tempfile import TempDir
-from libkirk.ui import ParallelUserInterface, SimpleUserInterface, VerboseUserInterface
+from libkirk.ui import (
+    ParallelUserInterface,
+    SimpleUserInterface,
+    VerboseUserInterface,
+)
 
 # Maximum number of COM instances
 MAX_COM_INSTANCES = 128

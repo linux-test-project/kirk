@@ -9,11 +9,20 @@
 import platform
 import sys
 import traceback
-from typing import List, Optional
+from typing import (
+    List,
+    Optional,
+)
 
 import libkirk
-from libkirk.data import Suite, Test
-from libkirk.results import SuiteResults, TestResults
+from libkirk.data import (
+    Suite,
+    Test,
+)
+from libkirk.results import (
+    SuiteResults,
+    TestResults,
+)
 
 
 class ConsoleUserInterface:

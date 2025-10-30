@@ -13,7 +13,10 @@ from typing import List
 
 from libkirk.errors import ExporterError
 from libkirk.io import AsyncFile
-from libkirk.results import ResultStatus, SuiteResults
+from libkirk.results import (
+    ResultStatus,
+    SuiteResults,
+)
 
 
 class Exporter:

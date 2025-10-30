@@ -9,12 +9,22 @@
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List
+from typing import (
+    Any,
+    Dict,
+    List,
+)
 
 import libkirk
-from libkirk.data import Suite, Test
+from libkirk.data import (
+    Suite,
+    Test,
+)
 from libkirk.io import AsyncFile
-from libkirk.results import SuiteResults, TestResults
+from libkirk.results import (
+    SuiteResults,
+    TestResults,
+)
 
 
 class JSONFileMonitor:

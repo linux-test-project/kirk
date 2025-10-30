@@ -11,12 +11,27 @@ import importlib.util
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 import libkirk.types
-from libkirk.channels.ltx import LTX, Request, Requests
-from libkirk.com import ComChannel, IOBuffer
-from libkirk.errors import CommunicationError, LTXError
+from libkirk.channels.ltx import (
+    LTX,
+    Request,
+    Requests,
+)
+from libkirk.com import (
+    ComChannel,
+    IOBuffer,
+)
+from libkirk.errors import (
+    CommunicationError,
+    LTXError,
+)
 
 
 class LTXComChannel(ComChannel):

@@ -6,10 +6,18 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-from typing import Any, Dict, List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 import libkirk.plugin
-from libkirk.errors import KirkException, PluginError
+from libkirk.errors import (
+    KirkException,
+    PluginError,
+)
 from libkirk.plugin import Plugin
 
 # discovered communication channels

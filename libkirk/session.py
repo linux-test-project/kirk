@@ -12,18 +12,28 @@ import logging
 import os
 import random
 import re
-from typing import Dict, List, Optional
+from typing import (
+    Dict,
+    List,
+    Optional,
+)
 
 import libkirk
 import libkirk.types
 from libkirk.data import Suite
-from libkirk.errors import KirkException, SessionError
+from libkirk.errors import (
+    KirkException,
+    SessionError,
+)
 from libkirk.export import JSONExporter
 from libkirk.framework import Framework
 from libkirk.io import AsyncFile
 from libkirk.results import TestResults
 from libkirk.scheduler import SuiteScheduler
-from libkirk.sut import SUT, IOBuffer
+from libkirk.sut import (
+    SUT,
+    IOBuffer,
+)
 from libkirk.tempfile import TempDir
 
 

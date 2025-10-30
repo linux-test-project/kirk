@@ -8,10 +8,18 @@
 
 import asyncio
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Tuple,
+)
 
 import libkirk.plugin
-from libkirk.com import ComChannel, IOBuffer
+from libkirk.com import (
+    ComChannel,
+    IOBuffer,
+)
 from libkirk.errors import SUTError
 from libkirk.plugin import Plugin
 

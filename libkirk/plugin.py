@@ -10,7 +10,12 @@ import importlib
 import importlib.util
 import inspect
 import os
-from typing import Any, Dict, List, TypeVar
+from typing import (
+    Any,
+    Dict,
+    List,
+    TypeVar,
+)
 
 _Self = TypeVar("_Self", bound="Plugin")
 

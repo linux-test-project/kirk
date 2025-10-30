@@ -11,11 +11,19 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 import libkirk
 import libkirk.data
-from libkirk.data import Suite, Test
+from libkirk.data import (
+    Suite,
+    Test,
+)
 from libkirk.errors import (
     KernelPanicError,
     KernelTaintedError,
@@ -24,8 +32,16 @@ from libkirk.errors import (
     SchedulerError,
 )
 from libkirk.framework import Framework
-from libkirk.results import Results, ResultStatus, SuiteResults, TestResults
-from libkirk.sut import SUT, IOBuffer
+from libkirk.results import (
+    Results,
+    ResultStatus,
+    SuiteResults,
+    TestResults,
+)
+from libkirk.sut import (
+    SUT,
+    IOBuffer,
+)
 
 
 class Scheduler:

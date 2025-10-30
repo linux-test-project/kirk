@@ -12,11 +12,22 @@ import importlib.util
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 import libkirk.types
-from libkirk.com import ComChannel, IOBuffer
-from libkirk.errors import CommunicationError, KernelPanicError
+from libkirk.com import (
+    ComChannel,
+    IOBuffer,
+)
+from libkirk.errors import (
+    CommunicationError,
+    KernelPanicError,
+)
 
 try:
     import asyncssh

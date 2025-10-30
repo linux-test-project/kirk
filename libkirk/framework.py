@@ -9,7 +9,10 @@
 from typing import List
 
 from libkirk.com import ComChannel
-from libkirk.data import Suite, Test
+from libkirk.data import (
+    Suite,
+    Test,
+)
 from libkirk.plugin import Plugin
 from libkirk.results import TestResults
 

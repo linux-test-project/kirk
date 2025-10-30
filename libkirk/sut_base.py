@@ -6,11 +6,18 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-from typing import Any, Dict, Optional
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 
 import libkirk.com
 import libkirk.types
-from libkirk.com import ComChannel, IOBuffer
+from libkirk.com import (
+    ComChannel,
+    IOBuffer,
+)
 from libkirk.errors import SUTError
 from libkirk.sut import SUT
 

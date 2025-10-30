@@ -7,7 +7,14 @@
 """
 
 from types import TracebackType
-from typing import IO, Any, AsyncContextManager, Optional, Type, Union
+from typing import (
+    IO,
+    Any,
+    AsyncContextManager,
+    Optional,
+    Type,
+    Union,
+)
 
 import libkirk
 

@@ -6,9 +6,15 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-from typing import List, Optional
+from typing import (
+    List,
+    Optional,
+)
 
-from libkirk.data import Suite, Test
+from libkirk.data import (
+    Suite,
+    Test,
+)
 
 
 class ResultStatus:
