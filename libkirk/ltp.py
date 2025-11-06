@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import signal
 from typing import (
     Any,
     Dict,
@@ -383,6 +384,8 @@ class LTPFramework(Framework):
                 elif retcode == 4:
                     warnings = 1
                 elif retcode == 32:
+                    skipped = 1
+                elif retcode == -signal.SIGKILL:
                     skipped = 1
                 elif not error:
                     failed = 1

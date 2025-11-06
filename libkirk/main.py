@@ -446,6 +446,21 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
             if monitor:
                 await monitor.stop()
 
+    def _session_stop() -> None:
+        """
+        Stop the session.
+        """
+        loop.run_until_complete(
+            # pyrefly: ignore[bad-argument-type]
+            asyncio.gather(
+                *[
+                    session.stop(),
+                    libkirk.events.stop(),
+                ]
+            )
+        )
+        libkirk.cancel_tasks(loop)
+
     loop = libkirk.get_event_loop()
     exit_code = RC_OK
 
@@ -460,20 +475,9 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
         exit_code = RC_ERROR
     finally:
         try:
-            # at this point loop has been closed, so we can collect all
-            # tasks and cancel them
-            loop.run_until_complete(
-                # pyrefly: ignore[bad-argument-type]
-                asyncio.gather(
-                    *[
-                        session.stop(),
-                        libkirk.events.stop(),
-                    ]
-                )
-            )
-            libkirk.cancel_tasks(loop)
+            _session_stop()
         except KeyboardInterrupt:
-            pass
+            _session_stop()
 
     parser.exit(exit_code)
 
