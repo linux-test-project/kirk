@@ -90,7 +90,8 @@ class Session:
         self._sut = sut
         self._exec_timeout = exec_timeout
         self._force_parallel = force_parallel
-        self._stop = False
+        self._stop_cnt = 0
+        self._stop_lock = asyncio.Lock()
         self._exec_lock = asyncio.Lock()
         self._run_lock = asyncio.Lock()
         self._results = []
@@ -356,7 +357,7 @@ class Session:
             except asyncio.TimeoutError:
                 exc = KirkException(f"Command timeout: {repr(command)}")
             except KirkException as err:
-                if not self._stop:
+                if self._stop_cnt == 0:
                     exc = err
 
             if exc:
@@ -369,13 +370,16 @@ class Session:
         if self._scheduler:
             await self._scheduler.stop()
 
-        await self._stop_sut()
+        if self._stop_cnt < 1:
+            await self._stop_sut()
 
     async def stop(self) -> None:
         """
         Stop the current session.
         """
-        self._stop = True
+        async with self._stop_lock:
+            self._stop_cnt += 1
+
         try:
             await self._inner_stop()
 
@@ -385,8 +389,12 @@ class Session:
             async with self._exec_lock:
                 pass
         finally:
-            await libkirk.events.fire("session_stopped")
-            self._stop = False
+            if self._stop_cnt == 1:
+                await libkirk.events.fire("session_stopped")
+            elif self._stop_cnt > 1:
+                await libkirk.events.fire("session_killed")
+
+            self._stop_cnt = 0
 
     async def _schedule_once(self, suites_obj: List[Suite]) -> None:
         """
@@ -403,7 +411,7 @@ class Session:
         suites_list.extend(suites_obj)
 
         count = 1
-        while not self._stop:
+        while self._stop_cnt == 0:
             await self._schedule_once(suites_obj)
             if self._scheduler.stopped:
                 break
@@ -516,7 +524,7 @@ class Session:
 
                     await self._run_scheduler(suites_obj, runtime)
             except KirkException as err:
-                if not self._stop:
+                if self._stop_cnt == 0:
                     self._logger.exception(err)
                     await libkirk.events.fire("session_error", str(err))
                     raise err

@@ -46,6 +46,7 @@ class ConsoleUserInterface:
         libkirk.events.register("session_restore", self.session_restore)
         libkirk.events.register("session_started", self.session_started)
         libkirk.events.register("session_stopped", self.session_stopped)
+        libkirk.events.register("session_killed", self.session_killed)
         libkirk.events.register("sut_start", self.sut_start)
         libkirk.events.register("sut_stop", self.sut_stop)
         libkirk.events.register("sut_restart", self.sut_restart)
@@ -127,6 +128,9 @@ class ConsoleUserInterface:
 
     async def session_stopped(self) -> None:
         await self._print("Session stopped")
+
+    async def session_killed(self) -> None:
+        await self._print("Session killed")
 
     async def sut_start(self, sut: str) -> None:
         await self._print(f"Connecting to SUT: {sut}")
