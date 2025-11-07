@@ -27,6 +27,7 @@ def event_loop():
     yield loop
 
     if not loop.is_closed():
+        libkirk.cancel_tasks(loop)
         loop.close()
 
 

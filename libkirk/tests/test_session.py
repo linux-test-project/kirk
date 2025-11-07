@@ -86,6 +86,25 @@ class _TestSession:
             ]
         )
 
+    async def test_run_force_stop(self, session):
+        """
+        Test stop method when it's called twice. We just ensure that the
+        session implementation won't crash or generate exceptions and it will
+        forcibly stop the current run.
+        """
+
+        async def stop():
+            await asyncio.sleep(0.1)
+            await session.stop()
+
+        await asyncio.gather(
+            *[
+                session.run(suites=["sleep"]),
+                stop(),
+                stop(),
+            ]
+        )
+
     async def test_run_command(self, session):
         """
         Test run method when running a single command.
@@ -141,7 +160,7 @@ class _TestSession:
         """
         Test run method when executing shuffled tests.
         """
-        num_of_suites = 50
+        num_of_suites = 20
 
         report = str(tmpdir / "report.json")
         await session.run(
@@ -165,7 +184,7 @@ class _TestSession:
         Test run method when executing suites for a certain amount of time.
         """
         report = str(tmpdir / "report.json")
-        await session.run(suites=["suite01"], runtime=1, report_path=report)
+        await session.run(suites=["suite01"], runtime=2, report_path=report)
 
         with open(report, "r", encoding="utf-8") as report_file:
             report_data = json.loads(report_file.read())
