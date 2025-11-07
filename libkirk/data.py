@@ -6,14 +6,11 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
-import logging
 from typing import (
     Dict,
     List,
     Optional,
 )
-
-LOGGER = logging.getLogger("kirk.data")
 
 
 class Test:
