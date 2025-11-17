@@ -9,6 +9,7 @@
 import asyncio
 import logging
 import os
+import signal
 import sys
 import time
 from typing import (
@@ -147,7 +148,7 @@ class TestScheduler(Scheduler):
         self._timeout = 0.0 if timeout < 0.0 else timeout
         self._max_workers = 1 if max_workers < 1 else max_workers
         self._results = []
-        self._stop = False
+        self._stop_cnt = 0
         self._stopped = False
         self._running_tests_sem = asyncio.Semaphore(1)
         self._schedule_lock = asyncio.Lock()
@@ -203,7 +204,12 @@ class TestScheduler(Scheduler):
 
     async def stop(self) -> None:
         self._logger.info("Stopping tests execution")
-        self._stop = True
+        self._stop_cnt += 1
+
+        if self._stop_cnt > 1:
+            # by stopping SUT first, we cause scheduler to complete
+            # current test immediatelly without waiting
+            await self._sut.stop()
 
         try:
             # we enter in the semaphore queue in order to get highest
@@ -217,7 +223,7 @@ class TestScheduler(Scheduler):
             async with self._schedule_lock:
                 pass
         finally:
-            self._stop = False
+            self._stop_cnt = 0
             self._stopped = True
 
         self._logger.info("All tests have been completed")
@@ -227,7 +233,7 @@ class TestScheduler(Scheduler):
         Run a single test and populate the results array.
         """
         async with self._running_tests_sem:
-            if self._stop:
+            if self._stop_cnt > 0:
                 self._logger.info("Test '%s' has been stopped", test.name)
                 return None
 
@@ -294,6 +300,13 @@ class TestScheduler(Scheduler):
                     "exec_time": exec_time,
                 }
 
+            # we won't consider tests killed by kirk during forcibly stop,
+            # but only if they have been killed by an external application
+            # or kernel OOM
+            if test_data["returncode"] == -signal.SIGKILL and self._stop_cnt > 1:
+                self._logger.info("Test killed: %s", test.name)
+                return
+
             results = await self._framework.read_result(
                 test,
                 test_data["stdout"],
@@ -303,6 +316,12 @@ class TestScheduler(Scheduler):
 
             self._logger.debug("results=%s", results)
             self._results.append(results)
+
+            await libkirk.events.fire("test_completed", results)
+            await self._write_kmsg(test, results)
+
+            self._logger.info("Test completed: %s", test.name)
+            self._logger.debug(results)
 
             # raise kernel errors at the end so we can collect test results
             if status == self.KERNEL_TAINTED:
@@ -316,12 +335,6 @@ class TestScheduler(Scheduler):
             if status == self.KERNEL_TIMEOUT:
                 await libkirk.events.fire("sut_not_responding")
                 raise KernelTimeoutError()
-
-            await libkirk.events.fire("test_completed", results)
-            await self._write_kmsg(test, results)
-
-            self._logger.info("Test completed: %s", test.name)
-            self._logger.debug(results)
 
     async def _run_and_wait(self, tests: List[Test]) -> None:
         """
@@ -380,11 +393,10 @@ class TestScheduler(Scheduler):
                 exc_name = err.__class__.__name__
                 self._logger.info("%s caught during tests execution", exc_name)
 
-                raise_exc = not self._stop
                 async with self._running_tests_sem:
                     pass
 
-                if raise_exc:
+                if self._stop_cnt == 0:
                     self._logger.info("Propagating %s exception", exc_name)
                     raise err
 
