@@ -375,6 +375,9 @@ class Session:
         """
         Stop the current session.
         """
+        # we don't want to send session_stopped more than once
+        already_stopped = self._stop == True
+
         self._stop = True
         try:
             await self._inner_stop()
@@ -385,7 +388,9 @@ class Session:
             async with self._exec_lock:
                 pass
         finally:
-            await libkirk.events.fire("session_stopped")
+            if not already_stopped:
+                await libkirk.events.fire("session_stopped")
+
             self._stop = False
 
     async def _schedule_once(self, suites_obj: List[Suite]) -> None:
