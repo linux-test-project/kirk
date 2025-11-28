@@ -460,20 +460,12 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
         exit_code = RC_ERROR
     finally:
         try:
-            # at this point loop has been closed, so we can collect all
-            # tasks and cancel them
-            loop.run_until_complete(
-                # pyrefly: ignore[bad-argument-type]
-                asyncio.gather(
-                    *[
-                        session.stop(),
-                        libkirk.events.stop(),
-                    ]
-                )
-            )
-            libkirk.cancel_tasks(loop)
+            loop.run_until_complete(session.stop())
         except KeyboardInterrupt:
-            pass
+            loop.run_until_complete(session.stop())
+
+        libkirk.cancel_tasks(loop)
+        loop.run_until_complete(libkirk.events.stop())
 
     parser.exit(exit_code)
 
