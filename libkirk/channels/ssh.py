@@ -355,7 +355,10 @@ class SSHComChannel(ComChannel):
 
                 # pyrefly: ignore[missing-attribute]
                 channel, session = await self._conn.create_session(
-                    lambda: MySSHClientSession(iobuffer), cmd
+                    lambda: MySSHClientSession(iobuffer),
+                    cmd,
+                    encoding="utf-8",
+                    errors="ignore",
                 )
 
                 self._channels.append(channel)
