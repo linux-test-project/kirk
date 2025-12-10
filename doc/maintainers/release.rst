@@ -1,7 +1,17 @@
 .. SPDX-License-Identifier: GPL-2.0-or-later
 
+Releases
+========
+
+Releases follow the semantic versioning ``Major.Minor.Patch``.
+
+.. note::
+
+   Releases are scheduled when there are "enough" features or important bugfixes
+   which can impact kirk usability.
+
 Setting up a new release
-========================
+------------------------
 
 These are the steps which need to be completed before a new release:
 
