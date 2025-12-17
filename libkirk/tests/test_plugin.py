@@ -6,7 +6,6 @@ import pytest
 import libkirk
 import libkirk.plugin
 from libkirk.plugin import Plugin
-from libkirk.framework import Framework
 
 
 @pytest.fixture(autouse=True)
@@ -25,29 +24,6 @@ def setup(tmpdir):
             "class MyPlugin(Plugin):\n"
             "    _name = 'myplug'\n"
         )
-
-
-def test_framework(tmpdir):
-    """
-    Test if Framework implementations are correctly loaded.
-    """
-    suts = []
-    suts.append(tmpdir / "frameworkA.py")
-    suts.append(tmpdir / "frameworkB.py")
-    suts.append(tmpdir / "frameworkC.txt")
-
-    for index in range(0, len(suts)):
-        suts[index].write(
-            "from libkirk.framework import Framework\n\n"
-            f"class Framework{index}(Framework):\n"
-            "    @property\n"
-            "    def name(self) -> str:\n"
-            f"        return 'fw{index}'\n"
-        )
-
-    suts = libkirk.plugin.discover(Framework, str(tmpdir))
-
-    assert len(suts) == 2
 
 
 def test_clone(tmpdir):

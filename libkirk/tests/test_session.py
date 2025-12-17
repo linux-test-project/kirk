@@ -27,16 +27,12 @@ class _TestSession:
     """
 
     @pytest.fixture
-    async def session(self, tmpdir, sut, dummy_framework):
+    async def session(self, ltpdir, sut):
         """
         Session communication object.
         """
-        session = Session(
-            tmpdir=TempDir(str(tmpdir)), framework=dummy_framework, sut=sut
-        )
-
+        session = Session(tmpdir=TempDir(str(ltpdir)), sut=sut)
         yield session
-
         await asyncio.wait_for(session.stop(), timeout=30)
 
     async def test_run(self, session):
