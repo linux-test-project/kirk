@@ -26,11 +26,9 @@ from libkirk import __version__
 from libkirk.com import ComChannel
 from libkirk.errors import (
     CommunicationError,
-    FrameworkError,
     KirkException,
     SUTError,
 )
-from libkirk.framework import Framework
 from libkirk.monitor import JSONFileMonitor
 from libkirk.session import Session
 from libkirk.sut import SUT
@@ -43,9 +41,6 @@ from libkirk.ui import (
 
 # Maximum number of COM instances
 MAX_COM_INSTANCES = 128
-
-# runtime loaded Framework(s)
-LOADED_FRAMEWORK = []
 
 # return codes of the application
 RC_OK = 0
@@ -81,8 +76,6 @@ def _from_params_to_config(params: List[str]) -> Dict[str, str]:
 
 
 def _dict_config(
-    opt_name: str,
-    plugins: Union[List[ComChannel], List[SUT]],
     value: str,
 ) -> Dict[str, str]:
     """
@@ -107,7 +100,7 @@ def _com_config(value: str) -> Optional[Dict[str, str]]:
     Return the list of channels configurations.
     """
     plugins = libkirk.com.get_channels()
-    config = _dict_config("com", plugins, value)
+    config = _dict_config(value)
 
     if "help" in config:
         return config
@@ -231,14 +224,6 @@ def _finjection_config(value: str) -> int:
     return ret
 
 
-def _discover_frameworks(path: str) -> None:
-    """
-    Discover new Framework implementations.
-    """
-    objs = libkirk.plugin.discover(Framework, path)
-    LOADED_FRAMEWORK.extend(objs)
-
-
 def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     """
     Return the skipped tests regexp.
@@ -316,37 +301,6 @@ def _get_sut(
     return sut
 
 
-def _get_framework(
-    args: argparse.Namespace, parser: argparse.ArgumentParser
-) -> Framework:
-    """
-    Create and framework object.
-    """
-    fw_config = args.framework.copy()
-    if args.env:
-        fw_config["env"] = args.env.copy()
-
-    if args.exec_timeout:
-        fw_config["test_timeout"] = args.exec_timeout
-
-    if args.suite_timeout:
-        fw_config["suite_timeout"] = args.suite_timeout
-
-    fw_name = args.framework["name"]
-    fw = next((f for f in LOADED_FRAMEWORK if f.name == fw_name), None)
-    if not fw:
-        parser.error(f"'{fw_name}' framework is not available")
-
-    try:
-        # pyrefly: ignore[missing-attribute]
-        fw.setup(**fw_config)
-    except FrameworkError as err:
-        parser.error(str(err))
-
-    # pyrefly: ignore[bad-return]
-    return fw
-
-
 def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """
     Start the LTP session.
@@ -379,15 +333,14 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     if args.com:
         _init_channels(args, parser, tmpdir)
 
-    # create SUT and Framework objects
+    # create SUT
     sut = _get_sut(args, parser, tmpdir)
-    framework = _get_framework(args, parser)
 
     # start session
     session = Session(
-        sut=sut,
-        framework=framework,
         tmpdir=tmpdir,
+        sut=sut,
+        env=args.env,
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
@@ -482,8 +435,6 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     libkirk.com.discover(os.path.join(currdir, "channels"))
     libkirk.sut.discover(currdir)
 
-    _discover_frameworks(currdir)
-
     parser = argparse.ArgumentParser(
         description="Kirk - All-in-one Linux Testing Framework"
     )
@@ -526,15 +477,8 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         "--sut",
         "-u",
         default="default",
-        type=lambda x: _dict_config("sut", libkirk.sut.get_suts(), x),
+        type=lambda x: _dict_config(x),
         help="System Under Test parameters. For help please use '--sut help'",
-    )
-    conf_opts.add_argument(
-        "--framework",
-        "-U",
-        default="ltp",
-        type=lambda x: _dict_config("framework", LOADED_FRAMEWORK, x),
-        help="Framework parameters. For help please use '--framework help'",
     )
     conf_opts.add_argument(
         "--env",
@@ -631,10 +575,6 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
 
     if args.sut and "help" in args.sut:
         _print_plugin_help("--sut", libkirk.sut.get_suts())
-        parser.exit(RC_OK)
-
-    if args.framework and "help" in args.framework:
-        _print_plugin_help("--framework", LOADED_FRAMEWORK)
         parser.exit(RC_OK)
 
     if args.json_report and os.path.exists(args.json_report):

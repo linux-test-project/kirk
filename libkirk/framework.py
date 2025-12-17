@@ -13,11 +13,10 @@ from libkirk.data import (
     Suite,
     Test,
 )
-from libkirk.plugin import Plugin
 from libkirk.results import TestResults
 
 
-class Framework(Plugin):
+class Framework:
     """
     Framework definition. Implement this class if you need to support more
     testing frameworks inside the application.
