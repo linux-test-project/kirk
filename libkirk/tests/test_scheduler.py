@@ -2,7 +2,9 @@
 Unittests for runner module.
 """
 
+from libkirk.ltp import LTPFramework
 import asyncio
+import os
 import re
 import sys
 
@@ -12,7 +14,6 @@ from libkirk.data import Suite, Test
 from libkirk.results import ResultStatus
 from libkirk.errors import KernelPanicError, KernelTaintedError, KernelTimeoutError
 from libkirk.sut_base import GenericSUT
-from libkirk.channels.shell import ShellComChannel
 from libkirk.scheduler import SuiteScheduler, TestScheduler
 
 pytestmark = pytest.mark.asyncio
@@ -96,11 +97,11 @@ class TestTestScheduler:
     """
 
     @pytest.fixture
-    async def create_runner(self, sut, dummy_framework):
+    async def create_runner(self, sut, ltpdir):
         def _callback(timeout: float = 3600.0, max_workers: int = 1) -> TestScheduler:
             obj = MockTestScheduler(
                 sut=sut,
-                framework=dummy_framework,
+                framework=LTPFramework(),
                 timeout=timeout,
                 max_workers=max_workers,
             )
@@ -319,7 +320,7 @@ class TestSuiteScheduler:
     """
 
     @pytest.fixture
-    async def create_runner(self, sut, dummy_framework):
+    async def create_runner(self, sut, ltpdir):
         def _callback(
             suite_timeout: float = 3600.0,
             exec_timeout: float = 3600.0,
@@ -327,7 +328,7 @@ class TestSuiteScheduler:
         ) -> SuiteScheduler:
             obj = MockSuiteScheduler(
                 sut=sut,
-                framework=dummy_framework,
+                framework=LTPFramework(),
                 suite_timeout=suite_timeout,
                 exec_timeout=exec_timeout,
                 max_workers=max_workers,
