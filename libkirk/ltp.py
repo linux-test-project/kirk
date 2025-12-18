@@ -17,7 +17,6 @@ from typing import (
     Optional,
 )
 
-import libkirk.types
 from libkirk.com import ComChannel
 from libkirk.data import (
     Suite,
@@ -47,55 +46,41 @@ class LTPFramework(Framework):
         "max_runtime",
     ]
 
-    _name = "ltp"
-
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        max_runtime: float = 0.0,
+        timeout: float = 30.0,
+        env: dict = {},
+    ) -> None:
+        """
+        :param max_runtime: filter out all tests above this time value
+        :type max_runtime: float
+        :param timeout: generic tests timeout
+        :type timeout: float
+        :param env: user environment variables
+        :type env: dict
+        """
         self._logger = logging.getLogger("libkirk.ltp")
-        self._root = ""
-        self._env = {}
-        self._max_runtime = 0.0
-        self._tc_folder = ""
         self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
-
-    @property
-    def config_help(self) -> Dict[str, str]:
-        return {
-            "root": "LTP install folder",
-            "max_runtime": "filter out all tests above this time value",
-        }
-
-    def setup(self, **kwargs: Dict[str, Any]) -> None:
+        self._max_runtime = max_runtime
         self._root = os.environ.get("LTPROOT", "/opt/ltp")
+        self._tc_folder = os.path.join(self._root, "testcases", "bin")
+
         self._env = {
             "LTPROOT": self._root,
             "TMPDIR": "/tmp",
             "LTP_COLORIZE_OUTPUT": "1",
         }
 
-        env = libkirk.types.dict_item(kwargs, "env", dict)
+        multiplier = os.environ.get("LTP_TIMEOUT_MUL", None)
+        if multiplier:
+            self._env["LTP_TIMEOUT_MUL"] = multiplier
+        else:
+            if timeout:
+                self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
+
         if env:
             self._env.update(env)
-
-        timeout = libkirk.types.dict_item(kwargs, "test_timeout", float)
-        user_timeout_mul = os.environ.get("LTP_TIMEOUT_MUL")
-        if timeout and not user_timeout_mul:
-            self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
-
-        root = libkirk.types.dict_item(kwargs, "root", str)
-        if root:
-            self._root = root
-            self._env["LTPROOT"] = self._root
-
-        self._tc_folder = os.path.join(self._root, "testcases", "bin")
-
-        runtime = libkirk.types.dict_item(kwargs, "max_runtime", float)
-        if runtime:
-            try:
-                runtime = float(runtime)
-            except TypeError as err:
-                raise FrameworkError("max_runtime must be an integer") from err
-
-            self._max_runtime = runtime
 
     async def _read_path(self, channel: ComChannel) -> Dict[str, str]:
         """

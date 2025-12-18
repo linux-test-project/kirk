@@ -26,8 +26,8 @@ from libkirk.errors import (
     SessionError,
 )
 from libkirk.export import JSONExporter
-from libkirk.framework import Framework
 from libkirk.io import AsyncFile
+from libkirk.ltp import LTPFramework
 from libkirk.results import TestResults
 from libkirk.scheduler import SuiteScheduler
 from libkirk.sut import (
@@ -61,8 +61,8 @@ class Session:
     def __init__(
         self,
         tmpdir: TempDir,
-        framework: Framework,
         sut: SUT,
+        env: dict = {},
         exec_timeout: float = 3600.0,
         suite_timeout: float = 3600.0,
         workers: int = 1,
@@ -71,8 +71,8 @@ class Session:
         """
         :param tmpdir: Temporary directory.
         :type tmpdir: TempDir
-        :param framework: Testing framework we are using.
-        :type framework: Framework
+        :param env: user environment variables
+        :type env: dict
         :param sut: SUT communication object.
         :type sut: SUT
         :param exec_timeout: Test timeout.
@@ -86,7 +86,6 @@ class Session:
         """
         self._logger = logging.getLogger("kirk.session")
         self._tmpdir = tmpdir
-        self._framework = framework
         self._sut = sut
         self._exec_timeout = exec_timeout
         self._force_parallel = force_parallel
@@ -94,6 +93,10 @@ class Session:
         self._exec_lock = asyncio.Lock()
         self._run_lock = asyncio.Lock()
         self._results = []
+        self._framework = LTPFramework(
+            timeout=self._exec_timeout,
+            env=env,
+        )
 
         self._scheduler = SuiteScheduler(
             sut=self._sut,

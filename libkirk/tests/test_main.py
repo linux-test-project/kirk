@@ -9,6 +9,8 @@ import sys
 
 import pytest
 
+import libkirk.sut
+import libkirk.com
 import libkirk.main
 
 
@@ -18,12 +20,11 @@ class TestMain:
     """
 
     @pytest.fixture(autouse=True)
-    def setup(self, dummy_framework):
+    def setup(self, ltpdir):
         """
-        Setup main before running tests.
+        Create and initialize LTP root directory.
         """
-        if len(libkirk.main.LOADED_FRAMEWORK) < 2:
-            libkirk.main.LOADED_FRAMEWORK.append(dummy_framework)
+        pass
 
     def read_report(self, temp) -> dict:
         """
@@ -91,8 +92,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
         ]
@@ -113,8 +112,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--suite-timeout",
@@ -144,8 +141,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--verbose",
@@ -157,7 +152,7 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
 
         captured = capsys.readouterr()
-        assert "ciao0\n" in captured.out
+        assert "echo -n ciao\n" in captured.out
 
     @pytest.mark.xfail(reason="This test passes if run alone. capsys bug?")
     def test_run_suite_no_colors(self, tmpdir, capsys):
@@ -168,8 +163,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--no-colors",
@@ -193,8 +186,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
         ]
@@ -214,8 +205,6 @@ class TestMain:
             str(temp),
             "--restore",
             f"{str(temp)}/kirk.{name}/latest",
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "environ",
@@ -238,8 +227,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--json-report",
@@ -269,8 +256,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--skip-tests",
@@ -296,8 +281,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--skip-file",
@@ -323,8 +306,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--skip-tests",
@@ -351,8 +332,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--workers",
@@ -379,19 +358,6 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
         assert len(libkirk.sut.get_suts()) > 0
 
-    def test_framework_help(self):
-        """
-        Test "--framework help" command and check if Framework class(es)
-        are loaded.
-        """
-        cmd_args = ["--framework", "help"]
-
-        with pytest.raises(SystemExit) as excinfo:
-            libkirk.main.run(cmd_args=cmd_args)
-
-        assert excinfo.value.code == libkirk.main.RC_OK
-        assert len(libkirk.main.LOADED_FRAMEWORK) > 0
-
     def test_env(self, tmpdir):
         """
         Test --env option.
@@ -400,8 +366,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "environ",
             "--env",
@@ -425,8 +389,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--suite-iterate",
@@ -451,8 +413,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
         ]
         cmd_args.extend(["suite01"] * num_of_suites)
@@ -480,8 +440,6 @@ class TestMain:
         cmd_args = [
             "--tmp-dir",
             str(temp),
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
             "--runtime",
@@ -568,8 +526,6 @@ class TestMain:
             "shell:id=myshell",
             "--sut",
             "default:com=myshell",
-            "--framework",
-            "dummy",
             "--run-suite",
             "suite01",
         ]
