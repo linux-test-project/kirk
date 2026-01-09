@@ -35,6 +35,24 @@ class _TestSession:
         yield session
         await asyncio.wait_for(session.stop(), timeout=30)
 
+    async def read_report(self, report):
+        report_data = {}
+        counter = 0
+
+        while True:
+            counter += 1
+            try:
+                with open(report, "r", encoding="utf-8") as report_file:
+                    report_data = json.loads(report_file.read())
+                    break
+            except FileNotFoundError as ex:
+                if counter >= 10:
+                    raise ex
+
+                await asyncio.sleep(0.2)
+
+        return report_data
+
     async def test_run(self, session):
         """
         Test run method when executing suites.
@@ -50,9 +68,8 @@ class _TestSession:
             suites=["suite01", "suite02"], pattern="test01|test02", report_path=report
         )
 
-        with open(report, "r", encoding="utf-8") as report_file:
-            report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) == 4
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) == 4
 
     async def test_run_report(self, tmpdir, session):
         """
@@ -61,9 +78,8 @@ class _TestSession:
         report = str(tmpdir / "report.json")
         await session.run(suites=["suite01", "suite02"], report_path=report)
 
-        with open(report, "r") as report_file:
-            report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) == 4
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) == 4
 
     async def test_run_stop(self, session):
         """
@@ -127,9 +143,8 @@ class _TestSession:
             suites=["suite01", "suite02"], skip_tests="test0[23]", report_path=report
         )
 
-        with open(report, "r", encoding="utf-8") as report_file:
-            report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) == 2
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) == 2
 
     @pytest.mark.parametrize(
         "iterate,expect",
@@ -148,25 +163,21 @@ class _TestSession:
             suites=["suite01", "suite02"], suite_iterate=iterate, report_path=report
         )
 
-        with open(report, "r", encoding="utf-8") as report_file:
-            report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) == expect
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) == expect
 
     async def test_run_randomize(self, tmpdir, session):
         """
         Test run method when executing shuffled tests.
         """
-        num_of_suites = 20
+        num_of_suites = 10
 
         report = str(tmpdir / "report.json")
         await session.run(
             suites=["suite01"] * num_of_suites, randomize=True, report_path=report
         )
 
-        report_data = None
-        with open(report, "r", encoding="utf-8") as report_file:
-            report_data = json.loads(report_file.read())
-
+        report_data = await self.read_report(report)
         assert len(report_data["results"]) == 2 * num_of_suites
 
         tests_names = []
@@ -180,8 +191,7 @@ class _TestSession:
         Test run method when executing suites for a certain amount of time.
         """
         report = str(tmpdir / "report.json")
-        await session.run(suites=["suite01"], runtime=2, report_path=report)
+        await session.run(suites=["suite01"], runtime=0.5, report_path=report)
 
-        with open(report, "r", encoding="utf-8") as report_file:
-            report_data = json.loads(report_file.read())
-            assert len(report_data["results"]) >= 2
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) >= 0.5

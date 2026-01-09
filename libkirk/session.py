@@ -423,7 +423,7 @@ class Session:
                 suite.name = f"{suite.name}[{count}]"
                 suites_list.append(suite)
 
-    async def _run_scheduler(self, suites_obj: List[Suite], runtime: int) -> None:
+    async def _run_scheduler(self, suites_obj: List[Suite], runtime: float) -> None:
         """
         Run the scheduler for specific amount of time given by `runtime`.
         """
@@ -467,7 +467,7 @@ class Session:
         restore_path: Optional[str] = None,
         suite_iterate: int = 1,
         randomize: bool = False,
-        runtime: int = 0,
+        runtime: float = 0,
         fault_prob: int = 0,
     ) -> None:
         """
@@ -490,7 +490,7 @@ class Session:
         :param randomize: Randomize all tests if True.
         :type randomize: bool
         :param runtime: For how long we want to run the session.
-        :type runtime: int
+        :type runtime: float
         :param fault_prob: Fault injection probability.
         :type fault_prob: int
         """
