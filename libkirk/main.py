@@ -291,6 +291,9 @@ def _get_sut(
     if not sut:
         parser.error(f"'{sut_name}' SUT is not available")
 
+    # pyrefly: ignore[missing-attribute]
+    sut.optimize = args.optimize_sut
+
     try:
         # pyrefly: ignore[missing-attribute]
         sut.setup(**sut_config)
@@ -553,6 +556,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         type=_finjection_config,
         default=0,
         help="Probability of failure (0-100)",
+    )
+    exec_opts.add_argument(
+        "--optimize-sut",
+        "-O",
+        action="store_true",
+        help="Communicate with SUT using commands parallelization (default: false)",
     )
 
     # output arguments
