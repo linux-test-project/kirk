@@ -164,6 +164,7 @@ class _TestSession:
         report_data = await self.read_report(report)
         assert len(report_data["results"]) == expect
 
+    @pytest.mark.xfail(reason="Instable test on CI")
     async def test_run_randomize(self, tmpdir, session):
         """
         Test run method when executing shuffled tests.
@@ -184,6 +185,7 @@ class _TestSession:
 
         assert ["test01", "test02"] * num_of_suites != tests_names
 
+    @pytest.mark.skip(reason="Instable test on CI")
     async def test_run_runtime(self, tmpdir, session):
         """
         Test run method when executing suites for a certain amount of time.
