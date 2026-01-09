@@ -61,6 +61,8 @@ class SUT(Plugin):
         "failslab",
     ]
 
+    _optimize = False
+
     def get_channel(self) -> ComChannel:
         """
         :return: Main channel to communicated with SUT.
@@ -103,6 +105,74 @@ class SUT(Plugin):
         """
         raise NotImplementedError()
 
+    @property
+    def optimize(self) -> bool:
+        """
+        Optimize the commands execution by applying parallelization
+        when it's available.
+
+        :return: True if SUT will optimize commands execution on SUT.
+        """
+        return self._optimize
+
+    @optimize.setter
+    def optimize(self, value: bool) -> None:
+        """
+        Set commands execution optimization.
+        """
+        self._optimize = value
+
+    async def _run_cmd(self, cmd: str) -> str:
+        """
+        Run command, check for returncode and return command's stdout.
+        """
+        stdout = "unknown"
+        try:
+            channel = self.get_channel()
+            ret = await asyncio.wait_for(channel.run_command(cmd), 1.5)
+            if ret and ret["returncode"] == 0:
+                stdout = ret["stdout"].rstrip()
+        except asyncio.TimeoutError:
+            pass
+
+        return stdout
+
+    async def _get_distro(self) -> str:
+        """
+        Return the distro name.
+        """
+        return await self._run_cmd('. /etc/os-release && echo "$ID"')
+
+    async def _get_distro_ver(self) -> str:
+        """
+        Return the distro version.
+        """
+        return await self._run_cmd('. /etc/os-release && echo "$VERSION_ID"')
+
+    async def _get_kernel(self) -> str:
+        """
+        Return the kernel name.
+        """
+        return await self._run_cmd("uname -s -r -v")
+
+    async def _get_arch(self) -> str:
+        """
+        Return the architecture name.
+        """
+        return await self._run_cmd("uname -m")
+
+    async def _get_cpu(self) -> str:
+        """
+        Return the CPU name.
+        """
+        return await self._run_cmd("uname -p")
+
+    async def _get_meminfo(self) -> str:
+        """
+        Return the memory information.
+        """
+        return await self._run_cmd("cat /proc/meminfo")
+
     async def get_info(self) -> Dict[str, str]:
         """
         Return SUT information.
@@ -126,33 +196,32 @@ class SUT(Plugin):
         if not await self.is_running:
             raise SUTError("SUT is not running")
 
-        # create suite results
-        async def _run_cmd(cmd: str) -> str:
-            """
-            Run command, check for returncode and return command's stdout.
-            """
-            stdout = "unknown"
-            try:
-                channel = self.get_channel()
-                ret = await asyncio.wait_for(channel.run_command(cmd), 1.5)
-                if ret and ret["returncode"] == 0:
-                    stdout = ret["stdout"].rstrip()
-            except asyncio.TimeoutError:
-                pass
+        distro = ""
+        distro_ver = ""
+        kernel = ""
+        arch = ""
+        cpu = ""
+        meminfo = ""
 
-            return stdout
-
-        # pyrefly: ignore[bad-unpacking]
-        distro, distro_ver, kernel, arch, cpu, meminfo = await asyncio.gather(
-            *[
-                _run_cmd('. /etc/os-release && echo "$ID"'),
-                _run_cmd('. /etc/os-release && echo "$VERSION_ID"'),
-                _run_cmd("uname -s -r -v"),
-                _run_cmd("uname -m"),
-                _run_cmd("uname -p"),
-                _run_cmd("cat /proc/meminfo"),
-            ]
-        )
+        if self.optimize:
+            # pyrefly: ignore[bad-unpacking]
+            distro, distro_ver, kernel, arch, cpu, meminfo = await asyncio.gather(
+                *[
+                    self._get_distro(),
+                    self._get_distro_ver(),
+                    self._get_kernel(),
+                    self._get_arch(),
+                    self._get_cpu(),
+                    self._get_meminfo(),
+                ]
+            )
+        else:
+            distro = await self._get_distro()
+            distro_ver = await self._get_distro_ver()
+            kernel = await self._get_kernel()
+            arch = await self._get_arch()
+            cpu = await self._get_cpu()
+            meminfo = await self._get_meminfo()
 
         memory = "unknown"
         swap = "unknown"
