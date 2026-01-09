@@ -6,8 +6,6 @@ import pytest
 
 from libkirk.io import AsyncFile
 
-pytestmark = pytest.mark.asyncio
-
 
 async def test_seek(tmpdir):
     """

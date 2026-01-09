@@ -31,7 +31,6 @@ async def sut():
     raise NotImplementedError()
 
 
-@pytest.mark.asyncio
 class _TestSUT:
     """
     Unittest for GenericSUT implementations.

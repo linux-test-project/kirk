@@ -14,7 +14,7 @@ from libkirk.tests.test_com import Printer, _TestComChannel
 from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_session import _TestSession
 
-pytestmark = [pytest.mark.asyncio, pytest.mark.qemu]
+pytestmark = [pytest.mark.qemu]
 
 TEST_QEMU_IMAGE = os.environ.get("TEST_QEMU_IMAGE", None)
 TEST_QEMU_USERNAME = os.environ.get("TEST_QEMU_USERNAME", None)

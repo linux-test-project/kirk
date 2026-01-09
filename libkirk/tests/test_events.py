@@ -105,7 +105,6 @@ def test_unregister_single():
     assert not libkirk.events.is_registered("myevent")
 
 
-@pytest.mark.asyncio
 async def test_fire_errors():
     """
     Test fire method during errors.
@@ -114,7 +113,6 @@ async def test_fire_errors():
         await libkirk.events.fire(None, "prova")
 
 
-@pytest.mark.asyncio
 async def test_fire():
     """
     Test fire method.

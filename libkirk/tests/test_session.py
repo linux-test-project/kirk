@@ -10,8 +10,6 @@ import pytest
 from libkirk.session import Session
 from libkirk.tempfile import TempDir
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.fixture
 async def sut():

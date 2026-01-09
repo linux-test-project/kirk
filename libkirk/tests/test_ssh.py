@@ -17,7 +17,7 @@ from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_com import _TestComChannel
 from libkirk.tests.test_session import _TestSession
 
-pytestmark = [pytest.mark.asyncio, pytest.mark.ssh]
+pytestmark = [pytest.mark.ssh]
 
 TEST_SSH_USERNAME = os.environ.get("TEST_SSH_USERNAME", None)
 TEST_SSH_PASSWORD = os.environ.get("TEST_SSH_PASSWORD", None)

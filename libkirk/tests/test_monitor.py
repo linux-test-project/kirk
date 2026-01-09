@@ -11,8 +11,6 @@ import libkirk
 from libkirk.io import AsyncFile
 from libkirk.monitor import JSONFileMonitor
 
-pytestmark = pytest.mark.asyncio
-
 MONITOR_FILE = "monitor.json"
 
 

@@ -11,8 +11,6 @@ from libkirk.data import Suite, Test
 from libkirk.export import JSONExporter
 from libkirk.results import ResultStatus, SuiteResults, TestResults
 
-pytestmark = pytest.mark.asyncio
-
 
 class TestJSONExporter:
     """

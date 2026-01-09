@@ -16,8 +16,6 @@ from libkirk.errors import KernelPanicError, KernelTaintedError, KernelTimeoutEr
 from libkirk.sut_base import GenericSUT
 from libkirk.scheduler import SuiteScheduler, TestScheduler
 
-pytestmark = pytest.mark.asyncio
-
 
 class MockSUT(GenericSUT):
     """

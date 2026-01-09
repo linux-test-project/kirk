@@ -16,7 +16,7 @@ from libkirk.tests.test_session import _TestSession
 from libkirk.channels.ltx import LTX, Requests
 from libkirk.tests.test_com import _TestComChannel
 
-pytestmark = [pytest.mark.asyncio, pytest.mark.ltx]
+pytestmark = [pytest.mark.ltx]
 
 TEST_LTX_BINARY = os.environ.get("TEST_LTX_BINARY", None)
 

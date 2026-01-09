@@ -10,8 +10,6 @@ from libkirk.tests.test_session import _TestSession
 from libkirk.channels.shell import ShellComChannel
 from libkirk.tests.test_com import _TestComChannel
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.fixture
 async def com():

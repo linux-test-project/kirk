@@ -11,8 +11,6 @@ from libkirk.data import Test
 from libkirk.channels.shell import ShellComChannel
 from libkirk.ltp import LTPFramework
 
-pytestmark = pytest.mark.asyncio
-
 
 class TestLTPFramework:
     """

@@ -34,7 +34,6 @@ def com():
     raise NotImplementedError()
 
 
-@pytest.mark.asyncio
 class _TestComChannel:
     """
     Generic tests for ComChannel implementation.
