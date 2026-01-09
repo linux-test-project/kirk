@@ -11,6 +11,15 @@ import libkirk.com
 import libkirk.sut
 
 
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Cleanup tasks when session finishes.
+    """
+    loop = libkirk.get_event_loop()
+    libkirk.cancel_tasks(loop)
+    loop.close()
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     """
@@ -18,13 +27,7 @@ def event_loop():
     will use same coroutines will be associated to different event_loop.
     In this way, pytest-asyncio plugin will work properly.
     """
-    loop = libkirk.get_event_loop()
-
-    yield loop
-
-    if not loop.is_closed():
-        libkirk.cancel_tasks(loop)
-        loop.close()
+    yield libkirk.get_event_loop()
 
 
 @pytest.fixture(autouse=True, scope="function")
