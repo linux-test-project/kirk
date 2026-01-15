@@ -343,7 +343,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     session = Session(
         tmpdir=tmpdir,
         sut=sut,
-        env=args.env,
+        env=args.env or {},
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
