@@ -63,7 +63,7 @@ class LTPFramework(Framework):
         self._logger = logging.getLogger("libkirk.ltp")
         self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
         self._max_runtime = max_runtime
-        self._root = os.environ.get("LTPROOT", "/opt/ltp")
+        self._root = env.get("LTPROOT") or os.environ.get("LTPROOT", "/opt/ltp")
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
 
         self._env = {
@@ -94,8 +94,7 @@ class LTPFramework(Framework):
             if not ret or ret["returncode"] != 0:
                 raise FrameworkError("Can't read PATH variable")
 
-            tcases = os.path.join(self._root, "testcases", "bin")
-            env["PATH"] = ret["stdout"].strip() + f":{tcases}"
+            env["PATH"] = ret["stdout"].strip() + f":{self._tc_folder}"
 
         self._logger.debug("PATH=%s", env["PATH"])
 
