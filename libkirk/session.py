@@ -62,7 +62,6 @@ class Session:
         self,
         tmpdir: TempDir,
         sut: SUT,
-        env: dict = {},
         exec_timeout: float = 3600.0,
         suite_timeout: float = 3600.0,
         workers: int = 1,
@@ -71,8 +70,6 @@ class Session:
         """
         :param tmpdir: Temporary directory.
         :type tmpdir: TempDir
-        :param env: user environment variables
-        :type env: dict
         :param sut: SUT communication object.
         :type sut: SUT
         :param exec_timeout: Test timeout.
@@ -95,7 +92,6 @@ class Session:
         self._results = []
         self._framework = LTPFramework(
             timeout=self._exec_timeout,
-            env=env,
         )
 
         self._scheduler = SuiteScheduler(
