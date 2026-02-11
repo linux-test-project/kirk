@@ -46,31 +46,40 @@ class LTPFramework(Framework):
         "max_runtime",
     ]
 
+    # supported environment variables not having `LTP_` prefix
+    SUPPORTED_ENV = [
+        "PATH",
+        "KCONFIG_PATH",
+        "KCONFIG_SKIP_CHECK",
+    ]
+
     def __init__(
         self,
         max_runtime: float = 0.0,
         timeout: float = 30.0,
-        env: dict = {},
     ) -> None:
         """
         :param max_runtime: filter out all tests above this time value
         :type max_runtime: float
         :param timeout: generic tests timeout
         :type timeout: float
-        :param env: user environment variables
-        :type env: dict
         """
         self._logger = logging.getLogger("libkirk.ltp")
         self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
         self._max_runtime = max_runtime
-        self._root = env.get("LTPROOT") or os.environ.get("LTPROOT", "/opt/ltp")
+        self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
+        self._env = {}
 
-        self._env = {
-            "LTPROOT": self._root,
-            "TMPDIR": "/tmp",
-            "LTP_COLORIZE_OUTPUT": "1",
-        }
+        self._update_env_vars(timeout)
+
+    def _update_env_vars(self, timeout: float) -> None:
+        """
+        Update environment variables for LTP tests.
+        """
+        self._env["LTPROOT"] = self._root
+        self._env["TMPDIR"] = os.environ.get("TMPDIR", "/tmp")
+        self._env["LTP_COLORIZE_OUTPUT"] = os.environ.get("LTP_COLORIZE_OUTPUT", "1")
 
         multiplier = os.environ.get("LTP_TIMEOUT_MUL", None)
         if multiplier:
@@ -79,8 +88,18 @@ class LTPFramework(Framework):
             if timeout:
                 self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
-        if env:
-            self._env.update(env)
+        for key, val in os.environ.items():
+            # these environment are already set
+            if key in [
+                "LTPROOT",
+                "TMPDIR",
+                "LTP_COLORIZE_OUTPUT",
+                "LTP_TIMEOUT_MUL",
+            ]:
+                continue
+
+            if key in self.SUPPORTED_ENV or key.startswith("LTP_"):
+                self._env[key] = val
 
     async def _read_path(self, channel: ComChannel) -> Dict[str, str]:
         """

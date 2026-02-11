@@ -142,20 +142,6 @@ def _print_plugin_help(
     print(msg)
 
 
-def _env_config(value: str) -> Optional[Dict[str, str]]:
-    """
-    Return an environment configuration dictionary, parsing strings such as
-    "key=value:key=value:key=value".
-    """
-    if not value:
-        return None
-
-    params = value.split(":")
-    config = _from_params_to_config(params)
-
-    return config
-
-
 def _iterate_config(value: str) -> int:
     """
     Return the iterate value.
@@ -343,7 +329,6 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     session = Session(
         tmpdir=tmpdir,
         sut=sut,
-        env=args.env or {},
         exec_timeout=args.exec_timeout,
         suite_timeout=args.suite_timeout,
         workers=args.workers,
@@ -482,12 +467,6 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         default="default",
         type=lambda x: _dict_config(x),
         help="System Under Test parameters. For help please use '--sut help'",
-    )
-    conf_opts.add_argument(
-        "--env",
-        "-e",
-        type=_env_config,
-        help="List of key=value environment values separated by ':'",
     )
     conf_opts.add_argument("--skip-tests", "-s", type=str, help="Skip specific tests")
     conf_opts.add_argument(
