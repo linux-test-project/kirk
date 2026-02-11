@@ -46,31 +46,56 @@ class LTPFramework(Framework):
         "max_runtime",
     ]
 
+    SUPPORTED_ENV = [
+        "KCONFIG_PATH",
+        "KCONFIG_SKIP_CHECK",
+        "LTPROOT",
+        "LTP_COLORIZE_OUTPUT",
+        "LTP_DEV",
+        "LTP_REPRODUCIBLE_OUTPUT",
+        "LTP_SINGLE_FS_TYPE",
+        "LTP_FORCE_SINGLE_FS_TYPE",
+        "LTP_DEV_FS_TYPE",
+        "LTP_TIMEOUT_MUL",
+        "LTP_RUNTIME_MUL",
+        "LTP_USR_UID",
+        "LTP_USR_GID",
+        "LTP_VIRT_OVERRIDE",
+        "PATH",
+        "TMPDIR",
+        "LTP_NO_CLEANUP",
+        "LTP_ENABLE_DEBUG",
+        "LTP_IMA_LOAD_POLICY",
+        "LTP_NFS_NETNS_USE_LO",
+    ]
+
     def __init__(
         self,
         max_runtime: float = 0.0,
         timeout: float = 30.0,
-        env: dict = {},
     ) -> None:
         """
         :param max_runtime: filter out all tests above this time value
         :type max_runtime: float
         :param timeout: generic tests timeout
         :type timeout: float
-        :param env: user environment variables
-        :type env: dict
         """
         self._logger = logging.getLogger("libkirk.ltp")
         self._cmd_matcher = re.compile(r'(?:"[^"]*"|\'[^\']*\'|\S+)')
         self._max_runtime = max_runtime
-        self._root = env.get("LTPROOT") or os.environ.get("LTPROOT", "/opt/ltp")
+        self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
+        self._env = {}
 
-        self._env = {
-            "LTPROOT": self._root,
-            "TMPDIR": "/tmp",
-            "LTP_COLORIZE_OUTPUT": "1",
-        }
+        self._update_env_vars(timeout)
+
+    def _update_env_vars(self, timeout: float) -> None:
+        """
+        Update environment variables for LTP tests.
+        """
+        self._env["LTPROOT"] = self._root
+        self._env["TMPDIR"] = os.environ.get("TMPDIR", "/tmp")
+        self._env["LTP_COLORIZE_OUTPUT"] = os.environ.get("LTP_COLORIZE_OUTPUT", "1")
 
         multiplier = os.environ.get("LTP_TIMEOUT_MUL", None)
         if multiplier:
@@ -79,8 +104,14 @@ class LTPFramework(Framework):
             if timeout:
                 self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
-        if env:
-            self._env.update(env)
+        for sup_env in self.SUPPORTED_ENV:
+            if sup_env in self._env:
+                continue
+
+            if sup_env not in os.environ:
+                continue
+
+            self._env[sup_env] = os.environ[sup_env]
 
     async def _read_path(self, channel: ComChannel) -> Dict[str, str]:
         """
