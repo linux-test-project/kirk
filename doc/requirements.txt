@@ -1,5 +1,0 @@
-# Use the same sphinx as on readthedocs.org. When updated, make sure
-# sphinx-rtd-theme is compatible with sphinx.
-sphinx==8.2.3
-sphinx-rtd-theme==3.0.2
-myst-parser==4.0.1
