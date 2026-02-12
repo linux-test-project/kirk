@@ -16,7 +16,6 @@
    :caption: For developers
 
    developers/plugins
-   developers/framework
 
 .. toctree::
    :maxdepth: 2
@@ -45,9 +44,6 @@ For developers
 
 :doc:`developers/plugins`
    How to develop a new SUT
-
-:doc:`developers/framework`
-   How to develop a new Framework
 
 For maintainers
 ---------------
