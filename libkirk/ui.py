@@ -159,8 +159,9 @@ class ConsoleUserInterface:
         duration = self._user_friendly_duration(results.exec_time)
         exec_time_uf = self._user_friendly_duration(exec_time)
 
-        message = []
+        message: list[str] = []
         message.append(" " * 128)
+
         message.append(f"Execution time: {exec_time_uf}\n")
         message.append(f"\tSuite:       {results.suite.name}")
         message.append(f"\tTotal runs:  {len(results.suite.tests)}")
