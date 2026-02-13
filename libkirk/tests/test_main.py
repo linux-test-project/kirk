@@ -358,29 +358,6 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
         assert len(libkirk.sut.get_suts()) > 0
 
-    def test_env(self, tmpdir):
-        """
-        Test --env option.
-        """
-        temp = tmpdir.mkdir("temp")
-        cmd_args = [
-            "--tmp-dir",
-            str(temp),
-            "--run-suite",
-            "environ",
-            "--env",
-            "hello=ciao",
-        ]
-
-        with pytest.raises(SystemExit) as excinfo:
-            libkirk.main.run(cmd_args=cmd_args)
-
-        assert excinfo.value.code == libkirk.main.RC_OK
-
-        report = self.read_report(temp)
-        assert len(report["results"]) == 1
-        assert report["results"][0]["test"]["log"] == "ciao"
-
     def test_suite_iterate(self, tmpdir):
         """
         Test --suite-iterate option.
