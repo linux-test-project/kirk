@@ -392,4 +392,5 @@ def get_suts() -> List[ComChannel]:
     :rtype: list(ComChannel)
     """
     global _SUT
+    # pyrefly: ignore[bad-return]
     return _SUT
