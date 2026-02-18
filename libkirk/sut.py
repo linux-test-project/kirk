@@ -247,8 +247,13 @@ class SUT(Plugin):
 
         return ret
 
-    _tainted_lock = asyncio.Lock()
-    _tainted_status = asyncio.Queue(maxsize=1)
+    # Lazily initialised inside get_tainted_info() so that the
+    # asyncio primitives are always created on the *running* loop.
+    # Class-level assignment would bind them to the loop that was
+    # current at import time, which breaks on Python 3.7-3.9 when
+    # tests run on a different loop than the session loop.
+    _tainted_lock: Optional[asyncio.Lock] = None
+    _tainted_status: Optional[asyncio.Queue] = None
 
     async def get_tainted_info(self) -> Tuple[int, List[str]]:
         """
@@ -260,6 +265,12 @@ class SUT(Plugin):
         """
         if not await self.is_running:
             raise SUTError("SUT is not running")
+
+        # Initialise on first use, always inside a running loop.
+        if self._tainted_lock is None:
+            self._tainted_lock = asyncio.Lock()
+        if self._tainted_status is None:
+            self._tainted_status = asyncio.Queue(maxsize=1)
 
         if self._tainted_lock.locked() and self._tainted_status.qsize() > 0:
             status = await self._tainted_status.get()

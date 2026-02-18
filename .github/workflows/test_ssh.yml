@@ -4,7 +4,7 @@ name: "Test SSH"
 on: push
 
 env:
-  PYTHON_PKGS: pytest<8.3.5 pytest-asyncio<1.0 build asyncssh
+  PYTHON_PKGS: pytest pytest-asyncio build asyncssh
   TEST_SSH_KEY_FILE: /home/runner/.ssh/id_rsa
   TEST_SSH_USERNAME: runner
   TEST_SSH_PASSWORD: password

@@ -2,6 +2,7 @@
 Unittests for main module.
 """
 
+import asyncio
 import json
 import os
 import pwd
@@ -9,9 +10,49 @@ import sys
 
 import pytest
 
-import libkirk.sut
+import libkirk
 import libkirk.com
 import libkirk.main
+import libkirk.sut
+from libkirk.evt import EventsHandler
+
+
+@pytest.fixture(autouse=True)
+def isolated_loop(monkeypatch):
+    """
+    Give every TestMain test its own event loop so that
+    libkirk.main.run() cannot cancel tasks belonging to
+    other (async) tests, and cannot leave the shared
+    session loop in a dirty state.
+    """
+    # Remember which loop the session is using so we can restore it.
+    session_loop = libkirk.get_event_loop()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Re-discover plugins now that the isolated loop is current, so that
+    # every asyncio.Lock() inside plugin __init__ methods binds to this loop.
+    currdir = os.path.dirname(os.path.realpath(libkirk.com.__file__))
+    libkirk.com.discover(os.path.join(currdir, "channels"), extend=False)
+    libkirk.sut.discover(currdir, extend=False)
+
+    fresh_events = EventsHandler()
+    monkeypatch.setattr(libkirk, "get_event_loop", lambda: loop)
+    monkeypatch.setattr(libkirk, "events", fresh_events)
+
+    yield loop
+
+    # Drain and close the isolated loop.
+    try:
+        libkirk.cancel_tasks(loop)
+        if not loop.is_closed():
+            loop.run_until_complete(fresh_events.stop())
+    finally:
+        if not loop.is_closed():
+            loop.close()
+        # Restore the session loop so subsequent async tests still work.
+        asyncio.set_event_loop(session_loop)
 
 
 class TestMain:
