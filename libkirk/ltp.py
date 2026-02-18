@@ -29,29 +29,64 @@ from libkirk.results import (
     TestResults,
 )
 
+# Mapping from LTP return code to ResultStatus
+_RETCODE_STATUS: Dict[int, int] = {
+    0: ResultStatus.PASS,
+    2: ResultStatus.BROK,
+    -1: ResultStatus.BROK,
+    4: ResultStatus.WARN,
+    32: ResultStatus.CONF,
+}
+
+_ANSI_ESCAPE = re.compile(r"\u001b\[[0-9;]+[a-zA-Z]")
+
+_SUMMARY_RE = re.compile(
+    r"Summary:\n"
+    r"passed\s*(?P<passed>\d+)\n"
+    r"failed\s*(?P<failed>\d+)\n"
+    r"broken\s*(?P<broken>\d+)\n"
+    r"skipped\s*(?P<skipped>\d+)\n"
+    r"warnings\s*(?P<warnings>\d+)\n",
+)
+
 
 class LTPFramework(Framework):
     """
     Linux Test Project framework definition.
     """
 
-    PARALLEL_BLACKLIST = [
-        "needs_root",
-        "needs_device",
-        "mount_device",
-        "mntpoint",
-        "resource_file",
-        "format_device",
-        "save_restore",
-        "max_runtime",
-    ]
+    # Tags whose presence marks a test as non-parallelizable.
+    PARALLEL_BLACKLIST: frozenset = frozenset(
+        {
+            "needs_root",
+            "needs_device",
+            "mount_device",
+            "mntpoint",
+            "resource_file",
+            "format_device",
+            "save_restore",
+            "max_runtime",
+        }
+    )
 
-    # supported environment variables not having `LTP_` prefix
-    SUPPORTED_ENV = [
-        "PATH",
-        "KCONFIG_PATH",
-        "KCONFIG_SKIP_CHECK",
-    ]
+    # Environment variables without the `LTP_` prefix that are still forwarded.
+    SUPPORTED_ENV: frozenset = frozenset(
+        {
+            "PATH",
+            "KCONFIG_PATH",
+            "KCONFIG_SKIP_CHECK",
+        }
+    )
+
+    # Variables set explicitly in _update_env_vars; skip them in the loop.
+    _PRESET_ENV: frozenset = frozenset(
+        {
+            "LTPROOT",
+            "TMPDIR",
+            "LTP_COLORIZE_OUTPUT",
+            "LTP_TIMEOUT_MUL",
+        }
+    )
 
     def __init__(
         self,
@@ -69,33 +104,26 @@ class LTPFramework(Framework):
         self._max_runtime = max_runtime
         self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
-        self._env = {}
+        self._env: Dict[str, str] = {}
 
         self._update_env_vars(timeout)
 
     def _update_env_vars(self, timeout: float) -> None:
         """
-        Update environment variables for LTP tests.
+        Populate self._env with LTP-relevant environment variables.
         """
         self._env["LTPROOT"] = self._root
         self._env["TMPDIR"] = os.environ.get("TMPDIR", "/tmp")
         self._env["LTP_COLORIZE_OUTPUT"] = os.environ.get("LTP_COLORIZE_OUTPUT", "1")
 
-        multiplier = os.environ.get("LTP_TIMEOUT_MUL", None)
+        multiplier = os.environ.get("LTP_TIMEOUT_MUL")
         if multiplier:
             self._env["LTP_TIMEOUT_MUL"] = multiplier
-        else:
-            if timeout:
-                self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
+        elif timeout:
+            self._env["LTP_TIMEOUT_MUL"] = str((timeout * 0.9) / 300.0)
 
         for key, val in os.environ.items():
-            # these environment are already set
-            if key in [
-                "LTPROOT",
-                "TMPDIR",
-                "LTP_COLORIZE_OUTPUT",
-                "LTP_TIMEOUT_MUL",
-            ]:
+            if key in self._PRESET_ENV:
                 continue
 
             if key in self.SUPPORTED_ENV or key.startswith("LTP_"):
@@ -103,17 +131,18 @@ class LTPFramework(Framework):
 
     async def _read_path(self, channel: ComChannel) -> Dict[str, str]:
         """
-        Read PATH and initialize it with testcases folder as well.
+        Return a copy of self._env with the testcases folder appended to PATH.
         """
         env = self._env.copy()
         if "PATH" in env:
-            env["PATH"] = env["PATH"] + f":{self._tc_folder}"
+            env["PATH"] = f"{env['PATH']}:{self._tc_folder}"
         else:
             ret = await channel.run_command("echo -n $PATH")
+
             if not ret or ret["returncode"] != 0:
                 raise FrameworkError("Can't read PATH variable")
 
-            env["PATH"] = ret["stdout"].strip() + f":{self._tc_folder}"
+            env["PATH"] = f"{ret['stdout'].strip()}:{self._tc_folder}"
 
         self._logger.debug("PATH=%s", env["PATH"])
 
@@ -121,42 +150,35 @@ class LTPFramework(Framework):
 
     def _is_addable(self, test_params: Dict[str, Any]) -> bool:
         """
-        Check if test has to be added or not, according with test parameters
-        from metadata.
+        Return False when max_runtime filtering is active and the test exceeds
+        the configured limit.
         """
-        addable = True
+        if not self._max_runtime:
+            return True
 
-        # filter out max_runtime tests when required
-        if self._max_runtime > 0:
-            runtime = test_params.get("max_runtime")
-            if runtime:
-                try:
-                    runtime = float(runtime)
-                    if runtime >= self._max_runtime:
-                        self._logger.info(
-                            "max_runtime is bigger than %f", self._max_runtime
-                        )
-                        addable = False
-                except TypeError:
-                    self._logger.error(
-                        "metadata contains wrong max_runtime type: %s", runtime
-                    )
+        runtime = test_params.get("max_runtime")
+        if runtime is None:
+            return True
 
-        return addable
+        try:
+            if float(runtime) >= self._max_runtime:
+                self._logger.info("max_runtime is bigger than %f", self._max_runtime)
+
+                return False
+        except TypeError:
+            self._logger.error("metadata contains wrong max_runtime type: %s", runtime)
+
+        return True
 
     def _get_cmd_args(self, line: str) -> List[str]:
         """
-        Return a command with arguments inside a list(str).
-        The command can have the following syntax:
-            1. cmd
-            2. cmd -t myarg1 ..
-            3. cmd myfolder=$TMPDIR/folder -t myarg1 ..
-            4. cmd -c "cmd2 -g arg1 -t arg2" ..
-        """
-        matches = self._cmd_matcher.findall(line)
-        parts = [match for match in matches if match]
+        Split a runtest line into a list of command + arguments.
 
-        return parts
+        Handles quoted arguments, e.g.::
+
+            cmd -c "cmd2 -g arg1 -t arg2"
+        """
+        return self._cmd_matcher.findall(line)
 
     async def _read_runtest(
         self,
@@ -166,66 +188,51 @@ class LTPFramework(Framework):
         metadata: Optional[dict] = None,
     ) -> Suite:
         """
-        It reads a runtest file content and it returns a Suite object.
+        Parse a runtest file and return the corresponding Suite.
         """
         self._logger.info("collecting testing suite: %s", suite_name)
 
-        metadata_tests = None
+        metadata_tests: Optional[dict] = None
         if metadata:
             self._logger.info("Reading metadata content")
-            metadata_tests = metadata.get("tests", None)
+            metadata_tests = metadata.get("tests")
 
         env = await self._read_path(channel)
+        tests: List[Test] = []
 
-        tests = []
-        lines = content.split("\n")
-
-        for line in lines:
-            if not line.strip() or line.strip().startswith("#"):
+        for line in content.split("\n"):
+            line = line.strip()
+            if not line or line.startswith("#"):
                 continue
 
             self._logger.debug("Test declaration: %s", line)
 
             parts = self._get_cmd_args(line)
-
             if len(parts) < 2:
                 raise FrameworkError("runtest file is not defining test command")
 
-            test_name = parts[0]
-            test_cmd = parts[1]
-            test_args = []
+            test_name, test_cmd, *test_args = parts
+            parallelizable = False
 
-            if len(parts) >= 3:
-                test_args = parts[2:]
-
-            parallelizable = True
-
-            if not metadata_tests:
-                # no metadata no party
-                parallelizable = False
-            else:
-                test_params = metadata_tests.get(test_name, None)
-                if test_params:
+            if metadata_tests is not None:
+                test_params = metadata_tests.get(test_name)
+                if test_params is None:
+                    # Test not using the new LTP API – parallelism unknown.
+                    self._logger.info("Found %s test params in metadata", test_name)
+                else:
                     self._logger.info("Found %s test params in metadata", test_name)
                     self._logger.debug("params=%s", test_params)
 
-                if test_params is None:
-                    # this probably means test is not using new LTP API,
-                    # so we can't decide if test can run in parallel or not
-                    parallelizable = False
-                else:
                     if not self._is_addable(test_params):
                         continue
 
-                    for blacklist_param in self.PARALLEL_BLACKLIST:
-                        if blacklist_param in test_params:
-                            parallelizable = False
-                            break
+                    parallelizable = not (self.PARALLEL_BLACKLIST & test_params.keys())
 
-            if not parallelizable:
-                self._logger.info("Test '%s' is not parallelizable", test_name)
-            else:
-                self._logger.info("Test '%s' is parallelizable", test_name)
+            self._logger.info(
+                "Test '%s' is%s parallelizable",
+                test_name,
+                "" if parallelizable else " not",
+            )
 
             test = Test(
                 name=test_name,
@@ -235,7 +242,6 @@ class LTPFramework(Framework):
                 env=env,
                 parallelizable=parallelizable,
             )
-
             tests.append(test)
 
             self._logger.debug("test: %s", test)
@@ -243,7 +249,6 @@ class LTPFramework(Framework):
         self._logger.debug("Collected tests: %d", len(tests))
 
         suite = Suite(suite_name, tests)
-
         self._logger.debug(suite)
         self._logger.info("Collected testing suite: %s", suite_name)
 
@@ -267,21 +272,18 @@ class LTPFramework(Framework):
             raise FrameworkError("Can't communicate with SUT")
 
         stdout = ret["stdout"]
-        if not ret or ret["returncode"] != 0:
+        if ret["returncode"] != 0:
             raise FrameworkError(f"command failed with: {stdout}")
 
-        suites = [line for line in stdout.split("\n") if line]
-        return suites
+        return [line for line in stdout.split("\n") if line]
 
     async def find_command(self, channel: ComChannel, command: str) -> Test:
         if not channel:
             raise ValueError("SUT is None")
-
         if not command:
             raise ValueError("command is empty")
 
         cmd_args = self._get_cmd_args(command)
-        args = cmd_args[1:] if cmd_args else None
         cwd = None
         env = None
 
@@ -290,21 +292,18 @@ class LTPFramework(Framework):
             cwd = self._tc_folder
             env = await self._read_path(channel)
 
-        test = Test(
+        return Test(
             name=cmd_args[0],
             cmd=cmd_args[0],
-            args=args,
+            args=cmd_args[1:] or None,
             cwd=cwd,
             env=env,
             parallelizable=False,
         )
 
-        return test
-
     async def find_suite(self, channel: ComChannel, name: str) -> Suite:
         if not channel:
             raise ValueError("SUT is None")
-
         if not name:
             raise ValueError("name is empty")
 
@@ -313,54 +312,31 @@ class LTPFramework(Framework):
             raise FrameworkError(f"LTP folder doesn't exist: {self._root}")
 
         suite_path = os.path.join(self._root, "runtest", name)
-
         ret = await channel.run_command(f"test -f {suite_path}")
         if not ret or ret["returncode"] != 0:
             raise FrameworkError(f"'{name}' suite doesn't exist")
 
-        runtest_data = await channel.fetch_file(suite_path)
-        runtest_str = runtest_data.decode(encoding="utf-8", errors="ignore")
+        runtest_str = (await channel.fetch_file(suite_path)).decode(
+            encoding="utf-8", errors="ignore"
+        )
 
-        metadata_path = os.path.join(self._root, "metadata", "ltp.json")
         metadata_dict = None
+        metadata_path = os.path.join(self._root, "metadata", "ltp.json")
         ret = await channel.run_command(f"test -f {metadata_path}")
         if ret and ret["returncode"] == 0:
-            metadata_data = await channel.fetch_file(metadata_path)
-            metadata_dict = json.loads(metadata_data)
+            metadata_dict = json.loads(await channel.fetch_file(metadata_path))
 
-        suite = await self._read_runtest(channel, name, runtest_str, metadata_dict)
-
-        return suite
+        return await self._read_runtest(channel, name, runtest_str, metadata_dict)
 
     async def read_result(
         self, test: Test, stdout: str, retcode: int, exec_t: float
     ) -> TestResults:
-        # get rid of colors from stdout
-        stdout = re.sub(r"\u001b\[[0-9;]+[a-zA-Z]", "", stdout)
+        stdout = _ANSI_ESCAPE.sub("", stdout)
 
-        match = re.search(
-            r"Summary:\n"
-            r"passed\s*(?P<passed>\d+)\n"
-            r"failed\s*(?P<failed>\d+)\n"
-            r"broken\s*(?P<broken>\d+)\n"
-            r"skipped\s*(?P<skipped>\d+)\n"
-            r"warnings\s*(?P<warnings>\d+)\n",
-            stdout,
-        )
-
-        passed = 0
-        failed = 0
-        skipped = 0
-        broken = 0
-        skipped = 0
-        warnings = 0
-        error = retcode == -1
-        status = ResultStatus.PASS
-
+        match = _SUMMARY_RE.search(stdout)
         if match:
             passed = int(match.group("passed"))
             failed = int(match.group("failed"))
-            skipped = int(match.group("skipped"))
             broken = int(match.group("broken"))
             skipped = int(match.group("skipped"))
             warnings = int(match.group("warnings"))
@@ -371,40 +347,23 @@ class LTPFramework(Framework):
             broken = stdout.count("TBROK")
             warnings = stdout.count("TWARN")
 
-            if (
-                passed == 0
-                and failed == 0
-                and skipped == 0
-                and broken == 0
-                and warnings == 0
-            ):
-                # if no results are given, this is probably an
-                # old test implementation that fails when return
-                # code is != 0
+            if not any((passed, failed, skipped, broken, warnings)):
+                # Legacy test: derive counts from the return code alone.
                 if retcode == 0:
                     passed = 1
                 elif retcode == 4:
                     warnings = 1
                 elif retcode == 32:
                     skipped = 1
-                elif not error:
+                elif retcode != -1:
                     failed = 1
 
-        if retcode == 0:
-            status = ResultStatus.PASS
-        elif retcode in (2, -1):
-            status = ResultStatus.BROK
-        elif retcode == 4:
-            status = ResultStatus.WARN
-        elif retcode == 32:
-            status = ResultStatus.CONF
-        else:
-            status = ResultStatus.FAIL
+        status = _RETCODE_STATUS.get(retcode, ResultStatus.FAIL)
 
-        if error:
+        if retcode == -1:
             broken = 1
 
-        result = TestResults(
+        return TestResults(
             test=test,
             failed=failed,
             passed=passed,
@@ -416,5 +375,3 @@ class LTPFramework(Framework):
             stdout=stdout,
             status=status,
         )
-
-        return result
