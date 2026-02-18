@@ -49,8 +49,8 @@ kirk = "libkirk.main:run"
 
 [project.optional-dependencies]
 testing = ["pytest", "pytest-asyncio"]
-ssh = ["asyncssh <= 2.17.0"]
-ltx = ["msgpack <= 1.1.0"]
+ssh = ["asyncssh <= 2.22.0"]
+ltx = ["msgpack <= 1.1.2"]
 docs = [
         "sphinx==8.2.3",
         "sphinx-rtd-theme==3.0.2",
