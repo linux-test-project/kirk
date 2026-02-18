@@ -4,7 +4,6 @@ name: "Test SSH"
 on: push
 
 env:
-  PYTHON_PKGS: pytest pytest-asyncio build asyncssh
   TEST_SSH_KEY_FILE: /home/runner/.ssh/id_rsa
   TEST_SSH_USERNAME: runner
   TEST_SSH_PASSWORD: password
@@ -41,7 +40,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: python3 -m pip install $PYTHON_PKGS
+      run: python3 -m pip install .[testing,ssh] build
 
     - name: Setup user password
       run: echo "$TEST_SSH_USERNAME:$TEST_SSH_PASSWORD" | sudo chpasswd

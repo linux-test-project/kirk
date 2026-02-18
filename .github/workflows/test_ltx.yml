@@ -3,9 +3,6 @@
 name: "Test LTX"
 on: [push, pull_request]
 
-env:
-  PYTHON_PKGS: pytest pytest-asyncio msgpack
-
 jobs:
   python3:
     runs-on: ubuntu-22.04
@@ -37,7 +34,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: pip install $PYTHON_PKGS
+      run: pip install .[testing,ltx]
 
     - name: Checkout ltx
       uses: actions/checkout@v5

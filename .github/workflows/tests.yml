@@ -3,9 +3,6 @@
 name: "Test packages"
 on: [push, pull_request]
 
-env:
-  PYTHON_PKGS: pytest pytest-asyncio build
-
 jobs:
   python3-deprecated:
     runs-on: ubuntu-22.04
@@ -24,7 +21,7 @@ jobs:
       run: zypper install -y python3-pip make
 
     - name: Install dependencies
-      run: pip install $PYTHON_PKGS
+      run: pip install pytest pytest-asyncio build
 
     - name: Build package
       run: python3 -m build
@@ -62,7 +59,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: python3 -m pip install $PYTHON_PKGS
+      run: python3 -m pip install .[testing] build
 
     - name: Build package
       run: python3 -m build
