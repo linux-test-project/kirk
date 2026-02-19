@@ -584,6 +584,7 @@ class SuiteScheduler(Scheduler):
                 distro=info["distro"],
                 distro_ver=info["distro_ver"],
                 kernel=info["kernel"],
+                cmdline=info["cmdline"],
                 arch=info["arch"],
                 cpu=info["cpu"],
                 swap=info["swap"],

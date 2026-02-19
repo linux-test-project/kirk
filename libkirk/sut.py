@@ -155,6 +155,12 @@ class SUT(Plugin):
         """
         return await self._run_cmd("uname -s -r -v")
 
+    async def _get_cmdline(self) -> str:
+        """
+        Return /proc/cmdline content.
+        """
+        return await self._run_cmd("cat /proc/cmdline")
+
     async def _get_arch(self) -> str:
         """
         Return the architecture name.
@@ -185,6 +191,7 @@ class SUT(Plugin):
                     "distro": str,
                     "distro_ver": str,
                     "kernel": str,
+                    "cmdline": str,
                     "arch": str,
                     "cpu" : str,
                     "swap" : str,
@@ -199,17 +206,19 @@ class SUT(Plugin):
         distro = ""
         distro_ver = ""
         kernel = ""
+        cmdline = ""
         arch = ""
         cpu = ""
         meminfo = ""
 
         if self.optimize:
             # pyrefly: ignore[bad-unpacking]
-            distro, distro_ver, kernel, arch, cpu, meminfo = await asyncio.gather(
+            distro, distro_ver, kernel, cmdline, arch, cpu, meminfo = await asyncio.gather(
                 *[
                     self._get_distro(),
                     self._get_distro_ver(),
                     self._get_kernel(),
+                    self._get_cmdline(),
                     self._get_arch(),
                     self._get_cpu(),
                     self._get_meminfo(),
@@ -219,6 +228,7 @@ class SUT(Plugin):
             distro = await self._get_distro()
             distro_ver = await self._get_distro_ver()
             kernel = await self._get_kernel()
+            cmdline = await self._get_cmdline()
             arch = await self._get_arch()
             cpu = await self._get_cpu()
             meminfo = await self._get_meminfo()
@@ -239,6 +249,7 @@ class SUT(Plugin):
             "distro": distro,
             "distro_ver": distro_ver,
             "kernel": kernel,
+            "cmdline": cmdline,
             "arch": arch,
             "cpu": cpu,
             "ram": memory,

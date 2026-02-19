@@ -27,6 +27,7 @@ class MockSUT(GenericSUT):
             "distro": "openSUSE",
             "distro_ver": "15.3",
             "kernel": "5.10",
+            "cmdline": "ima_policy=tcb",
             "arch": "x86_64",
             "cpu": "x86_64",
             "swap": "0",
