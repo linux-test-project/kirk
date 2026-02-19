@@ -197,6 +197,7 @@ class JSONFileMonitor:
                 "broken": results.broken,
                 "warnings": results.warnings,
                 "kernel_version": results.kernel,
+                "cmdline": results.cmdline,
                 "cpu": results.cpu,
                 "arch": results.arch,
                 "ram": results.ram,
