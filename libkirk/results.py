@@ -242,6 +242,7 @@ class SuiteResults(Results):
         distro: Optional[str] = None,
         distro_ver: Optional[str] = None,
         kernel: Optional[str] = None,
+        cmdline: Optional[str] = None,
         arch: Optional[str] = None,
         cpu: Optional[str] = None,
         swap: Optional[str] = None,
@@ -258,6 +259,8 @@ class SuiteResults(Results):
         :type distro_ver: str
         :param kernel: Kernel version.
         :type kernel: str
+        :param cmdline: /proc/cmdline.
+        :type cmdline: str
         :param arch: OS architecture.
         :type arch: str
         :param cpu: CPU type info.
@@ -275,6 +278,7 @@ class SuiteResults(Results):
         self._distro = distro
         self._distro_ver = distro_ver
         self._kernel = kernel
+        self._cmdline = cmdline
         self._arch = arch
         self._cpu = cpu
         self._swap = swap
@@ -287,6 +291,7 @@ class SuiteResults(Results):
             f"distro: {self._distro}, "
             f"distro_ver: {self._distro_ver}, "
             f"kernel: {self._kernel}, "
+            f"cmdline: {self._cmdline}, "
             f"arch: {self._arch}, "
             f"cpu: {self._cpu}, "
             f"swap: {self._swap}, "
@@ -342,6 +347,14 @@ class SuiteResults(Results):
         :rtype: str | None
         """
         return self._kernel
+
+    @property
+    def cmdline(self) -> Optional[str]:
+        """
+        :return: /proc/cmdline.
+        :rtype: str | None
+        """
+        return self._cmdline
 
     @property
     def arch(self) -> Optional[str]:

@@ -107,6 +107,7 @@ class JSONExporter(Exporter):
                 "distribution": results[0].distro,
                 "distribution_version": results[0].distro_ver,
                 "kernel": results[0].kernel,
+                "cmdline": results[0].cmdline,
                 "arch": results[0].arch,
                 "cpu": results[0].cpu,
                 "swap": results[0].swap,
