@@ -41,7 +41,7 @@ classifiers = [
 version = {attr = "libkirk.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["libkirk"]
+include = ["libkirk", "libkirk.*"]
 exclude = ["libkirk.tests"]
 
 [project.scripts]
