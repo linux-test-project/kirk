@@ -88,6 +88,7 @@ class _TestSUT:
         assert info["distro"]
         assert info["distro_ver"]
         assert info["kernel"]
+        assert info["cmdline"]
         assert info["arch"]
 
     async def test_get_tainted_info(self, sut):
