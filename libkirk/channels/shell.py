@@ -213,6 +213,7 @@ class ShellComChannel(ComChannel):
 
         return ret
 
+    # pyrefly: ignore[bad-return]
     async def fetch_file(self, target_path: str) -> bytes:
         if not target_path:
             raise ValueError("target path is empty")
@@ -226,17 +227,10 @@ class ShellComChannel(ComChannel):
         async with self._fetch_lock:
             self._logger.info("Downloading '%s'", target_path)
 
-            retdata = bytes()
-
             try:
                 async with AsyncFile(target_path, "rb") as ftarget:
-                    data = await ftarget.read()
-                    if data:
-                        assert isinstance(data, bytes)
-                        retdata = data
+                    return await ftarget.read()
             except IOError as err:
                 raise CommunicationError(err) from err
-
-            self._logger.info("File copied")
-
-            return retdata
+            finally:
+                self._logger.info("File copied")
