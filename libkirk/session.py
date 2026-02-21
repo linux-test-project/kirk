@@ -110,7 +110,6 @@ class Session:
             self._logger.info(
                 "SUT doesn't support parallel execution. Forcing workers=1."
             )
-            self._workers = 1
 
     def _setup_debug_log(self) -> None:
         """
