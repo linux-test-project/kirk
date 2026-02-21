@@ -32,18 +32,18 @@ def dict_item(
     :return: Type of the default value.
     :rtype: Any
     """
-    val = data.get(key, None)
-    if not val:
-        if default is None:
-            return None
+    if key not in data:
+        return cls(default) if default is not None else None
 
-        return cls(default)
+    val = data[key]
 
-    cls_type = cls.__name__
+    cls_name = cls.__name__
+    numeric_types = {"int", "float"}
 
-    if not isinstance(val, cls) and cls_type not in ["int", "float"]:
+    # Check type compatibility (skip for numeric conversions)
+    if not isinstance(val, cls) and cls_name not in numeric_types:
         raise TypeError(
-            f"dict value must be a {cls.__name__} but it's {type(val).__name__}"
+            f"dict value must be a {cls_name} but it's {type(val).__name__}"
         )
 
     return cls(val)
