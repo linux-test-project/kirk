@@ -379,14 +379,14 @@ class TestScheduler(Scheduler):
 
             self._results.clear()
 
+            # Cache filtered lists to avoid redundant list comprehensions
+            parallelizable_tests = [test for test in jobs if test.parallelizable]
+            sequential_tests = [test for test in jobs if not test.parallelizable]
+
             try:
                 if self._max_workers > 1:
-                    await self._run_parallel(
-                        [test for test in jobs if test.parallelizable]
-                    )
-                    await self._run_and_wait(
-                        [test for test in jobs if not test.parallelizable]
-                    )
+                    await self._run_parallel(parallelizable_tests)
+                    await self._run_and_wait(sequential_tests)
                 else:
                     await self._run_and_wait(jobs)
             except KirkException as err:
@@ -542,19 +542,17 @@ class SuiteScheduler(Scheduler):
                     # pyrefly: ignore[bad-argument-type]
                     tests_results.extend(self._scheduler.results)
 
-                # tests_left array will be populated when SUT is
-                # rebooted after a kernel error
                 tests_left.clear()
-
-                for test in suite.tests:
-                    found = False
-                    for test_res in tests_results:
-                        if test.name == test_res.test.name:
-                            found = True
-                            break
-
-                    if not found:
-                        tests_left.append(test)
+                completed_test_names = {
+                    test_res.test.name for test_res in tests_results
+                }
+                tests_left.extend(
+                    [
+                        test
+                        for test in suite.tests
+                        if test.name not in completed_test_names
+                    ]
+                )
 
                 if timed_out:
                     for test in tests_left:
@@ -573,7 +571,6 @@ class SuiteScheduler(Scheduler):
                             )
                         )
 
-                    # no more tests need to be run
                     tests_left.clear()
                     break
         finally:
