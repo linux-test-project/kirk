@@ -204,9 +204,8 @@ class Session:
         """
         Return suites objects by giving their names.
         """
-        coros = []
-        for suite in names:
-            coros.append(self._framework.find_suite(self._sut.get_channel(), suite))
+        channel = self._sut.get_channel()
+        coros = [self._framework.find_suite(channel, suite) for suite in names]
 
         if not coros:
             raise KirkException(f"Can't find suites: {names}")
@@ -238,19 +237,14 @@ class Session:
         await libkirk.events.fire("session_restore", restore_path)
 
         for suite_obj in suites_obj:
-            toremove = []
             suite = suite_obj.name
             if suite not in restored:
                 continue
 
-            for test in suite_obj.tests:
-                if test.name in restored[suite]:
-                    toremove.append(test)
-
-            for test in toremove:
-                suite_obj.tests.remove(test)
-
-            toremove.clear()
+            restored_set = set(restored[suite])
+            suite_obj.tests[:] = [
+                test for test in suite_obj.tests if test.name not in restored_set
+            ]
 
     @staticmethod
     def _filter_tests(
@@ -267,15 +261,14 @@ class Session:
         matcher = re.compile(regex)
 
         for suite_obj in suites_obj:
-            toremove = []
-
-            for test in suite_obj.tests:
-                match = matcher.search(test.name)
-                if (not match and not when_matching) or match and when_matching:
-                    toremove.append(test)
-
-            for item in toremove:
-                suite_obj.tests.remove(item)
+            suite_obj.tests[:] = [
+                test
+                for test in suite_obj.tests
+                if not (
+                    (not matcher.search(test.name) and not when_matching)
+                    or (matcher.search(test.name) and when_matching)
+                )
+            ]
 
     @staticmethod
     def _apply_iterate(suites_obj: List[Suite], suite_iterate: int) -> List[Suite]:
@@ -287,7 +280,7 @@ class Session:
 
         suites_list = []
         for suite in suites_obj:
-            for i in range(0, suite_iterate):
+            for i in range(suite_iterate):
                 obj = copy.deepcopy(suite)
                 obj.name = f"{suite.name}[{i}]"
                 suites_list.append(obj)
@@ -311,10 +304,7 @@ class Session:
         self._filter_tests(suites_obj, pattern, False)
         self._filter_tests(suites_obj, skip_tests, True)
 
-        num_tests = 0
-        for suite_obj in suites_obj:
-            num_tests += len(suite_obj.tests)
-
+        num_tests = sum(len(suite_obj.tests) for suite_obj in suites_obj)
         if num_tests == 0:
             raise KirkException("No tests selected")
 
@@ -374,8 +364,7 @@ class Session:
         """
         Stop the current session.
         """
-        # we don't want to send session_stopped more than once
-        already_stopped = self._stop == True
+        already_stopped = self._stop
 
         self._stop = True
         try:
@@ -403,21 +392,18 @@ class Session:
         """
         Schedule all testing suites infinite times.
         """
-        suites_list = []
-        suites_list.extend(suites_obj)
-
         count = 1
         while not self._stop:
-            await self._schedule_once(suites_obj)
+            suites_iteration = []
+            for suite in copy.deepcopy(suites_obj):
+                suite.name = f"{suite.name}[{count}]"
+                suites_iteration.append(suite)
+
+            await self._schedule_once(suites_iteration)
             if self._scheduler.stopped:
                 break
 
             count += 1
-
-            suites_list.clear()
-            for suite in copy.deepcopy(suites_obj):
-                suite.name = f"{suite.name}[{count}]"
-                suites_list.append(suite)
 
     async def _run_scheduler(self, suites_obj: List[Suite], runtime: float) -> None:
         """
@@ -493,7 +479,8 @@ class Session:
         async with self._run_lock:
             await libkirk.events.fire("session_started", self._tmpdir.abspath)
 
-            if not self._sut.get_channel().parallel_execution:
+            channel = self._sut.get_channel()
+            if not channel.parallel_execution:
                 await libkirk.events.fire(
                     "session_warning", "SUT doesn't support parallel execution"
                 )
@@ -533,13 +520,12 @@ class Session:
                     if self._results:
                         exporter = JSONExporter()
 
-                        tasks = []
-                        tasks.append(
+                        tasks = [
                             exporter.save_file(
                                 self._results,
                                 os.path.join(self._tmpdir.abspath, "results.json"),
                             )
-                        )
+                        ]
 
                         if report_path:
                             tasks.append(exporter.save_file(self._results, report_path))
