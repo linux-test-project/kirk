@@ -67,7 +67,7 @@ def _from_params_to_config(params: List[str]) -> Dict[str, str]:
         if not key:
             raise argparse.ArgumentTypeError(f"Empty key for '{param}' parameter")
 
-        if not key:
+        if not value:
             raise argparse.ArgumentTypeError(f"Empty value for '{param}' parameter")
 
         config[key] = value
@@ -107,7 +107,8 @@ def _com_config(value: str) -> Optional[Dict[str, str]]:
 
     name = config["name"]
 
-    if name not in [p.name for p in plugins]:
+    plugin_names = {p.name for p in plugins}
+    if name not in plugin_names:
         raise argparse.ArgumentTypeError(
             f"Can't find communication handler with name '{name}'"
         )
@@ -149,16 +150,12 @@ def _iterate_config(value: str) -> int:
     if not value:
         return 1
 
-    ret = 1
     try:
         ret = int(value)
     except TypeError as err:
         raise argparse.ArgumentTypeError("Invalid number") from err
 
-    if ret <= 1:
-        return 1
-
-    return ret
+    return max(1, ret)
 
 
 def _time_config(data: str) -> int:
@@ -175,17 +172,16 @@ def _time_config(data: str) -> int:
     value = int(match.group("value"))
     suffix = match.group("suffix")
 
-    if not suffix or suffix == "s":
-        return value
+    # Optimize: use dict lookup instead of if/elif chain
+    multipliers = {
+        "": 1,
+        "s": 1,
+        "m": 60,
+        "h": 3600,
+        "d": 86400,  # 3600 * 24
+    }
 
-    if suffix == "m":
-        value *= 60
-    elif suffix == "h":
-        value *= 3600
-    elif suffix == "d":
-        value *= 3600 * 24
-
-    return value
+    return value * multipliers.get(suffix, 1)
 
 
 def _finjection_config(value: str) -> int:
@@ -195,42 +191,36 @@ def _finjection_config(value: str) -> int:
     if not value:
         return 0
 
-    ret = 0
     try:
         ret = int(value)
     except TypeError as err:
         raise argparse.ArgumentTypeError("Invalid number") from err
 
-    if ret < 0:
-        return 0
-
-    if ret > 100:
-        return 100
-
-    return ret
+    return max(0, min(100, ret))
 
 
 def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     """
     Return the skipped tests regexp.
     """
-    skip = ""
+    skip_parts = []
 
     if skip_file:
-        lines = None
         with open(skip_file, "r", encoding="utf-8") as skip_file_data:
             lines = skip_file_data.readlines()
 
-        toskip = [line.rstrip() for line in lines if not re.search(r"^\s+#.*", line)]
-        skip = "|".join(toskip)
+        toskip = [
+            line.rstrip()
+            for line in lines
+            if line.strip() and not re.search(r"^\s*#", line)
+        ]
+        if toskip:
+            skip_parts.append("|".join(toskip))
 
     if skip_tests:
-        if skip_file:
-            skip += "|"
+        skip_parts.append(skip_tests)
 
-        skip += skip_tests
-
-    return skip
+    return "|".join(skip_parts)
 
 
 def _init_channels(
@@ -240,8 +230,6 @@ def _init_channels(
     Initialize channels according to configuration.
     """
     for config in args.com:
-        plugin = None
-
         if "id" in config:
             plugin = libkirk.com.clone_channel(config["name"], config["id"])
         else:
@@ -309,8 +297,6 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     if restore_dir and not os.path.isdir(restore_dir):
         parser.error(f"Can't restore '{args.restore}'. Folder doesn't exist")
 
-    # create temporary directory
-    tmpdir = None
     if args.tmp_dir == "":
         tmpdir = TempDir(None)
     elif args.tmp_dir:
@@ -343,14 +329,10 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     # initialize user interface
     if args.workers > 1:
         ParallelUserInterface(args.no_colors)
+    elif args.verbose:
+        VerboseUserInterface(args.no_colors)
     else:
-        if args.verbose:
-            VerboseUserInterface(args.no_colors)
-        else:
-            SimpleUserInterface(args.no_colors)
-
-    # start event loop
-    exit_code = RC_OK
+        SimpleUserInterface(args.no_colors)
 
     # read tests regex filter
     run_pattern = args.run_pattern
@@ -554,7 +536,7 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         libkirk.com.discover(args.plugins)
         libkirk.sut.discover(args.plugins)
 
-    if args.com and [obj for obj in args.com if "help" in obj]:
+    if args.com and any("help" in obj for obj in args.com):
         _print_plugin_help("--com", libkirk.com.get_channels())
         parser.exit(RC_OK)
 
