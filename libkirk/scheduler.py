@@ -235,7 +235,7 @@ class TestScheduler(Scheduler):
         async with self._running_tests_sem:
             if self._stop_cnt > 0:
                 self._logger.info("Test '%s' has been stopped", test.name)
-                return None
+                return
 
             self._logger.info("Running test %s", test.name)
             self._logger.debug(test)
