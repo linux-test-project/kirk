@@ -573,7 +573,7 @@ class QemuComChannel(ComChannel):
                         retdata.extend(data)
 
                     pos = await transport.tell()
-                    if not pos:
+                    if pos is None:
                         raise CommunicationError("Can't read file position")
 
                     self._last_pos = pos
