@@ -33,11 +33,9 @@ class TempDir:
         if root and not os.path.isdir(root):
             raise ValueError(f"root folder doesn't exist: {root}")
 
-        self._root = root
-        if root:
-            self._root = os.path.abspath(root)
-
+        self._root = os.path.abspath(root) if root else None
         self._max_rotate = max(max_rotate, 0)
+        self._username = pwd.getpwuid(os.getuid()).pw_name if root else None
         self._folder = self._rotate()
 
     def _rotate(self) -> str:
@@ -48,25 +46,23 @@ class TempDir:
         if not self._root:
             return ""
 
-        name = pwd.getpwuid(os.getuid()).pw_name
-        tmpbase = os.path.join(self._root, f"{self.FOLDER_PREFIX}{name}")
+        tmpbase = os.path.join(self._root, f"{self.FOLDER_PREFIX}{self._username}")
 
         os.makedirs(tmpbase, exist_ok=True)
 
-        # delete the first max_rotate items
-        sorted_paths = sorted(pathlib.Path(tmpbase).iterdir(), key=os.path.getmtime)
+        # filter out symlink before sorting and counting
+        all_paths = list(pathlib.Path(tmpbase).iterdir())
+        sorted_paths = sorted(
+            (p for p in all_paths if p.name != self.SYMLINK_NAME), key=os.path.getmtime
+        )
 
-        # don't consider latest symlink
-        num_paths = len(sorted_paths) - 1
+        num_paths = len(sorted_paths)
 
         if num_paths >= self._max_rotate:
             max_items = num_paths - self._max_rotate + 1
-            paths = sorted_paths[:max_items]
+            paths_to_remove = sorted_paths[:max_items]
 
-            for path in paths:
-                if path.name == self.SYMLINK_NAME:
-                    continue
-
+            for path in paths_to_remove:
                 shutil.rmtree(str(path.resolve()))
 
         # create a new folder
@@ -77,9 +73,7 @@ class TempDir:
         if os.path.islink(latest):
             os.remove(latest)
 
-        os.symlink(
-            folder, os.path.join(tmpbase, self.SYMLINK_NAME), target_is_directory=True
-        )
+        os.symlink(folder, latest, target_is_directory=True)
 
         return folder
 
@@ -92,7 +86,7 @@ class TempDir:
             method returns an empty string.
         :rtype: str
         """
-        return self._root if self._root else ""
+        return self._root or ""
 
     @property
     def abspath(self) -> str:
@@ -113,8 +107,7 @@ class TempDir:
         if not self._folder:
             return
 
-        dpath = os.path.join(self._folder, path)
-        os.mkdir(dpath)
+        os.mkdir(os.path.join(self._folder, path))
 
     def mkfile(self, path: str, content: str) -> None:
         """
