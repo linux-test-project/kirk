@@ -36,6 +36,10 @@ class AsyncFile(AsyncContextManager):
         self._mode = mode
         self._file = None
 
+        # Optimize: cache mode checks to avoid repeated string operations
+        self._is_read_mode = "r" in mode
+        self._is_binary_mode = "b" in mode
+
     async def __aenter__(self) -> Any:
         await self.open()
         return self
@@ -53,23 +57,17 @@ class AsyncFile(AsyncContextManager):
         return self
 
     async def __anext__(self) -> Optional[Union[str, bytes]]:
-        if "r" not in self._mode:
+        if not self._is_read_mode:
             raise ValueError("File must be open in read mode")
 
-        line = None
-        if self._file:
-            line = await libkirk.to_thread(self._file.readline)
-            if not line:
-                raise StopAsyncIteration()
+        if not self._file:
+            return None
 
-            if isinstance(line, str):
-                return str(line)
-            elif isinstance(line, bytes):
-                return bytes(line)
-            else:
-                raise ValueError("File is not handling str | bytes")
+        line = await libkirk.to_thread(self._file.readline)
+        if not line:
+            raise StopAsyncIteration()
 
-        return None
+        return line
 
     async def open(self) -> None:
         """
@@ -79,9 +77,8 @@ class AsyncFile(AsyncContextManager):
             return
 
         def _open() -> IO[Any]:
-            if "b" in self._mode:
+            if self._is_binary_mode:
                 return open(self._filename, self._mode)
-
             return open(self._filename, self._mode, encoding="utf-8")
 
         self._file = await libkirk.to_thread(_open)
