@@ -221,7 +221,7 @@ class SSHComChannel(ComChannel):
         try:
             self._port = int(libkirk.types.dict_item(kwargs, "port", str, default="22"))
 
-            if 1 > self._port > 65535:
+            if self._port < 1 or self._port > 65535:
                 raise ValueError()
         except ValueError as err:
             raise CommunicationError(
