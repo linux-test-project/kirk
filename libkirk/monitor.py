@@ -12,7 +12,6 @@ import logging
 from typing import (
     Any,
     Dict,
-    List,
 )
 
 import libkirk
@@ -89,12 +88,7 @@ class JSONFileMonitor:
         """
         Write a message to the JSON file.
         """
-        data = {
-            "type": msg_type,
-            "message": msg,
-        }
-
-        data_str = json.dumps(data)
+        data_str = json.dumps({"type": msg_type, "message": msg})
 
         async with self._lock:
             async with AsyncFile(self._path, "w") as fdata:
@@ -105,7 +99,7 @@ class JSONFileMonitor:
         """
         Convert test into a dict which can be converted to JSON.
         """
-        data = {
+        return {
             "name": test.name,
             "command": test.command,
             "arguments": test.arguments,
@@ -114,21 +108,14 @@ class JSONFileMonitor:
             "env": test.env,
         }
 
-        return data
-
     def _suite_to_dict(self, suite: Suite) -> Dict[str, Any]:
         """
         Translate suite into a dict which can be converted into JSON.
         """
-        data = {"name": suite.name, "tests": []}
-
-        tests: List[dict] = []
-        for test in suite.tests:
-            tests.append(self._test_to_dict(test))
-
-        data["tests"] = tests
-
-        return data
+        return {
+            "name": suite.name,
+            "tests": [self._test_to_dict(test) for test in suite.tests],
+        }
 
     async def session_restore(self, restore: str) -> None:
         await self._write("session_restore", {"restore": restore})
@@ -140,13 +127,7 @@ class JSONFileMonitor:
         await self._write("session_stopped", {})
 
     async def sut_stdout(self, sut: str, data: str) -> None:
-        await self._write(
-            "sut_stdout",
-            {
-                "sut": sut,
-                "data": data,
-            },
-        )
+        await self._write("sut_stdout", {"sut": sut, "data": data})
 
     async def sut_start(self, sut: str) -> None:
         await self._write("sut_start", {"sut": sut})
@@ -166,29 +147,17 @@ class JSONFileMonitor:
     async def run_cmd_stop(self, command: str, stdout: str, returncode: int) -> None:
         await self._write(
             "run_cmd_stop",
-            {
-                "command": command,
-                "stdout": stdout,
-                "returncode": returncode,
-            },
+            {"command": command, "stdout": stdout, "returncode": returncode},
         )
 
     async def test_stdout(self, test: Test, data: str) -> None:
         await self._write(
             "test_stdout",
-            {
-                "test": self._test_to_dict(test),
-                "data": data,
-            },
+            {"test": self._test_to_dict(test), "data": data},
         )
 
     async def test_started(self, test: Test) -> None:
-        await self._write(
-            "test_started",
-            {
-                "test": self._test_to_dict(test),
-            },
-        )
+        await self._write("test_started", {"test": self._test_to_dict(test)})
 
     async def test_completed(self, results: TestResults) -> None:
         await self._write(
@@ -215,33 +184,32 @@ class JSONFileMonitor:
         await self._write("suite_started", self._suite_to_dict(suite))
 
     async def suite_completed(self, results: SuiteResults, exec_time: float) -> None:
-        data = {
-            "suite": self._suite_to_dict(results.suite),
-            "exec_time": exec_time,
-            "total_run": len(results.suite.tests),
-            "passed": results.passed,
-            "failed": results.failed,
-            "skipped": results.skipped,
-            "broken": results.broken,
-            "warnings": results.warnings,
-            "kernel_version": results.kernel,
-            "cpu": results.cpu,
-            "arch": results.arch,
-            "ram": results.ram,
-            "swap": results.swap,
-            "distro": results.distro,
-            "distro_version": results.distro_ver,
-        }
-
-        await self._write("suite_completed", data)
+        # Optimize: Create dict directly in function call
+        await self._write(
+            "suite_completed",
+            {
+                "suite": self._suite_to_dict(results.suite),
+                "exec_time": exec_time,
+                "total_run": len(results.suite.tests),
+                "passed": results.passed,
+                "failed": results.failed,
+                "skipped": results.skipped,
+                "broken": results.broken,
+                "warnings": results.warnings,
+                "kernel_version": results.kernel,
+                "cpu": results.cpu,
+                "arch": results.arch,
+                "ram": results.ram,
+                "swap": results.swap,
+                "distro": results.distro,
+                "distro_version": results.distro_ver,
+            },
+        )
 
     async def suite_timeout(self, suite: Suite, timeout: float) -> None:
         await self._write(
             "suite_timeout",
-            {
-                "suite": self._suite_to_dict(suite),
-                "timeout": timeout,
-            },
+            {"suite": self._suite_to_dict(suite), "timeout": timeout},
         )
 
     async def session_warning(self, msg: str) -> None:
