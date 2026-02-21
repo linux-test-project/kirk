@@ -24,48 +24,35 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
     """
     Return the current asyncio event loop.
     """
-    loop = None
-
     try:
-        loop = asyncio.get_running_loop()
+        return asyncio.get_running_loop()
     except (AttributeError, RuntimeError):
         pass
 
-    if not loop:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            pass
-
-    if not loop:
+    try:
+        return asyncio.get_event_loop()
+    except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
-    return loop
+        return loop
 
 
 def create_task(coro: typing.Coroutine) -> asyncio.Task:
     """
     Create a new task.
     """
-    loop = get_event_loop()
-    task = loop.create_task(coro)
-
-    return task
+    return get_event_loop().create_task(coro)
 
 
 def all_tasks(loop: asyncio.AbstractEventLoop) -> set:
     """
     Return the list of all running tasks for the specific loop.
     """
-    tasks = None
-
+    # Maintain Python 3.6 compatibility
     if sys.version_info >= (3, 7):
-        tasks = asyncio.all_tasks(loop=loop)
+        return asyncio.all_tasks(loop=loop)
     else:
-        tasks = asyncio.Task.all_tasks(loop=loop)
-
-    return tasks
+        return asyncio.Task.all_tasks(loop=loop)
 
 
 def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
@@ -76,12 +63,13 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
     if not tasks:
         return
 
+    tasks_to_cancel = []
     for task in tasks:
-        if task.cancelled() or task.done():
-            continue
+        if not (task.cancelled() or task.done()):
+            task.cancel()
+            tasks_to_cancel.append(task)
 
-        task.cancel()
-
+    # Maintain Python 3.6 compatibility
     if sys.version_info >= (3, 10):
         # pyrefly: ignore[bad-argument-type]
         loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
@@ -91,11 +79,8 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
             asyncio.gather(*tasks, loop=loop, return_exceptions=True)
         )
 
-    for task in tasks:
-        if task.cancelled():
-            continue
-
-        if task.exception() is not None:
+    for task in tasks_to_cancel:
+        if not task.cancelled() and task.exception() is not None:
             loop.call_exception_handler(
                 {
                     "message": "unhandled exception during asyncio.run() shutdown",
@@ -109,8 +94,7 @@ def to_thread(callback: Callable, *args: typing.Any) -> typing.Any:
     """
     Run callback inside a thread. This is useful for blocking I/O operations.
     """
-    loop = get_event_loop()
-    return loop.run_in_executor(None, callback, *args)
+    return get_event_loop().run_in_executor(None, callback, *args)
 
 
 __all__ = [
