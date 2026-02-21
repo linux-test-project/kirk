@@ -310,7 +310,7 @@ class SUT(Plugin):
         :return: True if we are logged as root inside the SUT. False otherwise.
         :rtype: bool
         """
-        if not self.is_running:
+        if not await self.is_running:
             raise SUTError("SUT is not running")
 
         channel = self.get_channel()
