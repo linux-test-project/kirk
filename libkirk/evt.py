@@ -37,10 +37,10 @@ class Event:
         :param coro: Callable to remove.
         :type coro: Callable
         """
-        for item in self._coros:
-            if item == coro:
-                self._coros.remove(coro)
-                break
+        try:
+            self._coros.remove(coro)
+        except ValueError:
+            pass
 
     def has_coros(self) -> bool:
         """
@@ -49,7 +49,7 @@ class Event:
         :return: True if there are registered coroutines.
         :rtype: bool
         """
-        return len(self._coros) > 0
+        return bool(self._coros)
 
     def register(self, coro: Callable) -> None:
         """
@@ -72,11 +72,10 @@ class Event:
         :return: List of tasks to execute.
         :rtype: list(asyncio.Task)
         """
-        tasks = [coro(*args, **kwargs) for coro in self._coros]
-
         if self._ordered:
-            return tasks
+            return [coro(*args, **kwargs) for coro in self._coros]
 
+        tasks = [coro(*args, **kwargs) for coro in self._coros]
         return [asyncio.gather(*tasks)]
 
 
@@ -122,10 +121,7 @@ class EventsHandler:
             raise ValueError("event_name is empty")
 
         evt = self._get_event(event_name)
-        if not evt:
-            return False
-
-        return evt.has_coros()
+        return evt.has_coros() if evt else False
 
     def register(self, event_name: str, coro: Callable, ordered: bool = False) -> None:
         """
@@ -147,11 +143,7 @@ class EventsHandler:
 
         self._logger.info("Register event: %s", repr(event_name))
 
-        evt = self._get_event(event_name)
-        if not evt:
-            evt = Event(ordered=ordered)
-            self._events[event_name] = evt
-
+        evt = self._events.setdefault(event_name, Event(ordered=ordered))
         evt.register(coro)
 
     def unregister(self, event_name: str, coro: Callable) -> None:
@@ -215,6 +207,7 @@ class EventsHandler:
             pass
         except Exception as err:
             if "internal_error" not in self._events:
+                self._tasks.task_done()
                 return
 
             self._logger.info("Exception catched")
