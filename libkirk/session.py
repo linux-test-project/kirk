@@ -166,7 +166,7 @@ class Session:
 
         async with AsyncFile(epath, "r") as efile:
             async for line in efile:
-                if not line:
+                if not line or "::" not in line:
                     continue
 
                 suite, test = line.split("::")
