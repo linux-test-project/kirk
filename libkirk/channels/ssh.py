@@ -42,6 +42,7 @@ try:
             self._output = []
             self._iobuffer = iobuffer
             self._panic = False
+            self._logger = logging.getLogger("kirk.ssh.session")
 
         def data_received(self, data: str, datatype: asyncssh.DataType) -> None:
             """
@@ -51,8 +52,14 @@ try:
             self._output.append(data)
 
             if self._iobuffer:
-                # pyrefly: ignore[unused-coroutine]
-                asyncio.ensure_future(self._iobuffer.write(data))
+                task = asyncio.create_task(self._iobuffer.write(data))
+                task.add_done_callback(
+                    lambda t: (
+                        self._logger.error("IOBuffer write failed: %s", t.exception())
+                        if not t.cancelled() and t.exception()
+                        else None
+                    )
+                )
 
             if "Kernel panic" in data:
                 self._panic = True
