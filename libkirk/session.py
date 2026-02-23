@@ -260,14 +260,16 @@ class Session:
         matcher = re.compile(regex)
 
         for suite_obj in suites_obj:
-            suite_obj.tests[:] = [
-                test
-                for test in suite_obj.tests
-                if not (
-                    (not matcher.search(test.name) and not when_matching)
-                    or (matcher.search(test.name) and when_matching)
-                )
-            ]
+            if when_matching:
+                # skip matching tests (keep non-matching)
+                suite_obj.tests[:] = [
+                    test for test in suite_obj.tests if not matcher.search(test.name)
+                ]
+            else:
+                # keep only matching tests
+                suite_obj.tests[:] = [
+                    test for test in suite_obj.tests if matcher.search(test.name)
+                ]
 
     @staticmethod
     def _apply_iterate(suites_obj: List[Suite], suite_iterate: int) -> List[Suite]:
