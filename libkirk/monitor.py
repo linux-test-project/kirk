@@ -120,7 +120,7 @@ class JSONFileMonitor:
     async def session_restore(self, restore: str) -> None:
         await self._write("session_restore", {"restore": restore})
 
-    async def session_started(self, tmpdir: str) -> None:
+    async def session_started(self, suites: list, tmpdir: str) -> None:
         await self._write("session_started", {"tmpdir": tmpdir})
 
     async def session_stopped(self) -> None:

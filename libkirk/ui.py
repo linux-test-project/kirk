@@ -42,6 +42,7 @@ class ConsoleUserInterface:
         self._no_colors = no_colors
         self._line = ""
         self._restore = ""
+        self._num_suites = 1
 
         event_handlers = {
             "session_restore": self.session_restore,
@@ -102,6 +103,9 @@ class ConsoleUserInterface:
         Return a user-friendly duration time from seconds.
         For example, "3670.234" becomes "1h 0m 10s".
         """
+        if duration == 0:
+            return "0h 0m 0s"
+
         minutes, seconds = divmod(duration, 60)
         hours, minutes = divmod(minutes, 60)
 
@@ -112,12 +116,104 @@ class ConsoleUserInterface:
         else:
             return f"{seconds:.3f}s"
 
+    @staticmethod
+    def _format_cmdline(cmdline: Optional[str]) -> str:
+        """
+        Format cmdline to show kernel parameters on multiple lines
+        while preserving initial spaces.
+        """
+        if not cmdline:
+            return ""
+
+        parts = cmdline.split()
+        if not parts:
+            return cmdline
+
+        formatted = parts[0]
+        for part in parts[1:]:
+            formatted += f"\n          {part}"
+
+        return formatted
+
+    def _result_color(self, results: TestResults) -> tuple:
+        """
+        Return test result string and the color associated to it.
+        """
+        if results.failed > 0:
+            return "fail", self.RED
+        if results.skipped > 0:
+            return "skip", self.CYAN
+        if results.broken > 0:
+            return "broken", self.RED
+
+        return "pass", self.GREEN
+
+    async def _print_underline(self, msg: str) -> None:
+        """
+        Print an underlined message.
+        """
+        final_msg = f"{msg}\n{'─' * len(msg)}"
+        await self._print(final_msg)
+
+    async def _print_section(self, msg: str) -> None:
+        """
+        Print a section title surrounded by lines.
+        """
+        line = "─" * (len(msg) + 12)
+        space = " " * 6
+        await self._print(f"{line}\n{space}{msg}\n{line}")
+
+    async def _print_target_info(self, results: SuiteResults) -> None:
+        """
+        Print target information.
+        """
+        message = (
+            f"Kernel:   {results.kernel}\n"
+            f"Cmdline:  {self._format_cmdline(results.cmdline)}\n"
+            f"Machine:  {results.cpu}\n"
+            f"Arch:     {results.arch}\n"
+            f"RAM:      {results.ram}\n"
+            f"Swap:     {results.swap}\n"
+            f"Distro:   {results.distro} {results.distro_ver}\n"
+        )
+
+        await self._print_underline("Target information")
+        await self._print(message)
+
+    async def _print_summary(self, results: List[SuiteResults]) -> None:
+        """
+        Print a summary for a list of testing suites.
+        """
+        suites = ", ".join([s_res.suite.name for s_res in results])
+        test_runs = sum(len(res.tests_results) for res in results)
+        passed = sum(result.passed for result in results)
+        failed = sum(result.failed for result in results)
+        skipped = sum(result.skipped for result in results)
+        broken = sum(result.broken for result in results)
+        warnings = sum(result.warnings for result in results)
+        exec_time = sum(result.exec_time for result in results)
+        exec_time_uf = self._user_friendly_duration(exec_time)
+
+        message = (
+            f"Suite:   {suites}\n"
+            f"Runtime: {exec_time_uf}\n"
+            f"Runs:    {test_runs}\n\n"
+            "Results:\n"
+            f"    Passed:   {passed}\n"
+            f"    Failed:   {failed}\n"
+            f"    Broken:   {broken}\n"
+            f"    Skipped:  {skipped}\n"
+            f"    Warnings: {warnings}\n"
+        )
+        await self._print(message)
+
     async def session_restore(self, restore: str) -> None:
         await self._print(f"Restore session: {restore}")
 
-    async def session_started(self, tmpdir: str) -> None:
-        uname = platform.uname()
+    async def session_started(self, suites: list, tmpdir: str) -> None:
+        self._num_suites = len(suites) if suites is not None else 0
 
+        uname = platform.uname()
         message = (
             "Host information\n"
             f"\tHostname:   {uname.node}\n"
@@ -131,10 +227,10 @@ class ConsoleUserInterface:
         await self._print("Session stopped")
 
     async def sut_start(self, sut: str) -> None:
-        await self._print(f"Connecting to SUT: {sut}")
+        await self._print(f"Connecting to SUT: {sut}\n")
 
     async def sut_stop(self, sut: str) -> None:
-        await self._print(f"\nDisconnecting from SUT: {sut}")
+        await self._print(f"Disconnecting from SUT: {sut}")
 
     async def sut_restart(self, sut: str) -> None:
         await self._print(f"Restarting SUT: {sut}")
@@ -149,35 +245,20 @@ class ConsoleUserInterface:
         await self._print(f"\nExit code: {returncode}\n")
 
     async def suite_started(self, suite: Suite) -> None:
-        suite_msg = f"\nStarting suite: {suite.name}"
-        message = f"{suite_msg}\n{'-' * len(suite_msg)}"
-        await self._print(message)
+        suite_msg = f"Suite: {suite.name}"
+        await self._print_underline(suite_msg)
 
     async def suite_completed(self, results: SuiteResults, exec_time: float) -> None:
-        duration = self._user_friendly_duration(results.exec_time)
         exec_time_uf = self._user_friendly_duration(exec_time)
 
-        message = (
-            f"{' ' * 128}\n"
-            f"Execution time: {exec_time_uf}\n\n"
-            f"\tSuite:         {results.suite.name}\n"
-            f"\tTotal runs:    {len(results.suite.tests)}\n"
-            f"\tRuntime:       {duration}\n"
-            f"\tPassed:        {results.passed}\n"
-            f"\tFailed:        {results.failed}\n"
-            f"\tSkipped:       {results.skipped}\n"
-            f"\tBroken:        {results.broken}\n"
-            f"\tWarnings:      {results.warnings}\n"
-            f"\tKernel:        {results.kernel}\n"
-            f"\t/proc/cmdline: {results.cmdline}\n"
-            f"\tMachine:       {results.cpu}\n"
-            f"\tArch:          {results.arch}\n"
-            f"\tRAM:           {results.ram}\n"
-            f"\tSwap:          {results.swap}\n"
-            f"\tDistro:        {results.distro} {results.distro_ver}"
-        )
+        message = f"\nExecution time: {exec_time_uf}\n"
 
         await self._print(message)
+
+        # there's no need to print more than one summary if we only have
+        # one testing suite
+        if self._num_suites > 1:
+            await self._print_summary([results])
 
     async def suite_timeout(self, suite: Suite, timeout: float) -> None:
         await self._print(
@@ -191,30 +272,35 @@ class ConsoleUserInterface:
         await self._print(f"Error: {error}", color=self.RED)
 
     async def session_completed(self, results: List[SuiteResults]) -> None:
-        if len(results) < 2:
+        if not results:
             return
 
-        num_runs = sum(len(result.tests_results) for result in results)
-        passed = sum(result.passed for result in results)
-        failed = sum(result.failed for result in results)
-        skipped = sum(result.skipped for result in results)
-        broken = sum(result.broken for result in results)
-        warnings = sum(result.warnings for result in results)
-        exec_time = sum(result.exec_time for result in results)
-        exec_time_uf = self._user_friendly_duration(exec_time)
+        await self._print("")
+        await self._print_target_info(results[0])
+        await self._print_section("TEST SUMMARY")
+        await self._print_summary(results)
 
-        message = (
-            f"\nSuites completed: {len(results)}\n\n"
-            f"\tTotal runs:  {num_runs}\n"
-            f"\tRuntime:    {exec_time_uf}\n"
-            f"\tPassed:     {passed}\n"
-            f"\tFailed:     {failed}\n"
-            f"\tSkipped:    {skipped}\n"
-            f"\tBroken:     {broken}\n"
-            f"\tWarnings:   {warnings}"
-        )
+        t_broken = []
+        t_failed = []
 
-        await self._print(message)
+        for s_res in results:
+            for t_res in s_res.tests_results:
+                if t_res.failed > 0:
+                    t_failed.append(t_res)
+                if t_res.broken > 0:
+                    t_broken.append(t_res)
+
+        if t_broken:
+            await self._print("Broken:", color=self.RED)
+            msg = [f"    • {t.test.name}" for t in t_broken]
+            await self._print("\n".join(msg))
+            await self._print("")
+
+        if t_failed:
+            await self._print("Failures:", color=self.RED)
+            msg = [f"    • {t.test.name}" for t in t_failed]
+            await self._print("\n".join(msg))
+            await self._print("")
 
     async def internal_error(self, exc: BaseException, func_name: str) -> None:
         await self._print(
@@ -272,15 +358,7 @@ class SimpleUserInterface(ConsoleUserInterface):
             self._timed_out = False
             return
 
-        if results.failed > 0:
-            msg, col = "fail", self.RED
-        elif results.skipped > 0:
-            msg, col = "skip", self.YELLOW
-        elif results.broken > 0:
-            msg, col = "broken", self.CYAN
-        else:
-            msg, col = "pass", self.GREEN
-
+        msg, col = self._result_color(results)
         await self._print(msg, color=col, end="")
 
         if self._kernel_tainted:
@@ -319,11 +397,9 @@ class VerboseUserInterface(ConsoleUserInterface):
         self._timed_out = True
 
     async def test_started(self, test: Test) -> None:
-        await self._print("\n===== ", end="")
-        await self._print(test.name, color=self.CYAN, end="")
-        await self._print(" =====")
-        await self._print("command: ", end="")
-        await self._print(test.full_command)
+        await self._print_section(test.name)
+        await self._print("Executing: ", end="")
+        await self._print(test.full_command, end="\n\n")
 
     async def test_completed(self, results: TestResults) -> None:
         if self._timed_out:
@@ -390,7 +466,7 @@ class ParallelUserInterface(ConsoleUserInterface):
 
     async def print_parallel(self, suite: Suite) -> None:
         parallel_tests = [
-            f"- {test.name}" for test in suite.tests if test.parallelizable
+            f"• {test.name}" for test in suite.tests if test.parallelizable
         ]
 
         if parallel_tests:
@@ -417,17 +493,7 @@ class ParallelUserInterface(ConsoleUserInterface):
             # this message will replace ok/fail message
             await self._print("kernel panic", color=self.RED)
         else:
-            if results.failed > 0:
-                msg, col = "fail", self.RED
-            elif results.skipped > 0:
-                msg, col = "skip", self.YELLOW
-            elif results.broken > 0:
-                msg, col = "broken", self.CYAN
-            else:
-                msg, col = "pass", self.GREEN
-
-            await self._print(msg, color=col, end="")
-
+            msg, col = self._result_color(results)
             if self._kernel_tainted:
                 await self._print(" | ", end="")
                 await self._print("tainted", color=self.YELLOW, end="")
