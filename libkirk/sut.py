@@ -283,9 +283,12 @@ class SUT(Plugin):
         if self._tainted_status is None:
             self._tainted_status = asyncio.Queue(maxsize=1)
 
-        if self._tainted_lock.locked() and self._tainted_status.qsize() > 0:
-            status = await self._tainted_status.get()
-            return status
+        if self._tainted_lock.locked():
+            try:
+                status = self._tainted_status.get_nowait()
+                return status
+            except asyncio.QueueEmpty:
+                pass
 
         async with self._tainted_lock:
             channel = self.get_channel()
@@ -309,8 +312,10 @@ class SUT(Plugin):
                     msg = self.TAINTED_MSG[i]
                     messages.append(msg)
 
-            if self._tainted_status.qsize() > 0:
-                await self._tainted_status.get()
+            try:
+                self._tainted_status.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
 
             await self._tainted_status.put((code, messages))
 
