@@ -74,7 +74,7 @@ async def com_isa(tmpdir):
 
     yield runner
 
-    if await runner.active:
+    if await runner.active():
         await runner.stop(iobuffer=iobuff)
 
 
@@ -94,7 +94,7 @@ async def com_virtio(tmpdir):
 
     yield runner
 
-    if await runner.active:
+    if await runner.active():
         await runner.stop()
 
 
