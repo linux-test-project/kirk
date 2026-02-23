@@ -141,8 +141,9 @@ class LTXComChannel(ComChannel):
         """
         Release an execution slot.
         """
-        if slot_id in self._slots:
-            self._slots.remove(slot_id)
+        async with self._release_lock:
+            if slot_id in self._slots:
+                self._slots.remove(slot_id)
 
     async def ping(self) -> float:
         if not await self.active():
