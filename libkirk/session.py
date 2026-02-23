@@ -476,7 +476,7 @@ class Session:
         :type fault_prob: int
         """
         async with self._run_lock:
-            await libkirk.events.fire("session_started", self._tmpdir.abspath)
+            await libkirk.events.fire("session_started", suites, self._tmpdir.abspath)
 
             channel = self._sut.get_channel()
             if not channel.parallel_execution:
@@ -530,10 +530,6 @@ class Session:
                             tasks.append(exporter.save_file(self._results, report_path))
 
                         await asyncio.gather(*tasks)
-
-                        await libkirk.events.fire(
-                            "session_completed", self._scheduler.results
-                        )
                 except KirkException as err:
                     self._logger.exception(err)
                     await libkirk.events.fire("session_error", str(err))
@@ -541,3 +537,7 @@ class Session:
                 finally:
                     self._results.clear()
                     await self._inner_stop()
+
+                    await libkirk.events.fire(
+                        "session_completed", self._scheduler.results
+                    )
