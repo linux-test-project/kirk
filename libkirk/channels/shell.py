@@ -203,7 +203,9 @@ class ShellComChannel(ComChannel):
                 ret = {
                     "command": command,
                     "stdout": stdout,
-                    "returncode": proc.returncode,
+                    "returncode": proc.returncode
+                    if proc.returncode is not None
+                    else -1,
                     "exec_time": t_end,
                 }
 
