@@ -691,6 +691,7 @@ class LTX:
                         except msgpack.OutOfData:
                             break
             except LTXError as err:
+                loop.remove_reader(afile.fileno())
                 self._exception = err
             finally:
                 self._logger.info("Producer has stopped")
