@@ -97,7 +97,6 @@ class SUT(Plugin):
         """
         raise NotImplementedError()
 
-    @property
     async def is_running(self) -> bool:
         """
         :return: True if system under test is up and running. False otherwise.
@@ -200,7 +199,7 @@ class SUT(Plugin):
 
         :rtype: dict
         """
-        if not await self.is_running:
+        if not await self.is_running():
             raise SUTError("SUT is not running")
 
         distro = ""
@@ -213,7 +212,15 @@ class SUT(Plugin):
 
         if self.optimize:
             # pyrefly: ignore[bad-unpacking]
-            distro, distro_ver, kernel, cmdline, arch, cpu, meminfo = await asyncio.gather(
+            (
+                distro,
+                distro_ver,
+                kernel,
+                cmdline,
+                arch,
+                cpu,
+                meminfo,
+            ) = await asyncio.gather(
                 *[
                     self._get_distro(),
                     self._get_distro_ver(),
@@ -274,7 +281,7 @@ class SUT(Plugin):
             tainted code and the second element is the tainted message.
         :rtype: (int, list[str])
         """
-        if not await self.is_running:
+        if not await self.is_running():
             raise SUTError("SUT is not running")
 
         # Initialise on first use, always inside a running loop.
@@ -326,7 +333,7 @@ class SUT(Plugin):
         :return: True if we are logged as root inside the SUT. False otherwise.
         :rtype: bool
         """
-        if not await self.is_running:
+        if not await self.is_running():
             raise SUTError("SUT is not running")
 
         channel = self.get_channel()
@@ -349,7 +356,7 @@ class SUT(Plugin):
             otherwise.
         :rtype: bool
         """
-        if not await self.is_running:
+        if not await self.is_running():
             raise SUTError("SUT is not running")
 
         channel = self.get_channel()
@@ -369,7 +376,7 @@ class SUT(Plugin):
         :param prob: Fault probabilty in between 0-100.
         :type prob: int
         """
-        if not await self.is_running:
+        if not await self.is_running():
             raise SUTError("SUT is not running")
 
         interval = 1 if prob == 0 else 100

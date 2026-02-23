@@ -86,7 +86,7 @@ async def sut():
     await obj.start()
     yield obj
 
-    if await obj.is_running:
+    if await obj.is_running():
         await obj.stop()
 
 

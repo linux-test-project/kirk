@@ -76,7 +76,6 @@ class LTXComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return True
 
-    @property
     async def active(self) -> bool:
         if not self._ltx:
             return False
@@ -84,7 +83,7 @@ class LTXComChannel(ComChannel):
         return self._ltx.connected
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if not await self.active:
+        if not await self.active():
             return
 
         if self._slots:
@@ -104,7 +103,7 @@ class LTXComChannel(ComChannel):
         except LTXError as err:
             raise CommunicationError(err) from err
 
-        while await self.active:
+        while await self.active():
             await asyncio.sleep(1e-2)
 
     async def _send_requests(self, requests: List[Request]) -> Dict[Request, Any]:
@@ -146,7 +145,7 @@ class LTXComChannel(ComChannel):
             self._slots.remove(slot_id)
 
     async def ping(self) -> float:
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("LTX is not running")
 
         req = Requests.ping()
@@ -156,7 +155,7 @@ class LTXComChannel(ComChannel):
         return (replies[req][0] * 1e-9) - start_t
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if await self.active:
+        if await self.active():
             raise CommunicationError("LTX is already running")
 
         self._ltx = LTX(self._infile, self._outfile)
@@ -178,7 +177,7 @@ class LTXComChannel(ComChannel):
         if not command:
             raise ValueError("command is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("LTX is not running")
 
         self._logger.info("Running command: %s", repr(command))
@@ -226,7 +225,7 @@ class LTXComChannel(ComChannel):
         if not target_path:
             raise ValueError("target path is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("SSH connection is not present")
 
         async with self._fetch_lock:

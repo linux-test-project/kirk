@@ -18,7 +18,7 @@ async def com():
 
     yield obj
 
-    if await obj.active:
+    if await obj.active():
         await obj.stop()
 
 
@@ -49,7 +49,7 @@ async def sut(com):
 
     yield obj
 
-    if await obj.is_running:
+    if await obj.is_running():
         await obj.stop()
 
 

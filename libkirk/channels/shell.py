@@ -58,7 +58,6 @@ class ShellComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return True
 
-    @property
     async def active(self) -> bool:
         return self._active
 
@@ -87,7 +86,7 @@ class ShellComChannel(ComChannel):
             pass
 
     async def ping(self) -> float:
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("Shell is not running")
 
         ret = await self.run_command("test .")
@@ -99,13 +98,13 @@ class ShellComChannel(ComChannel):
         return reply_t
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if await self.active:
+        if await self.active():
             raise CommunicationError("Shell is running")
 
         self._active = True
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if not await self.active:
+        if not await self.active():
             return
 
         self._logger.info("Stopping shell communication")
@@ -142,7 +141,7 @@ class ShellComChannel(ComChannel):
         if not command:
             raise ValueError("command is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("Shell is not running")
 
         self._logger.info("Executing command: '%s'", command)
@@ -223,7 +222,7 @@ class ShellComChannel(ComChannel):
         if not os.path.isfile(target_path):
             raise CommunicationError(f"'{target_path}' file doesn't exist")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("Shell is not running")
 
         async with self._fetch_lock:

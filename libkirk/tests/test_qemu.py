@@ -141,7 +141,7 @@ class TestQemuComChannelBusybox(_TestQemuComChannel):
 
         yield runner
 
-        if await runner.active:
+        if await runner.active():
             await runner.stop()
 
 
@@ -152,7 +152,7 @@ async def sut(com_isa):
 
     yield obj
 
-    if await obj.is_running:
+    if await obj.is_running():
         await obj.stop()
 
 

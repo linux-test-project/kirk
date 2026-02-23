@@ -48,7 +48,7 @@ class _TestSUT:
         Test start method.
         """
         await sut.start(iobuffer=Printer())
-        assert await sut.is_running
+        assert await sut.is_running()
 
     @pytest.fixture
     def sut_stop_sleep(self, request):

@@ -193,7 +193,7 @@ class Session:
         """
         Stop the SUT.
         """
-        if not await self._sut.is_running:
+        if not await self._sut.is_running():
             return
 
         await libkirk.events.fire("sut_stop", self._sut.name)

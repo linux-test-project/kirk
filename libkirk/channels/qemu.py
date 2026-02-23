@@ -220,7 +220,6 @@ class QemuComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return False
 
-    @property
     async def active(self) -> bool:
         if self._proc is None:
             return False
@@ -231,7 +230,7 @@ class QemuComChannel(ComChannel):
         return self._proc.returncode is None
 
     async def ping(self) -> float:
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("Qemu is not running")
 
         _, _, exec_time = await self._exec("test .", None)
@@ -256,7 +255,7 @@ class QemuComChannel(ComChannel):
         """
         Write data on stdin.
         """
-        if not await self.active:
+        if not await self.active():
             return
 
         wdata = data.encode(encoding="utf-8")
@@ -273,7 +272,7 @@ class QemuComChannel(ComChannel):
         """
         Wait a string from stdout.
         """
-        if not await self.active:
+        if not await self.active():
             return None
 
         self._logger.info("Waiting for message: %s", repr(message))
@@ -285,7 +284,7 @@ class QemuComChannel(ComChannel):
             if self._stop or self._panic:
                 break
 
-            if not await self.active:
+            if not await self.active():
                 break
 
             message_pos = stdout.find(message)
@@ -372,7 +371,7 @@ class QemuComChannel(ComChannel):
         return stdout, retcode, exec_time
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if not await self.active:
+        if not await self.active():
             return
 
         self._logger.info("Shutting down virtual machine")
@@ -394,7 +393,7 @@ class QemuComChannel(ComChannel):
 
                     await self._write_stdin("poweroff; poweroff -f\n")
 
-                    while await self.active:
+                    while await self.active():
                         await self._read_stdout(1024, iobuffer)
 
                     # pyrefly: ignore[missing-attribute]
@@ -403,7 +402,7 @@ class QemuComChannel(ComChannel):
             pass
         finally:
             # still running -> stop process
-            if await self.active:
+            if await self.active():
                 self._logger.info("Killing virtual machine")
 
                 # pyrefly: ignore[missing-attribute]
@@ -421,7 +420,7 @@ class QemuComChannel(ComChannel):
         if not shutil.which(self._qemu_cmd):
             raise CommunicationError(f"Command not found: {self._qemu_cmd}")
 
-        if await self.active:
+        if await self.active():
             raise CommunicationError("Virtual machine is already running")
 
         error = None
@@ -496,7 +495,7 @@ class QemuComChannel(ComChannel):
         if not command:
             raise ValueError("command is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("Virtual machine is not running")
 
         async with self._cmd_lock:
@@ -534,7 +533,7 @@ class QemuComChannel(ComChannel):
         if not target_path:
             raise ValueError("target path is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("Virtual machine is not running")
 
         async with self._fetch_lock:

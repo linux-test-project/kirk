@@ -126,7 +126,7 @@ We can easily achieve this scenario with the following implementation:
         async def start(self, iobuffer: Optional[IOBuffer] = None) -> None:
             # Initialize the SUT by running commands, scripts and everything
             # that can be done via our communication channels
-            if await self.is_running:
+            if await self.is_running():
                 return
 
             await self._shell.ensure_communicate(iobuffer=iobuffer)
@@ -140,7 +140,7 @@ We can easily achieve this scenario with the following implementation:
         async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
             # Stop any operation in our SUT. This can be requires in any moment
             # during tests run
-            if not await self.is_running:
+            if not await self.is_running():
                 return
 
             await self._ssh.stop(iobuffer=iobuffer)
@@ -156,10 +156,9 @@ We can easily achieve this scenario with the following implementation:
             await self._shell.stop(iobuffer=iobuffer)
             await self.start(iobuffer=iobuffer)
 
-        @property
         async def is_running(self) -> bool:
             # Tell kirk when SUT is operating or not
-            return await self._ssh.active
+            return await self._ssh.active()
 
 
 Let's suppose we have a ``$HOME/plugins`` folder where we placed our

@@ -67,13 +67,13 @@ class GenericSUT(SUT):
         return self._com
 
     async def start(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if await self.is_running:
+        if await self.is_running():
             return
 
         await self.get_channel().ensure_communicate(iobuffer)
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if not await self.is_running:
+        if not await self.is_running():
             return
 
         await self.get_channel().stop(iobuffer)
@@ -82,6 +82,5 @@ class GenericSUT(SUT):
         await self.stop(iobuffer)
         await self.start(iobuffer)
 
-    @property
     async def is_running(self) -> bool:
-        return await self.get_channel().active
+        return await self.get_channel().active()

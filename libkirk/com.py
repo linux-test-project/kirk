@@ -54,7 +54,6 @@ class ComChannel(Plugin):
         """
         raise NotImplementedError()
 
-    @property
     async def active(self) -> bool:
         """
         :return: Return True if communication is active. False otherwise.

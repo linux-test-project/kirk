@@ -246,12 +246,11 @@ class SSHComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return True
 
-    @property
     async def active(self) -> bool:
         return self._conn is not None
 
     async def communicate(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if await self.active:
+        if await self.active():
             raise CommunicationError("SSH client is already connected")
 
         try:
@@ -284,7 +283,7 @@ class SSHComChannel(ComChannel):
                 raise CommunicationError(err) from err
 
     async def stop(self, iobuffer: Optional[IOBuffer] = None) -> None:
-        if not await self.active:
+        if not await self.active():
             return
 
         self._stop = True
@@ -311,7 +310,7 @@ class SSHComChannel(ComChannel):
             self._conn = None
 
     async def ping(self) -> float:
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("SSH client is not running")
 
         start_t = time.time()
@@ -340,7 +339,7 @@ class SSHComChannel(ComChannel):
         if not command:
             raise ValueError("command is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("SSH connection is not present")
 
         async with self._session_sem:
@@ -398,7 +397,7 @@ class SSHComChannel(ComChannel):
         if not target_path:
             raise ValueError("target path is empty")
 
-        if not await self.active:
+        if not await self.active():
             raise CommunicationError("SSH connection is not present")
 
         data = bytes()
