@@ -533,7 +533,12 @@ class SuiteScheduler(Scheduler):
                 except (KernelPanicError, KernelTaintedError, KernelTimeoutError):
                     if self._reboot_lock.locked():
                         self._logger.info("SUT is rebooting. Waiting...")
-                        await asyncio.wait_for(reboot_event.wait(), 3600)
+
+                        try:
+                            await asyncio.wait_for(reboot_event.wait(), 3600)
+                        except asyncio.TimeoutError:
+                            self._logger.info("SUT reboot timed out")
+                            timed_out = True
                     else:
                         await self._restart_sut()
                         reboot_event.set()
