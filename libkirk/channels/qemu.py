@@ -341,7 +341,7 @@ class QemuComChannel(ComChannel):
 
         t_start = time.time()
 
-        await self._write_stdin(f"{command}; echo $?-{code}\n")
+        await self._write_stdin(msg)
         stdout = await self._wait_for(code, iobuffer)
 
         exec_time = time.time() - t_start
