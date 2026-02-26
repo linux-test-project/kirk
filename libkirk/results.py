@@ -238,7 +238,7 @@ class SuiteResults(Results):
     def __init__(
         self,
         suite: Suite,
-        tests: List[TestResults] = [],
+        tests: Optional[List[TestResults]] = None,
         distro: Optional[str] = None,
         distro_ver: Optional[str] = None,
         kernel: Optional[str] = None,
@@ -274,7 +274,7 @@ class SuiteResults(Results):
             raise ValueError("Empty suite object")
 
         self._suite = suite
-        self._tests = tests
+        self._tests = tests if tests is not None else []
         self._distro = distro
         self._distro_ver = distro_ver
         self._kernel = kernel
