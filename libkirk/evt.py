@@ -207,7 +207,6 @@ class EventsHandler:
             pass
         except Exception as err:
             if "internal_error" not in self._events:
-                self._tasks.task_done()
                 return
 
             self._logger.info("Exception catched")
