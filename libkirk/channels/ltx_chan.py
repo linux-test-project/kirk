@@ -227,7 +227,7 @@ class LTXComChannel(ComChannel):
             raise ValueError("target path is empty")
 
         if not await self.active():
-            raise CommunicationError("SSH connection is not present")
+            raise CommunicationError("LTX connection is not present")
 
         async with self._fetch_lock:
             req = Requests.get_file(target_path)

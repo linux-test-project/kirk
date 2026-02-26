@@ -166,7 +166,7 @@ class TestResults(Results):
             f"passed: {self._passed}, "
             f"broken: {self._broken}, "
             f"skipped: {self._skipped}, "
-            f"warnins: {self._warns}, "
+            f"warnings: {self._warns}, "
             f"exec_time: {self._exec_time}, "
             f"status: {self._status}, "
             f"retcode: {self._retcode}, "
