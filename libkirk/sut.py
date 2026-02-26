@@ -420,11 +420,10 @@ def discover(path: str, extend: bool = True) -> None:
     _SUT.extend(obj)
 
 
-def get_suts() -> List[ComChannel]:
+def get_suts() -> List[SUT]:
     """
     :return: List of loaded SUT implementations.
-    :rtype: list(ComChannel)
+    :rtype: list(SUT)
     """
     global _SUT
-    # pyrefly: ignore[bad-return]
     return _SUT
