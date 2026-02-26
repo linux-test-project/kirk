@@ -177,7 +177,7 @@ class JSONFileMonitor:
 
     async def test_timed_out(self, test: Test, timeout: int) -> None:
         await self._write(
-            "test_started", {"test": self._test_to_dict(test), "timeout": timeout}
+            "test_timed_out", {"test": self._test_to_dict(test), "timeout": timeout}
         )
 
     async def suite_started(self, suite: Suite) -> None:
