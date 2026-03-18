@@ -134,6 +134,34 @@ class TestLTPFramework:
             assert "TMPDIR" in test.env
             assert "LTP_COLORIZE_OUTPUT" in test.env
 
+    async def test_find_suite_network_vars(self, sut, monkeypatch):
+        """
+        Test that all SUPPORTED_ENV variables and TST_/LTP_ prefixed variables
+        are forwarded to tests.
+        """
+        # Build a mapping of every variable that should be forwarded:
+        # all entries in SUPPORTED_ENV (skipping PATH which is always present)
+        # plus representative TST_ and LTP_ prefixed variables.
+        net_vars = {
+            key: f"test_value_{key}"
+            for key in LTPFramework.SUPPORTED_ENV
+            if key != "PATH"
+        }
+        # One representative per prefix is enough to verify prefix-based forwarding.
+        net_vars["TST_USE_NETNS"] = "yes"
+        net_vars["LTP_RSH"] = "ssh -nq"
+
+        for key, val in net_vars.items():
+            monkeypatch.setenv(key, val)
+
+        framework = LTPFramework()
+        suite = await framework.find_suite(sut, "suite0")
+
+        for test in suite.tests:
+            for key, val in net_vars.items():
+                assert key in test.env, f"{key} not found in test env"
+                assert test.env[key] == val
+
     async def test_find_suite_max_runtime(self, sut):
         """
         Test find_suite method when max_runtime is defined.

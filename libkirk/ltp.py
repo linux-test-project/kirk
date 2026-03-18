@@ -69,12 +69,52 @@ class LTPFramework(Framework):
         }
     )
 
-    # Environment variables without the `LTP_` prefix that are still forwarded.
+    # Environment variables without the `LTP_` or `TST_` prefix that are still forwarded.
     SUPPORTED_ENV: frozenset = frozenset(
         {
             "PATH",
             "KCONFIG_PATH",
             "KCONFIG_SKIP_CHECK",
+            # LTP network test variables
+            "RHOST",
+            "RUSER",
+            "PASSWD",
+            "IPV4_LHOST",
+            "IPV4_RHOST",
+            "IPV6_LHOST",
+            "IPV6_RHOST",
+            "LHOST_IFACES",
+            "RHOST_IFACES",
+            # Stress test parameters
+            "NS_DURATION",
+            "NS_TIMES",
+            "CONNECTION_TOTAL",
+            "IP_TOTAL",
+            "IP_TOTAL_FOR_TCPIP",
+            "ROUTE_TOTAL",
+            "ROUTE_CHANGE_IP",
+            "ROUTE_CHANGE_NETLINK",
+            "MTU_CHANGE_TIMES",
+            "IF_UPDOWN_TIMES",
+            "PING_MAX",
+            # ICMP / multicast
+            "NS_ICMPV4_SENDER_DATA_MAXSIZE",
+            "NS_ICMPV6_SENDER_DATA_MAXSIZE",
+            "MCASTNUM_NORMAL",
+            "MCASTNUM_HEAVY",
+            # File transfer / services
+            "DOWNLOAD_BIGFILESIZE",
+            "DOWNLOAD_REGFILESIZE",
+            "UPLOAD_BIGFILESIZE",
+            "UPLOAD_REGFILESIZE",
+            "HTTP_DOWNLOAD_DIR",
+            "FTP_DOWNLOAD_DIR",
+            "FTP_UPLOAD_DIR",
+            "FTP_UPLOAD_URLDIR",
+            # IPsec / virtual interfaces
+            "IPSEC_MODE",
+            "IPSEC_PROTO",
+            "VIRT_PERF_THRESHOLD",
         }
     )
 
@@ -126,7 +166,7 @@ class LTPFramework(Framework):
             if key in self._PRESET_ENV:
                 continue
 
-            if key in self.SUPPORTED_ENV or key.startswith("LTP_"):
+            if key in self.SUPPORTED_ENV or key.startswith("LTP_") or key.startswith("TST_"):
                 self._env[key] = val
 
     async def _read_path(self, channel: ComChannel) -> Dict[str, str]:
