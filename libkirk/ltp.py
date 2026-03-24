@@ -77,8 +77,6 @@ class LTPFramework(Framework):
             "KCONFIG_SKIP_CHECK",
             # LTP network test variables
             "RHOST",
-            "RUSER",
-            "PASSWD",
             "IPV4_LHOST",
             "IPV4_RHOST",
             "IPV6_LHOST",
