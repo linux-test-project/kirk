@@ -387,7 +387,6 @@ class TestSuiteScheduler:
         assert len(runner.results[0].tests_results) >= 1
 
     @pytest.mark.parametrize("workers", [1, 10])
-    @pytest.mark.xfail(reason="Unstable with multiple workers")
     async def test_schedule_kernel_tainted(self, workers, sut, create_runner):
         """
         Test the schedule method when kernel is tainted.
@@ -428,7 +427,6 @@ class TestSuiteScheduler:
         assert len(runner.results[0].tests_results) == 2
 
     @pytest.mark.parametrize("workers", [1, 10])
-    @pytest.mark.xfail(reason="Unstable with multiple workers")
     async def test_schedule_kernel_panic(self, workers, create_runner):
         """
         Test the schedule method on kernel panic.
