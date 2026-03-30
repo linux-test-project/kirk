@@ -2,6 +2,7 @@
 Unittests for main module.
 """
 
+import argparse
 import asyncio
 import json
 import os
@@ -53,6 +54,149 @@ def isolated_loop(monkeypatch):
             loop.close()
         # Restore the session loop so subsequent async tests still work.
         asyncio.set_event_loop(session_loop)
+
+
+class TestHelpers:
+    """
+    Test helper functions in the main module.
+    """
+
+    def test_from_params_missing_equals(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="Missing '='"):
+            libkirk.main._from_params_to_config(["noequalssign"])
+
+    def test_from_params_empty_key(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="Empty key"):
+            libkirk.main._from_params_to_config(["=value"])
+
+    def test_from_params_empty_value(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="Empty value"):
+            libkirk.main._from_params_to_config(["key="])
+
+    def test_dict_config_empty(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="can't be empty"):
+            libkirk.main._dict_config("")
+
+    def test_time_config_invalid(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="Incorrect time"):
+            libkirk.main._time_config("abc")
+
+    def test_time_config_minutes(self):
+        assert libkirk.main._time_config("5m") == 300
+
+    def test_time_config_hours(self):
+        assert libkirk.main._time_config("2h") == 7200
+
+    def test_time_config_days(self):
+        assert libkirk.main._time_config("1d") == 86400
+
+    def test_time_config_seconds_suffix(self):
+        assert libkirk.main._time_config("30s") == 30
+
+    def test_time_config_no_suffix(self):
+        assert libkirk.main._time_config("60") == 60
+
+    def test_iterate_config_empty(self):
+        assert libkirk.main._iterate_config("") == 1
+
+    def test_iterate_config_zero(self):
+        assert libkirk.main._iterate_config("0") == 1
+
+    def test_finjection_config_empty(self):
+        assert libkirk.main._finjection_config("") == 0
+
+    def test_finjection_config_over_100(self):
+        assert libkirk.main._finjection_config("200") == 100
+
+    def test_finjection_config_negative(self):
+        assert libkirk.main._finjection_config("-5") == 0
+
+    def test_get_skip_tests_empty(self):
+        assert libkirk.main._get_skip_tests("", "") == ""
+
+    def test_get_skip_tests_with_file(self, tmpdir):
+        skipfile = tmpdir / "skip"
+        skipfile.write("test01\n# comment\ntest02\n\n")
+        result = libkirk.main._get_skip_tests("", str(skipfile))
+        assert result == "test01|test02"
+
+    def test_get_skip_tests_combined(self, tmpdir):
+        skipfile = tmpdir / "skip"
+        skipfile.write("test01\n")
+        result = libkirk.main._get_skip_tests("test02", str(skipfile))
+        assert result == "test01|test02"
+
+
+class TestMainErrors:
+    """
+    Test error paths in argument validation.
+    """
+
+    def test_no_run_option(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=["--sut", "default"])
+        assert excinfo.value.code == 2
+
+    def test_run_pattern_without_suite(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=["--run-pattern", "test.*"])
+        assert excinfo.value.code == 2
+
+    def test_invalid_plugins_dir(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(
+                cmd_args=["--plugins", "/nonexistent", "--sut", "help"]
+            )
+        assert excinfo.value.code == 2
+
+    def test_invalid_tmp_dir(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(
+                cmd_args=[
+                    "--tmp-dir", "/nonexistent_dir",
+                    "--run-command", "ls",
+                ]
+            )
+        assert excinfo.value.code == 2
+
+    def test_invalid_skip_file(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(
+                cmd_args=[
+                    "--skip-file", "/nonexistent",
+                    "--run-suite", "suite01",
+                ]
+            )
+        assert excinfo.value.code == 2
+
+    def test_json_report_exists(self, tmpdir):
+        report = tmpdir / "report.json"
+        report.write("{}")
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(
+                cmd_args=[
+                    "--tmp-dir", str(tmpdir),
+                    "--json-report", str(report),
+                    "--run-suite", "suite01",
+                ]
+            )
+        assert excinfo.value.code == 2
+
+    def test_com_help(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=["--com", "help"])
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+    def test_com_invalid_name(self):
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(
+                cmd_args=[
+                    "--com", "nonexistent",
+                    "--run-command", "ls",
+                ]
+            )
+        assert excinfo.value.code == 2
 
 
 class TestMain:
