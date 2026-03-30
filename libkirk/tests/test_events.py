@@ -113,6 +113,83 @@ async def test_fire_errors():
         await libkirk.events.fire(None, "prova")
 
 
+def test_is_registered_empty_name():
+    """
+    Test is_registered with empty name.
+    """
+    with pytest.raises(ValueError):
+        libkirk.events.is_registered("")
+
+
+def test_unregister_errors():
+    """
+    Test unregister method during errors.
+    """
+    with pytest.raises(ValueError):
+        libkirk.events.unregister("", None)
+
+    with pytest.raises(ValueError):
+        libkirk.events.unregister("not_registered", None)
+
+
+def test_unregister_entire_event():
+    """
+    Test unregister method removing the entire event entry.
+    """
+
+    async def funct():
+        pass
+
+    libkirk.events.register("myevent", funct)
+    assert libkirk.events.is_registered("myevent")
+
+    libkirk.events.unregister("myevent", None)
+    assert not libkirk.events.is_registered("myevent")
+
+
+def test_event_remove_nonexistent():
+    """
+    Test Event.remove() with a coro that was never registered.
+    """
+    from libkirk.evt import Event
+
+    event = Event()
+    # should not raise
+    event.remove(lambda: None)
+
+
+async def test_fire_handler_exception():
+    """
+    Test that exceptions in event handlers are caught and forwarded
+    to the internal_error event.
+    """
+    errors = []
+
+    async def bad_handler():
+        raise RuntimeError("test error")
+
+    async def error_catcher(error, name):
+        errors.append(error)
+
+    async def start():
+        await libkirk.events.start()
+
+    libkirk.events.register("bad_event", bad_handler)
+    libkirk.events.register("internal_error", error_catcher)
+
+    libkirk.create_task(start())
+
+    await libkirk.events.fire("bad_event")
+
+    while not errors:
+        await asyncio.sleep(1e-3)
+
+    await libkirk.events.stop()
+
+    assert len(errors) == 1
+    assert isinstance(errors[0][0], RuntimeError)
+
+
 async def test_fire():
     """
     Test fire method.
