@@ -115,7 +115,7 @@ class JSONExporter(Exporter):
             },
         }
 
-        async with AsyncFile(path, "w+") as outfile:
+        async with AsyncFile(path, "w") as outfile:
             text = json.dumps(data, indent=4)
             await outfile.write(text)
 
