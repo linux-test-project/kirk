@@ -21,10 +21,6 @@ class TestTempDir:
         with pytest.raises(ValueError):
             TempDir(root="this_folder_doesnt_exist")
 
-    # for some reasons, following test fails on systems which are slow
-    # to release directories after remove (in particular remote containers)
-    # even after os.sync or time.sleep. So we XFAIL this test by default
-    @pytest.mark.xfail
     def test_rotate(self, tmpdir):
         """
         Test folders rotation.
