@@ -165,7 +165,7 @@ Let's suppose we have a ``$HOME/plugins`` folder where we placed our
 ``EmbeddedSUT`` implementation and its scripts. Then we can run ``syscalls``
 testing suite with kirk as following:
 
-.. code-block:: python
+.. code-block:: bash
 
     kirk --plugins $HOME/plugins \
         --sut embedded \
