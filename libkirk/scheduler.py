@@ -7,6 +7,7 @@
 """
 
 import asyncio
+import enum
 import logging
 import os
 import signal
@@ -86,17 +87,23 @@ class Scheduler:
         raise NotImplementedError()
 
 
+class TestStatus(enum.IntEnum):
+    """
+    Status codes returned by test execution in the scheduler.
+    """
+
+    OK = 0
+    TEST_TIMEOUT = 1
+    KERNEL_PANIC = 2
+    KERNEL_TAINTED = 3
+    KERNEL_TIMEOUT = 4
+
+
 class TestScheduler(Scheduler):
     """
     Schedule and run tests, taking into account status of the kernel
     during their execution, as well as tests timeout.
     """
-
-    STATUS_OK = 0
-    TEST_TIMEOUT = 1
-    KERNEL_PANIC = 2
-    KERNEL_TAINTED = 3
-    KERNEL_TIMEOUT = 4
 
     def __init__(
         self, sut: SUT, framework: Framework, timeout: float = 0.0, max_workers: int = 1
@@ -224,7 +231,7 @@ class TestScheduler(Scheduler):
             exec_time = 0
             test_data: Dict[str, Any] = {}
             tainted_msg = None
-            status = self.STATUS_OK
+            status = TestStatus.OK
             channel = self._sut.get_channel()
 
             try:
@@ -246,15 +253,15 @@ class TestScheduler(Scheduler):
                     self._logger.info("Recognised Kernel tainted: %s", tainted_msg2)
 
                     tainted_msg = tainted_msg2
-                    status = self.KERNEL_TAINTED
+                    status = TestStatus.KERNEL_TAINTED
             except KernelPanicError:
                 exec_time = time.time() - start_t
 
                 self._logger.info("Recognised Kernel panic")
-                status = self.KERNEL_PANIC
+                status = TestStatus.KERNEL_PANIC
             except asyncio.TimeoutError:
                 exec_time = time.time() - start_t
-                status = self.TEST_TIMEOUT
+                status = TestStatus.TEST_TIMEOUT
 
                 self._logger.info("Got test timeout. Checking if SUT is still replying")
 
@@ -263,10 +270,10 @@ class TestScheduler(Scheduler):
 
                     self._logger.info("SUT replied")
                 except asyncio.TimeoutError:
-                    status = self.KERNEL_TIMEOUT
+                    status = TestStatus.KERNEL_TIMEOUT
 
             # create test results and save it
-            if status not in [self.STATUS_OK, self.KERNEL_TAINTED]:
+            if status not in [TestStatus.OK, TestStatus.KERNEL_TAINTED]:
                 test_data = {
                     "name": test.name,
                     "command": test.full_command,
@@ -299,15 +306,15 @@ class TestScheduler(Scheduler):
             self._logger.debug(results)
 
             # raise kernel errors at the end so we can collect test results
-            if status == self.KERNEL_TAINTED:
+            if status == TestStatus.KERNEL_TAINTED:
                 await libkirk.events.fire("kernel_tainted", tainted_msg)
                 raise KernelTaintedError()
 
-            if status == self.KERNEL_PANIC:
+            if status == TestStatus.KERNEL_PANIC:
                 await libkirk.events.fire("kernel_panic")
                 raise KernelPanicError()
 
-            if status == self.KERNEL_TIMEOUT:
+            if status == TestStatus.KERNEL_TIMEOUT:
                 await libkirk.events.fire("sut_not_responding")
                 raise KernelTimeoutError()
 
