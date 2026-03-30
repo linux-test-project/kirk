@@ -195,7 +195,6 @@ class TestMain:
         captured = capsys.readouterr()
         assert "echo -n ciao\n" in captured.out
 
-    @pytest.mark.xfail(reason="This test passes if run alone. capsys bug?")
     def test_run_suite_no_colors(self, tmpdir, capsys):
         """
         Test --run-suite option with --no-colors.
@@ -215,7 +214,7 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
 
         out, _ = capsys.readouterr()
-        assert "test00: pass" in out
+        assert "Passed:   2" in out
 
     def test_restore_suite(self, tmpdir):
         """
