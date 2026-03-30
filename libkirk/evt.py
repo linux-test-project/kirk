@@ -60,7 +60,7 @@ class Event:
         """
         self._coros.append(coro)
 
-    def create_tasks(self, *args: List[Any], **kwargs: Dict[Any, Any]) -> List[Any]:
+    def create_tasks(self, *args: Any, **kwargs: Any) -> List[Any]:
         """
         Create tasks to run according to registered coroutines.
 
