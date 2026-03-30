@@ -256,7 +256,7 @@ class LTPFramework(Framework):
                 test_params = metadata_tests.get(test_name)
                 if test_params is None:
                     # Test not using the new LTP API – parallelism unknown.
-                    self._logger.info("Found %s test params in metadata", test_name)
+                    self._logger.info("No %s test params in metadata", test_name)
                 else:
                     self._logger.info("Found %s test params in metadata", test_name)
                     self._logger.debug("params=%s", test_params)
