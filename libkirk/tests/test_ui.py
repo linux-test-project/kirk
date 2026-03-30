@@ -181,10 +181,12 @@ class TestSimpleUserInterface:
         results = self._make_results(passed=1)
         await ui.test_completed(results)
 
-        while "tainted" not in capsys.readouterr().out:
-            await asyncio.sleep(1e-3)
-
+        # wait for events to process
+        await asyncio.sleep(0.05)
         await libkirk.events.stop()
+
+        out, _ = capsys.readouterr()
+        assert "tainted" in out
 
     async def test_test_timed_out(self, ui, capsys):
         async def start():
@@ -222,10 +224,11 @@ class TestVerboseUserInterface:
 
         await ui.sut_stdout("mysut", "hello from sut")
 
-        while "hello from sut" not in capsys.readouterr().out:
-            await asyncio.sleep(1e-3)
-
+        await asyncio.sleep(0.05)
         await libkirk.events.stop()
+
+        out, _ = capsys.readouterr()
+        assert "hello from sut" in out
 
     async def test_kernel_tainted(self, ui, capsys):
         async def start():
@@ -235,10 +238,11 @@ class TestVerboseUserInterface:
 
         await ui.kernel_tainted("proprietary module")
 
-        while "Tainted kernel" not in capsys.readouterr().out:
-            await asyncio.sleep(1e-3)
-
+        await asyncio.sleep(0.05)
         await libkirk.events.stop()
+
+        out, _ = capsys.readouterr()
+        assert "Tainted kernel" in out
 
     async def test_test_timed_out(self, ui, capsys):
         async def start():
@@ -262,7 +266,8 @@ class TestVerboseUserInterface:
         )
         await ui.test_completed(results)
 
-        while "timed out" not in capsys.readouterr().out:
-            await asyncio.sleep(1e-3)
-
+        await asyncio.sleep(0.05)
         await libkirk.events.stop()
+
+        out, _ = capsys.readouterr()
+        assert "timed out" in out

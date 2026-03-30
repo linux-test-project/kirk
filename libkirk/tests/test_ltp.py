@@ -234,3 +234,102 @@ class TestLTPFramework:
         assert result.test == test
         assert result.return_code == 32
         assert result.stdout == "mydata"
+
+    async def test_read_result_warnings(self, framework):
+        """
+        Test read_result method when test has warnings.
+        """
+        test = Test(name="test", cmd="echo")
+        result = await framework.read_result(test, "", 4, 0.1)
+        assert result.warnings == 1
+
+    async def test_read_result_with_summary(self, framework):
+        """
+        Test read_result method when stdout contains Summary block.
+        """
+        stdout = (
+            "some output\n"
+            "Summary:\n"
+            "passed   3\n"
+            "failed   1\n"
+            "broken   0\n"
+            "skipped  2\n"
+            "warnings 1\n"
+        )
+        test = Test(name="test", cmd="echo")
+        result = await framework.read_result(test, stdout, 0, 0.5)
+        assert result.passed == 3
+        assert result.failed == 1
+        assert result.broken == 0
+        assert result.skipped == 2
+        assert result.warnings == 1
+
+    async def test_read_result_tpass_markers(self, framework):
+        """
+        Test read_result when stdout has TPASS/TFAIL markers but no summary.
+        """
+        stdout = "test 1 TPASS: ok\ntest 2 TPASS: ok\ntest 3 TFAIL: bad\n"
+        test = Test(name="test", cmd="echo")
+        result = await framework.read_result(test, stdout, 1, 0.1)
+        assert result.passed == 2
+        assert result.failed == 1
+
+    async def test_get_suites_errors(self, sut):
+        """
+        Test get_suites with invalid inputs.
+        """
+        framework = LTPFramework()
+
+        with pytest.raises(ValueError):
+            await framework.get_suites(None)
+
+    async def test_find_command_errors(self, sut):
+        """
+        Test find_command with invalid inputs.
+        """
+        framework = LTPFramework()
+
+        with pytest.raises(ValueError):
+            await framework.find_command(None, "cmd")
+
+        with pytest.raises(ValueError):
+            await framework.find_command(sut, "")
+
+    async def test_find_suite_errors(self, sut):
+        """
+        Test find_suite with invalid inputs.
+        """
+        framework = LTPFramework()
+
+        with pytest.raises(ValueError):
+            await framework.find_suite(None, "suite")
+
+        with pytest.raises(ValueError):
+            await framework.find_suite(sut, "")
+
+    async def test_find_suite_nonexistent(self, sut):
+        """
+        Test find_suite with a nonexistent suite name.
+        """
+        from libkirk.errors import FrameworkError
+
+        framework = LTPFramework()
+        with pytest.raises(FrameworkError):
+            await framework.find_suite(sut, "nonexistent_suite_xyz")
+
+    async def test_timeout_mul_from_env(self, sut, monkeypatch, tmpdir):
+        """
+        Test that LTP_TIMEOUT_MUL from env is used.
+        """
+        monkeypatch.setenv("LTP_TIMEOUT_MUL", "2.5")
+        framework = LTPFramework()
+        assert framework._env["LTP_TIMEOUT_MUL"] == "2.5"
+
+    async def test_read_path_without_path_env(self, sut, monkeypatch):
+        """
+        Test _read_path when PATH is not in self._env.
+        """
+        framework = LTPFramework()
+        framework._env.pop("PATH", None)
+        env = await framework._read_path(sut)
+        assert "PATH" in env
