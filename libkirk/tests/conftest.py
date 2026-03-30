@@ -41,6 +41,15 @@ def _discover_plugins():
     libkirk.sut.discover(os.path.join(currdir, ".."), extend=False)
 
 
+@pytest.fixture(autouse=True, scope="function")
+def _reset_events():
+    """
+    Reset global events between tests to prevent event handler leakage.
+    """
+    yield
+    libkirk.events.reset()
+
+
 @pytest.fixture
 def ltpdir(tmpdir):
     """
