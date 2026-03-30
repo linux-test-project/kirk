@@ -54,12 +54,19 @@ async def read_monitor(tmpdir):
     fpath = tmpdir / MONITOR_FILE
 
     async def _read():
-        async with AsyncFile(fpath, "r") as fdata:
-            data = None
-            while not data:
+        data = None
+        while not data:
+            async with AsyncFile(fpath, "r") as fdata:
                 data = await fdata.readline()
 
-            return data
+            if data:
+                try:
+                    json.loads(data)
+                except json.JSONDecodeError:
+                    data = None
+                    await asyncio.sleep(0.01)
+
+        return data
 
     async def _wrap(position, msg):
         for _ in range(0, position - 1):
@@ -83,12 +90,11 @@ async def test_single_write(read_monitor):
         await read_monitor(1, msg)
 
 
-@pytest.mark.xfail(reason="This test passes if run alone")
 async def test_override_events(tmpdir, read_monitor):
     """
     Test if we are correctly writing data inside monitor file.
     """
-    await libkirk.events.fire("session_started", str(tmpdir))
+    await libkirk.events.fire("session_started", [], str(tmpdir))
     await libkirk.events.fire("kernel_panic")
     await libkirk.events.fire("session_stopped")
 
