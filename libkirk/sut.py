@@ -15,11 +15,13 @@ from typing import (
     Tuple,
 )
 
+import libkirk
 import libkirk.plugin
 from libkirk.com import (
     ComChannel,
     IOBuffer,
 )
+from libkirk.data import Test
 from libkirk.errors import SUTError
 from libkirk.plugin import Plugin
 
@@ -398,6 +400,36 @@ class SUT(Plugin):
             await _set_value(times, f"{path}/times")
             await _set_value(interval, f"{path}/interval")
             await _set_value(prob, f"{path}/probability")
+
+
+class RedirectTestStdout(IOBuffer):
+    """
+    Redirect test stdout data to UI events and save it.
+    """
+
+    def __init__(self, test: Test) -> None:
+        self.stdout = ""
+        self._test = test
+
+    async def write(self, data: str) -> None:
+        await libkirk.events.fire("test_stdout", self._test, data)
+        self.stdout += data
+
+
+class RedirectSUTStdout(IOBuffer):
+    """
+    Redirect SUT stdout data to UI events.
+    """
+
+    def __init__(self, sut: SUT, is_cmd: bool = False) -> None:
+        self._sut = sut
+        self._is_cmd = is_cmd
+
+    async def write(self, data: str) -> None:
+        if self._is_cmd:
+            await libkirk.events.fire("run_cmd_stdout", data)
+        else:
+            await libkirk.events.fire("sut_stdout", self._sut.name, data)
 
 
 def discover(path: str, extend: bool = True) -> None:

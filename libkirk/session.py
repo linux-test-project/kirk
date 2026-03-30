@@ -32,25 +32,9 @@ from libkirk.results import TestResults
 from libkirk.scheduler import SuiteScheduler
 from libkirk.sut import (
     SUT,
-    IOBuffer,
+    RedirectSUTStdout,
 )
 from libkirk.tempfile import TempDir
-
-
-class RedirectSUTStdout(IOBuffer):
-    """
-    Redirect stdout data to UI events.
-    """
-
-    def __init__(self, sut: SUT, is_cmd: bool) -> None:
-        self._sut = sut
-        self._is_cmd = is_cmd
-
-    async def write(self, data: str) -> None:
-        if self._is_cmd:
-            await libkirk.events.fire("run_cmd_stdout", data)
-        else:
-            await libkirk.events.fire("sut_stdout", self._sut.name, data)
 
 
 class Session:

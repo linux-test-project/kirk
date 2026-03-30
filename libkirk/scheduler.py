@@ -41,7 +41,8 @@ from libkirk.results import (
 )
 from libkirk.sut import (
     SUT,
-    IOBuffer,
+    RedirectSUTStdout,
+    RedirectTestStdout,
 )
 
 
@@ -83,32 +84,6 @@ class Scheduler:
         :type jobs: list(object)
         """
         raise NotImplementedError()
-
-
-class RedirectTestStdout(IOBuffer):
-    """
-    Redirect test stdout data to UI events and save it.
-    """
-
-    def __init__(self, test: Test) -> None:
-        self.stdout = ""
-        self._test = test
-
-    async def write(self, data: str) -> None:
-        await libkirk.events.fire("test_stdout", self._test, data)
-        self.stdout += data
-
-
-class RedirectSUTStdout(IOBuffer):
-    """
-    Redirect SUT stdout data to UI events.
-    """
-
-    def __init__(self, sut: SUT) -> None:
-        self._sut = sut
-
-    async def write(self, data: str) -> None:
-        await libkirk.events.fire("sut_stdout", self._sut.name, data)
 
 
 class TestScheduler(Scheduler):
