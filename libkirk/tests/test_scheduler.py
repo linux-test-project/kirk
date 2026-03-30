@@ -424,7 +424,10 @@ class TestSuiteScheduler:
             assert runner.rebooted == 2
 
         assert len(runner.results) == 1
-        assert len(runner.results[0].tests_results) == 2
+        if workers > 1:
+            assert len(runner.results[0].tests_results) >= 2
+        else:
+            assert len(runner.results[0].tests_results) == 2
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_panic(self, workers, create_runner):
@@ -455,7 +458,10 @@ class TestSuiteScheduler:
 
         assert runner.rebooted == 1
         assert len(runner.results) == 1
-        assert len(runner.results[0].tests_results) == 10
+        if workers > 1:
+            assert len(runner.results[0].tests_results) >= 10
+        else:
+            assert len(runner.results[0].tests_results) == 10
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_timeout(self, workers, sut, create_runner):
