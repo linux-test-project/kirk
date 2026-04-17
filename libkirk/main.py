@@ -434,6 +434,9 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
     generic_opts.add_argument(
         "--plugins", "-P", type=str, help="Location of custom plugins"
     )
+    generic_opts.add_argument(
+        "--mcp", action="store_true", help="Start MCP server (stdio transport)"
+    )
 
     conf_opts = parser.add_argument_group("Configuration options")
     conf_opts.add_argument(
@@ -552,6 +555,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
 
     if args.run_pattern and not args.run_suite:
         parser.error("--run-pattern must be used with --run-suite")
+
+    if args.mcp:
+        from libkirk.mcp_server import start_server
+
+        start_server()
+        return
 
     if not args.run_suite and not args.run_command:
         parser.error("--run-suite/--run-command are required")

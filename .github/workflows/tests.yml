@@ -30,7 +30,7 @@ jobs:
       run: python3 -m build
 
     - name: Test with pytest
-      run: pytest -m "not qemu and not ssh and not ltx"
+      run: pytest -m "not qemu and not ssh and not ltx and not mcp"
 
   python3:
     runs-on: ubuntu-22.04
@@ -68,4 +68,36 @@ jobs:
       run: python3 -m build
 
     - name: Test with pytest
-      run: python3 -m pytest -m "not qemu and not ssh and not ltx"
+      run: python3 -m pytest -m "not qemu and not ssh and not ltx and not mcp"
+
+  python3-mcp:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [
+          "3.10",
+          "3.11",
+          "3.12",
+          "3.13",
+          "3.14"
+        ]
+
+    steps:
+    - name: Show OS
+      run: cat /etc/os-release
+
+    - name: Git checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: python3 -m pip install .[testing,mcp]
+
+    - name: Test with pytest
+      run: python3 -m pytest -m "mcp"
