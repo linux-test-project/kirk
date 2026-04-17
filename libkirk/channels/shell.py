@@ -7,7 +7,6 @@
 """
 
 import asyncio
-import contextlib
 import logging
 import os
 import signal
@@ -66,24 +65,28 @@ class ShellComChannel(ComChannel):
         """
         Return True if process is alive and running.
         """
-        with contextlib.suppress(asyncio.TimeoutError):
-            returncode = await asyncio.wait_for(proc.wait(), 1e-6)
-            if returncode is not None:
-                return False
-
-        return True
+        # Yield to the event loop so pending callbacks (including
+        # cancellation from asyncio.wait_for) are processed.
+        await asyncio.sleep(0)
+        return proc.returncode is None
 
     async def _kill_process(self, proc: Process) -> None:
         """
-        Kill a process and all its subprocesses.
+        Kill a process and all processes in its session.
         """
         self._logger.info("Kill process %d", proc.pid)
 
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except ProcessLookupError:
-            # process has been killed already
-            pass
+        # start_new_session=True makes proc.pid the session leader,
+        # so SID == proc.pid. Killing by session ensures background
+        # processes that changed their process group are also killed.
+        sid = proc.pid
+        for entry in os.listdir("/proc"):
+            try:
+                pid = int(entry)
+                if os.getsid(pid) == sid:
+                    os.kill(pid, signal.SIGKILL)
+            except (ValueError, ProcessLookupError, PermissionError, OSError):
+                pass
 
     async def ping(self) -> float:
         if not await self.active():
@@ -175,6 +178,9 @@ class ShellComChannel(ComChannel):
 
             while True:
                 line = await proc.stdout.read(self.BUFFSIZE)
+                if not line:
+                    break
+
                 sline = line.decode(encoding="utf-8", errors="ignore")
 
                 if iobuffer:
