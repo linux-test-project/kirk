@@ -370,18 +370,24 @@ class SUT(Plugin):
 
         return True
 
-    async def setup_fault_injection(self, prob: int) -> None:
+    async def setup_fault_injection(
+        self,
+        prob: int,
+        interval_override: int = 100,
+    ) -> None:
         """
         Configure kernel fault injection. When prob is zero, the fault
         injection is set to default values.
 
-        :param prob: Fault probabilty in between 0-100.
+        :param prob: Fault probability in between 0-100.
         :type prob: int
+        :param interval_override: Fault interval.
+        :type interval_override: int
         """
         if not await self.is_running():
             raise SUTError("SUT is not running")
 
-        interval = 1 if prob == 0 else 100
+        interval = 1 if prob == 0 else interval_override
         times = 1 if prob == 0 else -1
 
         async def _set_value(value: int, path: str) -> None:
