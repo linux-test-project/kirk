@@ -110,6 +110,12 @@ class TestHelpers:
 
     def test_finjection_config_negative(self):
         assert libkirk.main._finjection_config("-5") == 0
+    
+    def test_finterval_config_empty(self):
+        assert libkirk.main._finterval_config("") == 100
+
+    def test_finterval_config_negative(self):
+        assert libkirk.main._finterval_config("-5") == 100
 
     def test_get_skip_tests_empty(self):
         assert libkirk.main._get_skip_tests("", "") == ""

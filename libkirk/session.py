@@ -403,7 +403,11 @@ class Session:
         except asyncio.TimeoutError:
             await self._scheduler.stop()
 
-    async def _apply_fault_injection(self, fault_prob: int) -> None:
+    async def _apply_fault_injection(
+        self,
+        fault_prob: int,
+        fault_interval: int = 100,
+    ) -> None:
         """
         Check if we can apply fault injection configuration
         and eventually does it.
@@ -415,7 +419,7 @@ class Session:
                 warn_msg = "Run as root to use kernel fault injection"
         else:
             if await self._sut.is_fault_injection_enabled():
-                await self._sut.setup_fault_injection(fault_prob)
+                await self._sut.setup_fault_injection(fault_prob, fault_interval)
             else:
                 if fault_prob != 0:
                     warn_msg = "Fault injection is not enabled. Running tests normally"
@@ -436,6 +440,7 @@ class Session:
         randomize: bool = False,
         runtime: float = 0,
         fault_prob: int = 0,
+        fault_interval: int = 100,
     ) -> None:
         """
         Run a new session and store results inside a JSON file.
@@ -460,6 +465,8 @@ class Session:
         :type runtime: float
         :param fault_prob: Fault injection probability.
         :type fault_prob: int
+        :param fault_interval: Fault injection interval.
+        :type fault_interval: int
         """
         async with self._run_lock:
             await libkirk.events.fire("session_started", suites, self._tmpdir.abspath)
@@ -477,7 +484,7 @@ class Session:
                     await self._exec_command(command)
 
                 if fault_prob != 0:
-                    await self._apply_fault_injection(fault_prob)
+                    await self._apply_fault_injection(fault_prob, fault_interval)
 
                 if suites:
                     suites_obj = await self._read_suites(

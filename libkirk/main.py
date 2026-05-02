@@ -199,6 +199,21 @@ def _finjection_config(value: str) -> int:
     return max(0, min(100, ret))
 
 
+def _finterval_config(value: str) -> int:
+    """
+    Return interval of fault injection.
+    """
+    if not value:
+        return 100
+
+    try:
+        ret = int(value)
+    except TypeError as err:
+        raise argparse.ArgumentTypeError("Invalid number") from err
+
+    return 100 if ret < 0 else ret
+
+
 def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     """
     Return the skipped tests regexp.
@@ -361,6 +376,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
                 randomize=args.randomize,
                 runtime=args.runtime,
                 fault_prob=args.fault_injection,
+                fault_interval=args.fault_interval,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -517,6 +533,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         type=_finjection_config,
         default=0,
         help="Probability of failure (0-100)",
+    )
+    exec_opts.add_argument(
+        "--fault-interval",
+        type=_finterval_config,
+        default=100,
+        help="Fault injection interval (default: 100)",
     )
     exec_opts.add_argument(
         "--optimize-sut",
