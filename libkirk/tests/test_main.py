@@ -110,6 +110,16 @@ class TestHelpers:
 
     def test_finjection_config_negative(self):
         assert libkirk.main._finjection_config("-5") == 0
+    
+    def test_finterval_config_empty(self):
+        assert libkirk.main._finterval_config("") == 1
+
+    def test_finterval_config_negative(self):
+        assert libkirk.main._finterval_config("-5") == 1
+
+    @pytest.mark.parametrize("val", ("1", "20", "100", "2000"))
+    def test_finterval_config(self, val):
+        assert libkirk.main._finterval_config(val) == int(val)
 
     def test_get_skip_tests_empty(self):
         assert libkirk.main._get_skip_tests("", "") == ""
