@@ -60,6 +60,8 @@ class ConsoleUserInterface:
             "session_warning": self.session_warning,
             "session_error": self.session_error,
             "session_completed": self.session_completed,
+            "session_dry_run": self.session_dry_run,
+            "session_dry_run_command": self.session_dry_run_command,
             "internal_error": self.internal_error,
         }
 
@@ -301,6 +303,36 @@ class ConsoleUserInterface:
             msg = [f"    • {t.test.name}" for t in t_failed]
             await self._print("\n".join(msg))
             await self._print("")
+
+    async def session_dry_run_command(self, command: str) -> None:
+        await self._print("Command:", color=self.CYAN)
+        await self._print(f"    {command}\n")
+
+    async def session_dry_run(self, suites: List[Suite]) -> None:
+        total = 0
+        for suite in suites:
+            parallel = [t.name for t in suite.tests if t.parallelizable]
+            serial = [t.name for t in suite.tests if not t.parallelizable]
+            total += len(suite.tests)
+
+            await self._print_underline(f"Suite: {suite.name}")
+
+            await self._print("Parallel tests:", color=self.CYAN)
+            if parallel:
+                await self._print("\n".join(f"    {n}" for n in parallel))
+            else:
+                await self._print("    (none)")
+
+            await self._print("")
+            await self._print("Serial tests:", color=self.CYAN)
+            if serial:
+                await self._print("\n".join(f"    {n}" for n in serial))
+            else:
+                await self._print("    (none)")
+
+            await self._print("")
+
+        await self._print(f"Total tests: {total} (not executed)")
 
     async def internal_error(self, exc: BaseException, func_name: str) -> None:
         await self._print(
