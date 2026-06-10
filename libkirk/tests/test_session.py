@@ -232,6 +232,19 @@ class _TestSession:
         report_data = await self.read_report(report)
         assert len(report_data["results"]) == 4
 
+    async def test_run_dry_run(self, tmpdir, session):
+        """
+        Test run method with dry_run: no tests are executed and no report
+        is generated.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01", "suite02"], report_path=report, dry_run=True
+        )
+
+        assert not os.path.exists(report)
+        assert session._results == []
+
     async def test_run_stop(self, session):
         """
         Test stop method during run. We are not going to generate any results

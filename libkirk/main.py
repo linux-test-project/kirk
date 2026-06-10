@@ -377,6 +377,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
                 runtime=args.runtime,
                 fault_prob=args.fault_injection,
                 fault_interval=args.fault_interval,
+                dry_run=args.dry_run,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -545,6 +546,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         "-O",
         action="store_true",
         help="Communicate with SUT using commands parallelization (default: false)",
+    )
+    exec_opts.add_argument(
+        "--dry-run",
+        "-D",
+        action="store_true",
+        help="Performs a dry run listing tests (no execution)",
     )
 
     # output arguments

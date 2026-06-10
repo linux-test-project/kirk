@@ -441,6 +441,7 @@ class Session:
         runtime: float = 0,
         fault_prob: int = 0,
         fault_interval: int = 1,
+        dry_run: bool = False,
     ) -> None:
         """
         Run a new session and store results inside a JSON file.
@@ -467,6 +468,8 @@ class Session:
         :type fault_prob: int
         :param fault_interval: Fault injection interval.
         :type fault_interval: int
+        :param dry_run: If True, list selected tests without executing them.
+        :type dry_run: bool
         """
         async with self._run_lock:
             await libkirk.events.fire("session_started", suites, self._tmpdir.abspath)
@@ -477,14 +480,20 @@ class Session:
                     "session_warning", "SUT doesn't support parallel execution"
                 )
 
+            if dry_run and command:
+                await libkirk.events.fire("session_dry_run_command", command)
+
             try:
-                await self._start_sut()
+                # SUT is only needed to read suites or to execute tests
+                if suites or not dry_run:
+                    await self._start_sut()
 
-                if command:
-                    await self._exec_command(command)
+                if not dry_run:
+                    if command:
+                        await self._exec_command(command)
 
-                if fault_prob != 0:
-                    await self._apply_fault_injection(fault_prob, fault_interval)
+                    if fault_prob != 0:
+                        await self._apply_fault_injection(fault_prob, fault_interval)
 
                 if suites:
                     suites_obj = await self._read_suites(
@@ -497,7 +506,10 @@ class Session:
                         for suite in suites_obj:
                             random.shuffle(suite.tests)
 
-                    await self._run_scheduler(suites_obj, runtime)
+                    if dry_run:
+                        await libkirk.events.fire("session_dry_run", suites_obj)
+                    else:
+                        await self._run_scheduler(suites_obj, runtime)
             except KirkException as err:
                 if not self._stop:
                     self._logger.exception(err)
@@ -506,7 +518,7 @@ class Session:
             finally:
                 try:
                     # configure fault injection to the original values
-                    if fault_prob != 0:
+                    if fault_prob != 0 and not dry_run:
                         await self._apply_fault_injection(0)
 
                     if self._results:
