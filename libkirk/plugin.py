@@ -102,7 +102,10 @@ def discover(mytype: type, folder: str) -> List[Plugin]:
             continue
 
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        try:
+            spec.loader.exec_module(module)
+        except (ImportError, Exception):
+            continue
 
         module_name = module.__name__
 
