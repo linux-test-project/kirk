@@ -75,6 +75,7 @@ def cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
         loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
     else:
         loop.run_until_complete(
+            # pyrefly: ignore[no-matching-overload]
             # pyrefly: ignore[bad-argument-type]
             asyncio.gather(*tasks, loop=loop, return_exceptions=True)
         )
