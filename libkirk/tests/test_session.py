@@ -13,6 +13,7 @@ import pytest
 from libkirk.ltp import LTPFramework
 from libkirk.com import ComChannel
 from libkirk.data import Test, Suite
+from libkirk.errors import CommunicationError
 from libkirk.results import TestResults
 from libkirk.session import Session
 from libkirk.tempfile import TempDir
@@ -231,6 +232,27 @@ class _TestSession:
 
         report_data = await self.read_report(report)
         assert len(report_data["results"]) == 4
+
+    async def test_run_report_abort(self, tmpdir, session):
+        """
+        Test that results collected before an abort mid-suite are still
+        persisted. The scheduler raises after having run and collected the
+        results, mimicking a SUT connection loss while scheduling.
+        """
+        real_schedule = session._scheduler.schedule
+
+        async def aborting_schedule(jobs):
+            await real_schedule(jobs)
+            raise CommunicationError("SUT connection dropped mid-suite")
+
+        session._scheduler.schedule = aborting_schedule
+
+        report = str(tmpdir / "report.json")
+        with pytest.raises(CommunicationError):
+            await session.run(suites=["suite01"], report_path=report)
+
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) == 2
 
     async def test_run_dry_run(self, tmpdir, session):
         """
