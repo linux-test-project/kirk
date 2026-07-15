@@ -87,7 +87,7 @@ class LTXComChannel(ComChannel):
             return
 
         if self._slots:
-            requests = []
+            requests: List[Request] = []
             for slot_id in self._slots:
                 requests.append(Requests.kill(slot_id))
 
