@@ -10,3 +10,4 @@ htmlcov
 .venv*
 *.qcow2
 .vscode
+.mcp.json
