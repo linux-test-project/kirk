@@ -22,11 +22,15 @@ To use kirk via git repository:
     kirk --help
 
 kirk is also present in `pypi <https://pypi.org/project/kirk>`_ and it can be
-installed via ``pip`` command:
+installed via ``pip`` or ``uv``:
 
 .. code-block:: bash
 
    pip install --user kirk
+
+   uvx --with kirk kirk
+   # with optional dependencies:
+   uvx --with kirk[ssh,ltx] kirk
 
 Some basic commands are the following:
 
