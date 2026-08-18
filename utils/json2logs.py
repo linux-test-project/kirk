@@ -43,9 +43,10 @@ def process_kirk_results(resfile, sumfile, runfile, failfile):
 
         run_logs.append(test_log)
 
-        if status not in ("pass", "conf"):
+        if status in ("fail", "brok"):
             fail_logs.append(test_log)
-            with open(f"{fqn}.fail.log", "w") as f:
+            safe_fqn = fqn.replace("/", "_")
+            with open(f"{safe_fqn}.fail.log", "w") as f:
                 f.write(test_log)
 
     env = data.get("environment", {})
