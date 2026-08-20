@@ -25,10 +25,7 @@ jobs:
       run: zypper install -y python3-pip make
 
     - name: Install dependencies
-      run: pip install pytest pytest-asyncio build
-
-    - name: Build package
-      run: python3 -m build
+      run: pip install pytest pytest-asyncio
 
     - name: Test with pytest
       run: pytest -m "not qemu and not ssh and not ltx"
