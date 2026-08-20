@@ -8,7 +8,8 @@ jobs:
     runs-on: ubuntu-22.04
 
     container:
-      image: opensuse/leap:latest
+      # Leap 15.3 is the last release shipping python3 3.6
+      image: opensuse/leap:15.3
 
     steps:
     - name: Show OS
