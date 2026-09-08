@@ -331,6 +331,188 @@ class TestTestScheduler:
             assert res.return_code == -1
             assert res.stdout == ""
 
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_reboot_unsupported(self, workers, create_runner):
+        """
+        Test that reboot tests on an unsupported SUT channel are skipped with CONF.
+        """
+        test = Test(name="reboot01", cmd="echo", reboots_sut=True)
+        runner = create_runner(max_workers=workers)
+
+        await runner.schedule([test])
+        assert len(runner.results) == 1
+        res = runner.results[0]
+        assert isinstance(res, TestResults)
+        assert res.status == ResultStatus.CONF
+        assert res.skipped == 1
+        assert res.passed == 0
+        assert res.failed == 0
+        assert res.return_code == 32
+        assert "does not support reboot" in res.stdout
+
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_reboot_success(self, workers):
+        """
+        Test two-phase execution of a reboot test on a supported SUT.
+        """
+        commands_run = []
+        restarted = []
+
+        class MockRebootSUT(MockSUT):
+            @property
+            def supports_reboot(self) -> bool:
+                return True
+
+            async def restart(self, iobuffer=None, retries=150, delay=2.0) -> None:
+                restarted.append(True)
+
+        sut = MockRebootSUT()
+        sut.setup(com="shell")
+        await sut.start()
+
+        orig_run_command = sut.get_channel().run_command
+
+        # pyrefly: ignore[bad-assignment]
+        async def mock_run_cmd(command, cwd=None, env=None, iobuffer=None):
+            commands_run.append(command)
+            if "-P 1" in command:
+                return {
+                    "command": command,
+                    "returncode": 0,
+                    "stdout": "reboot01 1 TINFO: rebooting\n",
+                    "exec_time": 0.05,
+                }
+            elif "-P 2" in command:
+                return {
+                    "command": command,
+                    "returncode": 0,
+                    "stdout": "reboot01 1 TPASS: rebooted successfully\n",
+                    "exec_time": 0.05,
+                }
+            return await orig_run_command(command, cwd=cwd, env=env, iobuffer=iobuffer)
+
+        sut.get_channel().run_command = mock_run_cmd
+
+        runner = MockTestScheduler(
+            sut=sut,
+            framework=LTPFramework(),
+            timeout=3600.0,
+            max_workers=workers,
+        )
+
+        test = Test(name="reboot01", cmd="reboot01", reboots_sut=True)
+        await runner.schedule([test])
+
+        assert len(runner.results) == 1
+        res = runner.results[0]
+        assert isinstance(res, TestResults)
+        assert res.passed == 1
+        assert res.failed == 0
+        assert res.status == ResultStatus.PASS
+        assert len(restarted) == 1
+        assert any("-P 1" in c for c in commands_run)
+        assert any("-P 2" in c for c in commands_run)
+
+        await sut.stop()
+
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_reboot_phase1_failure(self, workers):
+        """
+        Test that reboot test failing in phase 1 does not restart SUT or run phase 2.
+        """
+        commands_run = []
+        restarted = []
+
+        class MockRebootSUT(MockSUT):
+            @property
+            def supports_reboot(self) -> bool:
+                return True
+
+            async def restart(self, iobuffer=None, retries=150, delay=2.0) -> None:
+                restarted.append(True)
+
+        sut = MockRebootSUT()
+        sut.setup(com="shell")
+        await sut.start()
+
+        # pyrefly: ignore[bad-assignment]
+        async def mock_run_cmd(command, cwd=None, env=None, iobuffer=None):
+            commands_run.append(command)
+            if "-P 1" in command:
+                return {
+                    "command": command,
+                    "returncode": 1,
+                    "stdout": "reboot01 1 TFAIL: setup failed\n",
+                    "exec_time": 0.05,
+                }
+            return {"command": command, "returncode": 0, "stdout": "", "exec_time": 0.05}
+
+        sut.get_channel().run_command = mock_run_cmd
+
+        runner = MockTestScheduler(
+            sut=sut,
+            framework=LTPFramework(),
+            timeout=3600.0,
+            max_workers=workers,
+        )
+
+        test = Test(name="reboot01", cmd="reboot01", reboots_sut=True)
+        await runner.schedule([test])
+
+        assert len(runner.results) == 1
+        res = runner.results[0]
+        assert isinstance(res, TestResults)
+        assert res.failed == 1
+        assert res.passed == 0
+        assert len(restarted) == 0
+        assert not any("-P 2" in c for c in commands_run)
+
+        await sut.stop()
+
+    @pytest.mark.parametrize("workers", [1, 10])
+    async def test_schedule_reboot_reconnect_failure(self, workers):
+        """
+        Test that a failure to reconnect to SUT after reboot raises KernelTimeoutError.
+        """
+        from libkirk.errors import CommunicationError
+
+        class MockRebootSUT(MockSUT):
+            @property
+            def supports_reboot(self) -> bool:
+                return True
+
+            async def restart(self, iobuffer=None, retries=150, delay=2.0) -> None:
+                raise CommunicationError("SUT unreachable")
+
+        sut = MockRebootSUT()
+        sut.setup(com="shell")
+        await sut.start()
+
+        # pyrefly: ignore[bad-assignment]
+        async def mock_run_cmd(command, cwd=None, env=None, iobuffer=None):
+            return {"command": command, "returncode": 0, "stdout": "", "exec_time": 0.05}
+
+        sut.get_channel().run_command = mock_run_cmd
+
+        runner = MockTestScheduler(
+            sut=sut,
+            framework=LTPFramework(),
+            timeout=3600.0,
+            max_workers=workers,
+        )
+
+        test = Test(name="reboot01", cmd="reboot01", reboots_sut=True)
+        with pytest.raises(KernelTimeoutError):
+            await runner.schedule([test])
+
+        assert len(runner.results) == 1
+        res = runner.results[0]
+        assert isinstance(res, TestResults)
+        assert res.failed == 1
+        assert "Failed to reconnect to SUT after reboot" in res.stdout
+
+        await sut.stop()
+
 
 class TestSuiteScheduler:
     """

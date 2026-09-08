@@ -66,6 +66,7 @@ class LTPFramework(Framework):
             "format_device",
             "save_restore",
             "max_runtime",
+            "reboots_sut",
         }
     )
 
@@ -143,6 +144,7 @@ class LTPFramework(Framework):
         self._root = os.environ.get("LTPROOT", "/opt/ltp")
         self._tc_folder = os.path.join(self._root, "testcases", "bin")
         self._env: Dict[str, str] = {}
+        self._metadata: Optional[dict] = None
 
         self._update_env_vars(timeout)
 
@@ -255,6 +257,7 @@ class LTPFramework(Framework):
 
             test_name, test_cmd, *test_args = parts
             parallelizable = False
+            reboots_sut = False
 
             if metadata_tests is not None:
                 test_params = metadata_tests.get(test_name)
@@ -269,6 +272,11 @@ class LTPFramework(Framework):
                         continue
 
                     parallelizable = not (self.PARALLEL_BLACKLIST & test_params.keys())
+                    reboots_sut = bool(
+                        test_params.get("reboots_sut")
+                        and test_params.get("reboots_sut")
+                        not in ("0", 0, "false", "False")
+                    )
 
             self._logger.info(
                 "Test '%s' is%s parallelizable",
@@ -283,6 +291,7 @@ class LTPFramework(Framework):
                 cwd=self._tc_folder,
                 env=env,
                 parallelizable=parallelizable,
+                reboots_sut=reboots_sut,
             )
             tests.append(test)
 
@@ -319,6 +328,23 @@ class LTPFramework(Framework):
 
         return [line for line in stdout.split("\n") if line]
 
+    async def _get_metadata(self, channel: ComChannel) -> Optional[dict]:
+        """
+        Fetch and parse metadata/ltp.json from SUT, caching the result.
+        """
+        if self._metadata is None:
+            metadata_path = os.path.join(self._root, "metadata", "ltp.json")
+            ret = await channel.run_command(f"test -f {metadata_path}")
+            if ret and ret["returncode"] == 0:
+                try:
+                    self._metadata = json.loads(await channel.fetch_file(metadata_path))
+                except Exception:
+                    self._metadata = {}
+            else:
+                self._metadata = {}
+
+        return self._metadata or None
+
     async def find_command(self, channel: ComChannel, command: str) -> Test:
         if not channel:
             raise ValueError("SUT is None")
@@ -328,11 +354,22 @@ class LTPFramework(Framework):
         cmd_args = self._get_cmd_args(command)
         cwd = None
         env = None
+        reboots_sut = False
 
         ret = await channel.run_command(f"test -d {self._tc_folder}")
         if ret and ret["returncode"] == 0:
             cwd = self._tc_folder
             env = await self._read_path(channel)
+
+        metadata_dict = await self._get_metadata(channel)
+        if metadata_dict:
+            tests = metadata_dict.get("tests", {})
+            test_params = tests.get(cmd_args[0])
+            if test_params:
+                reboots_sut = bool(
+                    test_params.get("reboots_sut")
+                    and test_params.get("reboots_sut") not in ("0", 0, "false", "False")
+                )
 
         return Test(
             name=cmd_args[0],
@@ -341,6 +378,7 @@ class LTPFramework(Framework):
             cwd=cwd,
             env=env,
             parallelizable=False,
+            reboots_sut=reboots_sut,
         )
 
     async def find_suite(self, channel: ComChannel, name: str) -> Suite:
@@ -362,11 +400,7 @@ class LTPFramework(Framework):
             encoding="utf-8", errors="ignore"
         )
 
-        metadata_dict = None
-        metadata_path = os.path.join(self._root, "metadata", "ltp.json")
-        ret = await channel.run_command(f"test -f {metadata_path}")
-        if ret and ret["returncode"] == 0:
-            metadata_dict = json.loads(await channel.fetch_file(metadata_path))
+        metadata_dict = await self._get_metadata(channel)
 
         return await self._read_runtest(channel, name, runtest_str, metadata_dict)
 

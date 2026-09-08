@@ -26,6 +26,7 @@ class Test:
         env: Optional[Dict[str, str]] = None,
         args: Optional[List[str]] = None,
         parallelizable: bool = False,
+        reboots_sut: bool = False,
     ) -> None:
         """
         :param name: Name of the test.
@@ -40,6 +41,8 @@ class Test:
         :type args: list(str)
         :param parallelizable: If True, test can be run in parallel.
         :type parallelizable: bool
+        :param reboots_sut: If True, test reboots the SUT.
+        :type reboots_sut: bool
         """
         if not name:
             raise ValueError("Test must have a name")
@@ -52,7 +55,8 @@ class Test:
         self._cwd = cwd
         self._args = args if args else []
         self._env = env if env else {}
-        self._parallelizable = parallelizable
+        self._reboots_sut = reboots_sut
+        self._parallelizable = False if reboots_sut else parallelizable
 
     def __repr__(self) -> str:
         return (
@@ -61,7 +65,8 @@ class Test:
             f"arguments: {self._args}, "
             f"cwd: '{self._cwd}', "
             f"environ: '{self._env}', "
-            f"parallelizable: {self._parallelizable}"
+            f"parallelizable: {self._parallelizable}, "
+            f"reboots_sut: {self._reboots_sut}"
         )
 
     @property
@@ -95,6 +100,14 @@ class Test:
         :rtype: bool
         """
         return self._parallelizable
+
+    @property
+    def reboots_sut(self) -> bool:
+        """
+        :return: If True, test reboots the SUT.
+        :rtype: bool
+        """
+        return self._reboots_sut
 
     @property
     def cwd(self) -> Optional[str]:
@@ -131,7 +144,8 @@ class Test:
         """
         :return: Force test to be parallelizable.
         """
-        self._parallelizable = True
+        if not self._reboots_sut:
+            self._parallelizable = True
 
 
 class Suite:

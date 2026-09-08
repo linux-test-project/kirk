@@ -220,6 +220,10 @@ class QemuComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return False
 
+    @property
+    def supports_reboot(self) -> bool:
+        return True
+
     async def active(self) -> bool:
         if self._proc is None:
             return False
