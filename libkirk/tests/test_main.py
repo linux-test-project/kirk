@@ -121,6 +121,33 @@ class TestHelpers:
     def test_finterval_config(self, val):
         assert libkirk.main._finterval_config(val) == int(val)
 
+    @pytest.mark.parametrize(
+        "val,expected",
+        [
+            ("1/4", (1, 4)),
+            ("3/3", (3, 3)),
+            (" 2 / 5 ", (2, 5)),
+            ("  1   /   10  ", (1, 10)),
+            ("\t4 / 8\n", (4, 8)),
+        ],
+    )
+    def test_shard_config_valid(self, val, expected):
+        assert libkirk.main._shard_config(val) == expected
+
+    def test_shard_config_empty(self):
+        with pytest.raises(argparse.ArgumentTypeError):
+            libkirk.main._shard_config("")
+
+    @pytest.mark.parametrize("val", ("1", "1-4", "abc", "1/2/3", "1/", " ", "  \t  "))
+    def test_shard_config_invalid_format(self, val):
+        with pytest.raises(argparse.ArgumentTypeError):
+            libkirk.main._shard_config(val)
+
+    @pytest.mark.parametrize("val", ("0/4", "5/4", "1/0", "0/0"))
+    def test_shard_config_out_of_bounds(self, val):
+        with pytest.raises(argparse.ArgumentTypeError):
+            libkirk.main._shard_config(val)
+
     def test_get_skip_tests_empty(self):
         assert libkirk.main._get_skip_tests("", "") == ""
 
@@ -708,3 +735,44 @@ class TestMain:
 
         names = [com.name for com in libkirk.com.get_channels()]
         assert "myshell" in names
+
+    def test_shard(self, tmpdir):
+        """
+        Test --shard option.
+        """
+        temp1 = tmpdir.mkdir("temp1")
+        cmd_args1 = [
+            "--tmp-dir",
+            str(temp1),
+            "--run-suite",
+            "suite01",
+            "--shard",
+            "1/2",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args1)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        report1 = self.read_report(temp1)
+        assert len(report1["results"]) == 1
+
+        temp2 = tmpdir.mkdir("temp2")
+        cmd_args2 = [
+            "--tmp-dir",
+            str(temp2),
+            "--run-suite",
+            "suite01",
+            "--shard",
+            "2/2",
+        ]
+
+        with pytest.raises(SystemExit) as excinfo:
+            libkirk.main.run(cmd_args=cmd_args2)
+
+        assert excinfo.value.code == libkirk.main.RC_OK
+
+        report2 = self.read_report(temp2)
+        assert len(report2["results"]) == 1
+        assert report1["results"][0]["test_fqn"] != report2["results"][0]["test_fqn"]

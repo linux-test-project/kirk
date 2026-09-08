@@ -56,6 +56,12 @@ Run a custom command before executing the test suite:
     kirk --run-command ./setup_sut.sh \
          --run-suite syscalls
 
+Run a subset of tests using sharding (e.g., shard 1 of 4):
+
+.. code-block:: bash
+
+    kirk --run-suite syscalls --shard 1/4
+
 Optional features
 -----------------
 
