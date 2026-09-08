@@ -382,3 +382,76 @@ class _TestSession:
 
         report_data = await self.read_report(report)
         assert len(report_data["results"]) >= 0.5
+
+    def test_apply_sharding(self):
+        """
+        Test Session._apply_sharding round-robin algorithm.
+        """
+        tests = [Test(name=f"test{i}", cmd="echo") for i in range(10)]
+
+        s1 = [Suite("mysuite", list(tests))]
+        Session._apply_sharding(s1, (1, 3))
+        assert [t.name for t in s1[0].tests] == ["test0", "test3", "test6", "test9"]
+
+        s2 = [Suite("mysuite", list(tests))]
+        Session._apply_sharding(s2, (2, 3))
+        assert [t.name for t in s2[0].tests] == ["test1", "test4", "test7"]
+
+        s3 = [Suite("mysuite", list(tests))]
+        Session._apply_sharding(s3, (3, 3))
+        assert [t.name for t in s3[0].tests] == ["test2", "test5", "test8"]
+
+        # None shard should not modify tests
+        s_none = [Suite("mysuite", list(tests))]
+        Session._apply_sharding(s_none, None)
+        assert len(s_none[0].tests) == 10
+
+    @pytest.mark.parametrize(
+        "shard,expected_test",
+        [
+            ((1, 2), "test01"),
+            ((2, 2), "test02"),
+        ],
+    )
+    async def test_run_shard(self, tmpdir, session, shard, expected_test):
+        """
+        Test run method with sharding.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(suites=["suite01"], shard=shard, report_path=report)
+        data = await self.read_report(report)
+        assert len(data["results"]) == 1
+        assert data["results"][0]["test_fqn"] == expected_test
+
+    async def test_run_shard_multiple_suites(self, tmpdir, session):
+        """
+        Test sharding across multiple suites with empty suite pruning.
+        """
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01", "suite02"], shard=(1, 2), report_path=report
+        )
+        data = await self.read_report(report)
+        assert len(data["results"]) == 2
+
+    async def test_run_shard_with_restore(self, tmpdir, session):
+        """
+        Test that sharding happens before restore so test partitioning remains stable.
+        """
+        # Simulate previous execution where suite01::test01 was already executed
+        executed_file = tmpdir / "executed"
+        executed_file.write("suite01::test01\n")
+
+        # Shard (1, 2) should pick test01 (and test03, etc.).
+        # Since test01 is already in executed, shard (1, 2) has nothing left in suite01.
+        # But shard (2, 2) which owns test02 should still run test02 and not be shifted.
+        report = str(tmpdir / "report.json")
+        await session.run(
+            suites=["suite01"],
+            shard=(2, 2),
+            restore_path=str(tmpdir),
+            report_path=report,
+        )
+        data = await self.read_report(report)
+        assert len(data["results"]) == 1
+        assert data["results"][0]["test_fqn"] == "test02"

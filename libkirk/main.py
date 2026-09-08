@@ -14,6 +14,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -214,6 +215,29 @@ def _finterval_config(value: str) -> int:
     return max(1, ret)
 
 
+def _shard_config(value: str) -> Tuple[int, int]:
+    """
+    Return shard configuration as (index, total).
+    """
+    match = re.fullmatch(
+        r"(?P<index>[0-9]{1,9})\s*/\s*(?P<total>[0-9]{1,9})", value.strip()
+    )
+    if not match:
+        raise argparse.ArgumentTypeError(
+            f"Invalid shard format '{value}'. Expected <index>/<total> (e.g., 1/4)"
+        )
+
+    index = int(match.group("index"))
+    total = int(match.group("total"))
+
+    if not 1 <= index <= total:
+        raise argparse.ArgumentTypeError(
+            f"Incorrect shard '{value}', expected 1 <= index <= total"
+        )
+
+    return (index, total)
+
+
 def _get_skip_tests(skip_tests: str, skip_file: str) -> str:
     """
     Return the skipped tests regexp.
@@ -378,6 +402,7 @@ def _start_session(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
                 fault_prob=args.fault_injection,
                 fault_interval=args.fault_interval,
                 dry_run=args.dry_run,
+                shard=args.shard,
             )
         except asyncio.CancelledError:
             await session.stop()
@@ -552,6 +577,12 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         "-D",
         action="store_true",
         help="Performs a dry run listing tests (no execution)",
+    )
+    exec_opts.add_argument(
+        "--shard",
+        type=_shard_config,
+        default=None,
+        help="Run only a subset of tests: <index>/<total> (e.g., 1/4)",
     )
 
     # output arguments
