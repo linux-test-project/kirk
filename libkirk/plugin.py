@@ -16,6 +16,7 @@ from typing import (
     Dict,
     List,
     TypeVar,
+    cast,
 )
 
 _Self = TypeVar("_Self", bound="Plugin")
@@ -116,7 +117,7 @@ def discover(mytype: type, folder: str) -> List[Plugin]:
                 continue
 
             if issubclass(klass, mytype):
-                loaded_obj.append(klass())
+                loaded_obj.append(cast(Plugin, klass()))
 
     if loaded_obj:
         loaded_obj.sort(key=lambda x: x.name)
