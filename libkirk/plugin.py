@@ -88,7 +88,7 @@ def discover(mytype: type, folder: str) -> List[Plugin]:
     if not folder or not os.path.isdir(folder):
         raise ValueError("Discover folder doesn't exist")
 
-    loaded_obj = []
+    loaded_obj: List[Plugin] = []
 
     # use pathlib for more efficient iteration
     folder_path = Path(folder)
