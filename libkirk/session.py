@@ -16,6 +16,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 import libkirk
@@ -272,22 +273,45 @@ class Session:
 
         return suites_list
 
+    @staticmethod
+    def _apply_sharding(
+        suites_obj: List[Suite], shard: Optional[Tuple[int, int]] = None
+    ) -> None:
+        """
+        Distribute tests across shards using round-robin.
+        """
+        if not shard:
+            return
+
+        index, count = shard
+        for suite_obj in suites_obj:
+            suite_obj.tests[:] = [
+                test
+                for i, test in enumerate(suite_obj.tests)
+                if i % count == (index - 1)
+            ]
+
     async def _read_suites(
         self,
         names: List[str],
         pattern: Optional[str] = None,
         skip_tests: Optional[str] = None,
         restore_path: Optional[str] = None,
+        shard: Optional[Tuple[int, int]] = None,
     ) -> List[Suite]:
         """
         Read suites and return a list of Suite objects.
         """
         suites_obj = await self._get_suites_objects(names)
 
-        await self._restore_tests(suites_obj, restore_path)
-
         self._filter_tests(suites_obj, pattern, False)
         self._filter_tests(suites_obj, skip_tests, True)
+        self._apply_sharding(suites_obj, shard)
+
+        await self._restore_tests(suites_obj, restore_path)
+
+        # Prune suites that have no tests left after filtering and sharding
+        suites_obj[:] = [suite for suite in suites_obj if len(suite.tests) > 0]
 
         num_tests = sum(len(suite_obj.tests) for suite_obj in suites_obj)
         if num_tests == 0:
@@ -444,6 +468,7 @@ class Session:
         fault_prob: int = 0,
         fault_interval: int = 1,
         dry_run: bool = False,
+        shard: Optional[Tuple[int, int]] = None,
     ) -> None:
         """
         Run a new session and store results inside a JSON file.
@@ -472,6 +497,8 @@ class Session:
         :type fault_interval: int
         :param dry_run: If True, list selected tests without executing them.
         :type dry_run: bool
+        :param shard: Shard tuple (index, total) to run a subset of tests.
+        :type shard: tuple(int, int) | None
         """
         async with self._run_lock:
             await libkirk.events.fire("session_started", suites, self._tmpdir.abspath)
@@ -499,7 +526,7 @@ class Session:
 
                 if suites:
                     suites_obj = await self._read_suites(
-                        suites, pattern, skip_tests, restore_path
+                        suites, pattern, skip_tests, restore_path, shard
                     )
 
                     suites_obj = self._apply_iterate(suites_obj, suite_iterate)
