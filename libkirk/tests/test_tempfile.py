@@ -87,7 +87,8 @@ class TestTempDir:
 
             pos = os.path.join(tempdir.abspath, f"myfile{i}")
             assert os.path.isfile(pos)
-            assert open(pos, "r").read() == "mystuff"
+            with open(pos, "r", encoding="utf-8") as f:
+                assert f.read() == "mystuff"
 
     def test_mkfile_no_root(self):
         """
@@ -111,4 +112,5 @@ class TestTempDir:
 
         pos = os.path.join(tempdir.abspath, "mydir", "myfile")
         assert os.path.isfile(pos)
-        assert open(pos, "r").read() == "mystuff"
+        with open(pos, "r", encoding="utf-8") as f:
+            assert f.read() == "mystuff"
