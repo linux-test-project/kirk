@@ -90,11 +90,6 @@ class _TestSUT:
         assert code >= 0
         assert isinstance(messages, list)
 
-    # TODO: test the following
-    # - tainted info
-    # - fault injection
-    # - is root
-
 
 class MockChannel(libkirk.com.ComChannel):
     """
