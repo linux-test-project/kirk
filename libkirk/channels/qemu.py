@@ -148,7 +148,9 @@ class QemuComChannel(ComChannel):
         if self._opts:
             params.append(self._opts)
 
-        cmd = f"{self._qemu_cmd} {' '.join(params)}"
+        # exec replaces the shell, so killing the process kills Qemu (dash
+        # would otherwise keep Qemu as a child and orphan it on kill)
+        cmd = f"exec {self._qemu_cmd} {' '.join(params)}"
 
         return cmd
 
@@ -325,6 +327,16 @@ class QemuComChannel(ComChannel):
         async with self._fetch_lock:
             pass
 
+    async def _wait_poweroff(self, iobuffer: Optional[IOBuffer] = None) -> None:
+        """
+        Drain stdout until Qemu process ends.
+        """
+        while await self.active():
+            await self._read_stdout(1024, iobuffer)
+
+        # pyrefly: ignore[missing-attribute]
+        await self._proc.wait()
+
     async def _exec(self, command: str, iobuffer: Optional[IOBuffer] = None) -> tuple:
         """
         Execute a command and return set(stdout, retcode, exec_time).
@@ -385,19 +397,15 @@ class QemuComChannel(ComChannel):
 
                     # send interrupt character (equivalent of CTRL+C)
                     await self._write_stdin("\x03")
-                    await self._wait_lockers()
+                    with contextlib.suppress(asyncio.TimeoutError):
+                        await asyncio.wait_for(self._wait_lockers(), timeout=5)
 
-                # logged in -> poweroff
-                if self._logged_in:
+                # logged in and no command is still reading stdout -> poweroff
+                if self._logged_in and not self._cmd_lock.locked():
                     self._logger.info("Poweroff virtual machine")
 
                     await self._write_stdin("poweroff; poweroff -f\n")
-
-                    while await self.active():
-                        await self._read_stdout(1024, iobuffer)
-
-                    # pyrefly: ignore[missing-attribute]
-                    await self._proc.wait()
+                    await asyncio.wait_for(self._wait_poweroff(iobuffer), timeout=30)
         except asyncio.TimeoutError:
             pass
         finally:
