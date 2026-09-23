@@ -38,7 +38,9 @@ class CommandOutput(IOBuffer):
 
     async def write(self, data: str) -> None:
         self.stdout += data
-        if "ready\n" in self.stdout:
+        # serial consoles translate "\n" into "\r\n", possibly split in
+        # different chunks
+        if "ready\n" in self.stdout.replace("\r\n", "\n"):
             self.started.set()
 
 
@@ -136,7 +138,8 @@ class _TestComChannel:
         try:
             res, _ = await asyncio.wait_for(asyncio.gather(*tasks), timeout=30)
             assert res["returncode"] != 0
-            assert res["stdout"] == "ready\n"
+            # serial consoles may add "\r" and trailing prompt bytes
+            assert "ready\n" in res["stdout"].replace("\r\n", "\n")
             assert not await com.active()
         finally:
             for task in tasks:
