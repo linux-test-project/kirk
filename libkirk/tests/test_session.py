@@ -40,7 +40,7 @@ class DummyFramework(LTPFramework):
         return Test(name=command, cmd=command)
 
     async def find_suite(self, channel: ComChannel, name: str) -> Suite:
-        if name in "suite01":
+        if name == "suite01":
             test0 = Test(
                 name="test01",
                 cwd=self._root,
@@ -122,7 +122,7 @@ class DummyFramework(LTPFramework):
             )
 
             test1 = Test(
-                name="test01",
+                name="test02",
                 cwd=self._root,
                 env=self._env,
                 cmd="sleep",
@@ -137,7 +137,6 @@ class DummyFramework(LTPFramework):
     ) -> TestResults:
         passed = 0
         failed = 0
-        skipped = 0
         broken = 0
         skipped = 0
         warnings = 0
