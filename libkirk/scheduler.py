@@ -340,13 +340,20 @@ class TestScheduler(Scheduler):
             return
 
         self._running_tests_sem = asyncio.Semaphore(self._max_workers)
-        coros = [self._run_test(test) for test in tests]
+        tasks = [libkirk.create_task(self._run_test(test)) for test in tests]
 
         self._logger.info(
-            "Scheduling %d tests on %d workers", len(coros), self._max_workers
+            "Scheduling %d tests on %d workers", len(tasks), self._max_workers
         )
 
-        await asyncio.gather(*coros)
+        try:
+            await asyncio.gather(*tasks)
+        finally:
+            # gather() leaves sibling tasks running when one raises an error.
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def schedule(self, jobs: List[Any]) -> None:
         if not jobs:

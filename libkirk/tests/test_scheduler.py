@@ -6,7 +6,6 @@ from libkirk.ltp import LTPFramework
 import asyncio
 import os
 import re
-import sys
 
 import pytest
 
@@ -225,12 +224,31 @@ class TestTestScheduler:
             await runner.schedule(tests)
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_kernel_panic(self, workers, create_runner):
+    async def test_schedule_kernel_panic(self, workers, sut, create_runner, monkeypatch):
         """
         Test the schedule method on kernel panic.
         """
-        if workers > 1 and sys.version_info < (3, 10):
-            pytest.xfail("Unstable test on < 3.10")
+        channel = sut.get_channel()
+        run_command = channel.run_command
+        started = asyncio.Event()
+        blocked = asyncio.Event()
+        running = set()
+
+        async def panic_command(command, cwd=None, env=None, iobuffer=None):
+            if command.startswith("echo"):
+                if workers > 1:
+                    await started.wait()
+                return await run_command(command, cwd=cwd, env=env, iobuffer=iobuffer)
+
+            running.add(command)
+            if len(running) == workers - 1:
+                started.set()
+            try:
+                await blocked.wait()
+            finally:
+                running.remove(command)
+
+        monkeypatch.setattr(channel, "run_command", panic_command)
 
         tests = []
         tests.append(
@@ -247,7 +265,7 @@ class TestTestScheduler:
                 Test(
                     name=f"test{i}",
                     cmd="sleep",
-                    args=["0.2", "&&", "echo", "-n", "ciao"],
+                    args=[str(i)],
                     parallelizable=True,
                 )
             )
@@ -255,8 +273,9 @@ class TestTestScheduler:
         runner = create_runner(max_workers=workers)
 
         with pytest.raises(KernelPanicError):
-            await runner.schedule(tests)
+            await asyncio.wait_for(runner.schedule(tests), timeout=5)
 
+        assert not running
         assert len(runner.results) == 1
 
         res = runner.results[0]
@@ -266,7 +285,7 @@ class TestTestScheduler:
         assert res.broken == 1
         assert res.skipped == 0
         assert res.warnings == 0
-        assert 0 < res.exec_time < 0.2
+        assert res.exec_time > 0
         assert res.return_code == -1
         assert res.stdout == "Kernel panic\n"
 
@@ -275,9 +294,6 @@ class TestTestScheduler:
         """
         Test the schedule method on kernel timeout.
         """
-        if workers > 1 and sys.version_info < (3, 10):
-            pytest.xfail("Unstable test on < 3.10")
-
         async def kernel_timeout(command, cwd=None, env=None, iobuffer=None) -> dict:
             raise asyncio.TimeoutError()
 
@@ -297,6 +313,38 @@ class TestTestScheduler:
 
         with pytest.raises(KernelTimeoutError):
             await runner.schedule(tests)
+
+    @pytest.mark.parametrize(
+        "error", [KernelPanicError, KernelTimeoutError, RuntimeError, asyncio.CancelledError]
+    )
+    async def test_schedule_error_cleanup(self, create_runner, monkeypatch, error):
+        """Wait for sibling cancellation cleanup before propagating an error."""
+        runner = create_runner(max_workers=2)
+        started = asyncio.Event()
+        blocked = asyncio.Event()
+        cleaned = asyncio.Event()
+
+        async def run_test(test):
+            if test.name == "error":
+                await started.wait()
+                raise error()
+
+            started.set()
+            try:
+                await blocked.wait()
+            finally:
+                await asyncio.sleep(0)
+                cleaned.set()
+
+        monkeypatch.setattr(runner, "_run_test", run_test)
+        tests = [
+            Test(name=name, cmd="echo", parallelizable=True)
+            for name in ("error", "sibling")
+        ]
+        with pytest.raises(error):
+            await asyncio.wait_for(runner.schedule(tests), timeout=5)
+
+        assert cleaned.is_set()
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_test_timeout(self, workers, create_runner):

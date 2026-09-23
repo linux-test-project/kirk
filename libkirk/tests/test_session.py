@@ -352,25 +352,26 @@ class _TestSession:
         report_data = await self.read_report(report)
         assert len(report_data["results"]) == expect
 
-    @pytest.mark.xfail(reason="May hang on slow CI nodes", strict=False)
-    async def test_run_randomize(self, tmpdir, session):
+    @pytest.mark.parametrize("randomize", [False, True])
+    async def test_run_randomize(self, tmpdir, session, monkeypatch, randomize):
         """
         Test run method when executing shuffled tests.
         """
-        num_of_suites = 10
+        monkeypatch.setattr("libkirk.session.random.shuffle", lambda tests: tests.reverse())
 
         report = str(tmpdir / "report.json")
         await asyncio.wait_for(
             session.run(
-                suites=["suite01"] * num_of_suites,
-                randomize=True,
+                suites=["suite01"],
+                randomize=randomize,
                 report_path=report,
             ),
             timeout=30,
         )
 
         report_data = await self.read_report(report)
-        assert len(report_data["results"]) == 2 * num_of_suites
+        expected = ["test02", "test01"] if randomize else ["test01", "test02"]
+        assert [result["test_fqn"] for result in report_data["results"]] == expected
 
     @pytest.mark.skip(reason="Instable test on CI")
     async def test_run_runtime(self, tmpdir, session):
