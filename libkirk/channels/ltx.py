@@ -634,9 +634,11 @@ class LTX:
         await self.send(requests)
 
         while len(replies) != req_len:
-            await asyncio.sleep(0.005)
             if self._exception:
                 raise self._exception
+            if self._stop or not self.connected:
+                raise LTXError("Client disconnected before all replies were received")
+            await asyncio.sleep(0.005)
 
         if self._exception:
             raise self._exception

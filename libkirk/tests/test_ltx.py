@@ -2,6 +2,7 @@
 Unittests for ltx module.
 """
 
+import asyncio
 import os
 import signal
 import subprocess
@@ -12,6 +13,7 @@ from typing import Any, List
 import pytest
 
 import libkirk.com
+from libkirk.errors import CommunicationError
 from libkirk.sut_base import GenericSUT
 from libkirk.tests.test_sut import _TestSUT
 from libkirk.tests.test_session import _TestSession
@@ -296,6 +298,30 @@ class TestLTXComChannel(_TestComChannel):
     """
     Test LTXComChannel implementation.
     """
+
+    async def test_stop_during_handshake(self, com, monkeypatch):
+        """
+        Stopping before the version reply is processed must unblock startup.
+        """
+        received = asyncio.Event()
+
+        async def hold_reply(self, data):
+            received.set()
+
+        monkeypatch.setattr(LTX, "_feed_requests", hold_reply)
+        startup = libkirk.create_task(com.communicate())
+        try:
+            await asyncio.wait_for(received.wait(), timeout=5)
+            assert await com.active()
+            assert not startup.done()
+            await asyncio.wait_for(com.stop(), timeout=5)
+            with pytest.raises(CommunicationError, match="disconnected"):
+                await asyncio.wait_for(startup, timeout=5)
+            assert not await com.active()
+        finally:
+            if not startup.done():
+                startup.cancel()
+            await asyncio.gather(startup, return_exceptions=True)
 
     async def test_fetch_file_stop(self, com, target_tmpdir=None):
         pytest.skip(reason="LTX doesn't support stop for GET_FILE")
