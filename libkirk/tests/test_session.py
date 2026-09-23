@@ -14,7 +14,7 @@ from libkirk.ltp import LTPFramework
 from libkirk.com import ComChannel, IOBuffer
 from libkirk.data import Test, Suite
 from libkirk.errors import CommunicationError
-from libkirk.results import TestResults
+from libkirk.results import SuiteResults, TestResults
 from libkirk.session import Session
 from libkirk.tempfile import TempDir
 
@@ -430,16 +430,61 @@ class _TestSession:
         expected = ["test02", "test01"] if randomize else ["test01", "test02"]
         assert [result["test_fqn"] for result in report_data["results"]] == expected
 
-    @pytest.mark.skip(reason="Instable test on CI")
-    async def test_run_runtime(self, tmpdir, session):
-        """
-        Test run method when executing suites for a certain amount of time.
-        """
-        report = str(tmpdir / "report.json")
-        await session.run(suites=["suite01"], runtime=0.5, report_path=report)
+    async def test_run_runtime(self, tmpdir, session, monkeypatch):
+        """Runtime expiry cancels the active iteration and saves completed results."""
+        iterations = []
+        cancelled = asyncio.Event()
+        cleaned = asyncio.Event()
+        blocked = asyncio.Event()
+        stop_calls = []
+        scheduler = session._scheduler
+        stop = scheduler.stop
 
+        async def schedule(suites):
+            scheduler.results.clear()
+            iterations.append([suite.name for suite in suites])
+            if len(iterations) == 1:
+                for suite in suites:
+                    results = [
+                        await session._framework.read_result(test, "", 0, 0.01)
+                        for test in suite.tests
+                    ]
+                    scheduler.results.append(SuiteResults(suite, results))
+                return
+
+            try:
+                await blocked.wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+            finally:
+                await asyncio.sleep(0)
+                cleaned.set()
+
+        async def record_stop():
+            stop_calls.append(cleaned.is_set())
+            await stop()
+
+        monkeypatch.setattr(scheduler, "schedule", schedule)
+        monkeypatch.setattr(scheduler, "stop", record_stop)
+        report = str(tmpdir / "report.json")
+        await asyncio.wait_for(
+            session.run(suites=["suite01"], runtime=0.05, report_path=report),
+            timeout=30,
+        )
+
+        assert iterations == [["suite01[1]"], ["suite01[2]"]]
+        assert cancelled.is_set()
+        assert cleaned.is_set()
+        assert stop_calls
+        assert all(stop_calls)
+        assert scheduler.stopped
+        assert not await session._sut.is_running()
         report_data = await self.read_report(report)
-        assert len(report_data["results"]) >= 0.5
+        assert [result["test_fqn"] for result in report_data["results"]] == [
+            "test01", "test02"
+        ]
+        assert report_data["stats"]["passed"] == 2
 
     def test_apply_sharding(self):
         """
