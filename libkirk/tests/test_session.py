@@ -235,26 +235,34 @@ class _TestSession:
         report_data = await self.read_report(report)
         assert len(report_data["results"]) == 4
 
-    async def test_run_report_abort(self, tmpdir, session):
+    async def test_run_report_abort(self, tmpdir, session, monkeypatch):
         """
         Test that results collected before an abort mid-suite are still
-        persisted. The scheduler raises after having run and collected the
-        results, mimicking a SUT connection loss while scheduling.
+        persisted when the second test loses its connection.
         """
-        real_schedule = session._scheduler.schedule
+        scheduler = session._scheduler._scheduler
+        run_test = scheduler._run_test
+        attempted = []
 
-        async def aborting_schedule(jobs):
-            await real_schedule(jobs)
-            raise CommunicationError("SUT connection dropped mid-suite")
+        async def aborting_test(test):
+            attempted.append(test.name)
+            if test.name == "test02":
+                raise CommunicationError("SUT connection dropped mid-suite")
+            await run_test(test)
 
-        session._scheduler.schedule = aborting_schedule
+        monkeypatch.setattr(scheduler, "_run_test", aborting_test)
 
         report = str(tmpdir / "report.json")
-        with pytest.raises(CommunicationError):
+        with pytest.raises(CommunicationError, match="SUT connection dropped mid-suite"):
             await session.run(suites=["suite01"], report_path=report)
 
+        assert attempted == ["test01", "test02"]
         report_data = await self.read_report(report)
-        assert len(report_data["results"]) == 2
+        assert [result["test_fqn"] for result in report_data["results"]] == ["test01"]
+        assert report_data["results"][0]["status"] == "pass"
+        default_report = os.path.join(session._tmpdir.abspath, "results.json")
+        assert await self.read_report(default_report) == report_data
+        assert not await session._sut.is_running()
 
     async def test_run_dry_run(self, tmpdir, session, monkeypatch, run_events):
         """
