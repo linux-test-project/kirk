@@ -5,13 +5,14 @@ Unittests for the session module.
 import os
 import json
 import asyncio
+from types import SimpleNamespace
 from typing import List
 
 import pytest
 
 import libkirk
 from libkirk.ltp import LTPFramework
-from libkirk.com import ComChannel, IOBuffer
+from libkirk.com import ComChannel
 from libkirk.data import Test, Suite
 from libkirk.errors import CommunicationError
 from libkirk.results import SuiteResults, TestResults
@@ -297,29 +298,41 @@ class _TestSession:
     @pytest.fixture
     async def running_test(self, session, monkeypatch):
         """
-        Signal when the sleep test is running on the target.
+        Hold a test command until it completes or the channel is stopped.
         """
-        started = asyncio.Event()
+        state = SimpleNamespace(
+            started=asyncio.Event(), release=asyncio.Event(),
+            interrupted=False, running=False,
+        )
         channel = session._sut.get_channel()
         run_command = channel.run_command
+        stop = channel.stop
 
         async def run(command, cwd=None, env=None, iobuffer=None):
             if command == "sleep 2":
-                output = iobuffer
-
-                class StartedBuffer(IOBuffer):
-                    async def write(self, data: str) -> None:
-                        if output is not None:
-                            await output.write(data)
-                        started.set()
-
-                iobuffer = StartedBuffer()
-                command = "echo ready; sleep 2; echo completed"
+                state.running = True
+                state.started.set()
+                try:
+                    await state.release.wait()
+                    return {
+                        "returncode": -9 if state.interrupted else 0,
+                        "stdout": "ready\n" if state.interrupted else "ready\ncompleted\n",
+                        "exec_time": 0.01,
+                    }
+                finally:
+                    state.running = False
 
             return await run_command(command, cwd=cwd, env=env, iobuffer=iobuffer)
 
+        async def stop_channel(iobuffer=None):
+            if state.running:
+                state.interrupted = True
+                state.release.set()
+            await stop(iobuffer=iobuffer)
+
         monkeypatch.setattr(channel, "run_command", run)
-        return started
+        monkeypatch.setattr(channel, "stop", stop_channel)
+        return state
 
     async def test_run_stop(self, tmpdir, session, running_test):
         """
@@ -328,7 +341,9 @@ class _TestSession:
         report = str(tmpdir / "report.json")
 
         async def stop():
-            await running_test.wait()
+            await running_test.started.wait()
+            # Let the active command finish after stop() has set its stop flag.
+            libkirk.get_event_loop().call_soon(running_test.release.set)
             await session.stop()
 
         await asyncio.wait_for(
@@ -340,6 +355,8 @@ class _TestSession:
         assert [result["test_fqn"] for result in data["results"]] == ["test01"]
         assert data["results"][0]["test"]["retval"] == ["0"]
         assert data["results"][0]["test"]["log"] == "ready\ncompleted\n"
+        assert not running_test.interrupted
+        assert not running_test.running
         assert not await session._sut.is_running()
 
     async def test_run_force_stop(self, tmpdir, session, running_test):
@@ -349,7 +366,7 @@ class _TestSession:
         report = str(tmpdir / "report.json")
 
         async def stop():
-            await running_test.wait()
+            await running_test.started.wait()
             await asyncio.gather(session.stop(), session.stop())
 
         await asyncio.wait_for(
@@ -358,6 +375,8 @@ class _TestSession:
         )
 
         data = await self.read_report(report)
+        assert running_test.interrupted
+        assert not running_test.running
         # Channels may omit the killed test or report its interrupted result.
         assert len(data["results"]) <= 1
         for result in data["results"]:
@@ -372,16 +391,48 @@ class _TestSession:
         """
         await session.run(command="test")
 
-    async def test_run_command_stop(self, session):
+    async def test_run_command_stop(self, session, run_events):
         """
-        Test stop when runnig a command.
+        Stop a command after target startup and verify its interrupted result.
         """
+        started = asyncio.Event()
+        completed = asyncio.Queue()
+        output = []
+        command = "echo ready; exec sleep 60"
+
+        async def stdout(data):
+            output.append(data)
+            if "ready\n" in "".join(output):
+                started.set()
+
+        async def command_stopped(command, stdout, returncode):
+            await completed.put((command, stdout, returncode))
+
+        libkirk.events.register("run_cmd_stdout", stdout)
+        libkirk.events.register("run_cmd_stop", command_stopped)
 
         async def stop():
-            await asyncio.sleep(0.1)
-            await asyncio.wait_for(session.stop(), timeout=30)
+            await started.wait()
+            await session.stop()
 
-        await asyncio.gather(*[session.run(command="sleep 1"), stop()])
+        tasks = [
+            libkirk.create_task(session.run(command=command)),
+            libkirk.create_task(stop()),
+        ]
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=30)
+            executed, captured, returncode = await asyncio.wait_for(
+                completed.get(), timeout=5
+            )
+            assert executed == command
+            assert captured == "ready\n"
+            assert returncode != 0
+            assert not await session._sut.is_running()
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def test_run_skip_tests(self, tmpdir, session):
         """

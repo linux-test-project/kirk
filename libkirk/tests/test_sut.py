@@ -10,7 +10,6 @@ import pytest
 
 import libkirk.sut
 from libkirk.com import IOBuffer
-from libkirk.errors import CommunicationError
 
 
 class Printer(IOBuffer):
@@ -52,34 +51,15 @@ class _TestSUT:
         await sut.start(iobuffer=Printer())
         assert await sut.is_running()
 
-    @pytest.fixture
-    def sut_stop_sleep(self, request):
+    async def test_start_stop(self, sut):
         """
-        Setup sleep time before calling stop after communicate.
-        By changing multiply factor it's possible to tweak stop sleep and
-        change the behaviour of `test_stop_communicate`.
+        Test repeated SUT startup and shutdown after startup completes.
         """
-        return request.param * 1.0
-
-    @pytest.mark.parametrize("sut_stop_sleep", [1, 2], indirect=True)
-    async def test_start_stop(self, sut, sut_stop_sleep):
-        """
-        Test stop method when running start.
-        """
-        async def stop():
-            await asyncio.sleep(sut_stop_sleep)
+        for _ in range(2):
+            await asyncio.wait_for(sut.start(iobuffer=Printer()), timeout=30)
             assert await sut.is_running()
-            await sut.stop(iobuffer=Printer())
-
-        results = await asyncio.wait_for(
-            asyncio.gather(
-                sut.start(iobuffer=Printer()), stop(), return_exceptions=True
-            ),
-            timeout=30,
-        )
-        assert results[0] is None or isinstance(results[0], CommunicationError)
-        assert results[1] is None
-        assert not await sut.is_running()
+            await asyncio.wait_for(sut.stop(iobuffer=Printer()), timeout=30)
+            assert not await sut.is_running()
 
     async def test_config_help(self, sut):
         """

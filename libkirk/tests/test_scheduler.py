@@ -5,9 +5,11 @@ Unittests for runner module.
 from libkirk.ltp import LTPFramework
 import asyncio
 import os
+from types import SimpleNamespace
 
 import pytest
 
+import libkirk
 from typing import Optional
 
 from libkirk.data import Suite, Test
@@ -107,6 +109,38 @@ async def sut():
         await obj.stop()
 
 
+@pytest.fixture
+async def commands(sut, monkeypatch, workers):
+    """
+    Hold test commands until released and record completion or cancellation.
+    """
+    state = SimpleNamespace(
+        started=asyncio.Event(), release=asyncio.Event(),
+        running=set(), completed=[], cancelled=[],
+    )
+
+    async def run_command(command, cwd=None, env=None, iobuffer=None):
+        # Test timeout handling pings the channel to check that the SUT is alive.
+        if command == "test .":
+            return {"returncode": 0, "stdout": "", "exec_time": 0.01}
+
+        state.running.add(command)
+        if len(state.running) == workers:
+            state.started.set()
+        try:
+            await state.release.wait()
+            state.completed.append(command)
+            return {"returncode": 0, "stdout": "", "exec_time": 0.01}
+        except asyncio.CancelledError:
+            state.cancelled.append(command)
+            raise
+        finally:
+            state.running.remove(command)
+
+    monkeypatch.setattr(sut.get_channel(), "run_command", run_command)
+    return state
+
+
 class TestTestScheduler:
     """
     Tests for TestScheduler.
@@ -163,7 +197,7 @@ class TestTestScheduler:
             index += 1
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_stop(self, workers, create_runner):
+    async def test_schedule_stop(self, workers, create_runner, commands):
         """
         Test the schedule method when stop is called.
         """
@@ -174,8 +208,7 @@ class TestTestScheduler:
             tests.append(
                 Test(
                     name=f"test{i}",
-                    cmd="sleep",
-                    args=["0.5"],
+                    cmd=f"test{i}",
                     parallelizable=True,
                 )
             )
@@ -183,12 +216,19 @@ class TestTestScheduler:
         runner = create_runner(max_workers=workers)
 
         async def stop():
-            await asyncio.sleep(0.1)
+            await commands.started.wait()
+            # stop() sets its stop flag before yielding to the release callback.
+            libkirk.get_event_loop().call_soon(commands.release.set)
             await runner.stop()
 
-        await asyncio.gather(*[runner.schedule(tests), stop()])
+        await asyncio.wait_for(asyncio.gather(runner.schedule(tests), stop()), timeout=5)
 
-        assert len(runner.results) < num_tests
+        expected = [f"test{i}" for i in range(workers)]
+        assert sorted(res.test.name for res in runner.results) == expected
+        assert sorted(commands.completed) == expected
+        assert not commands.running
+        assert not commands.cancelled
+        assert runner.stopped
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_tainted(self, workers, create_runner):
@@ -348,7 +388,7 @@ class TestTestScheduler:
         assert cleaned.is_set()
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_test_timeout(self, workers, create_runner):
+    async def test_schedule_test_timeout(self, workers, create_runner, commands):
         """
         Test the schedule method on test timeout.
         """
@@ -357,8 +397,7 @@ class TestTestScheduler:
             tests.append(
                 Test(
                     name=f"test{i}",
-                    cmd="sleep",
-                    args=["0.5", "&&", "echo", "-n", "ciao"],
+                    cmd=f"test{i}",
                     parallelizable=True,
                 )
             )
@@ -369,6 +408,9 @@ class TestTestScheduler:
         assert sorted(res.test.name for res in runner.results) == [
             test.name for test in tests
         ]
+        assert sorted(commands.cancelled) == [test.name for test in tests]
+        assert not commands.running
+        assert not commands.completed
 
         for res in runner.results:
             assert res.passed == 0
@@ -428,7 +470,7 @@ class TestSuiteScheduler:
         assert len(runner.results[0].tests_results) == 10
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_stop(self, workers, create_runner):
+    async def test_schedule_stop(self, workers, create_runner, commands):
         """
         Test the schedule method when stop is called.
         """
@@ -438,21 +480,30 @@ class TestSuiteScheduler:
             tests.append(
                 Test(
                     name=f"test{i}",
-                    cmd="sleep",
-                    args=["0.5"],
+                    cmd=f"test{i}",
                     parallelizable=True,
                 )
             )
         runner = create_runner(max_workers=workers)
 
         async def stop():
-            await asyncio.sleep(0.1)
+            await commands.started.wait()
+            # stop() sets its stop flag before yielding to the release callback.
+            libkirk.get_event_loop().call_soon(commands.release.set)
             await runner.stop()
 
-        await asyncio.gather(*[runner.schedule([Suite("suite01", tests)]), stop()])
+        await asyncio.wait_for(
+            asyncio.gather(runner.schedule([Suite("suite01", tests)]), stop()),
+            timeout=5,
+        )
 
         assert len(runner.results) == 1
-        assert len(runner.results[0].tests_results) >= 1
+        expected = [f"test{i}" for i in range(workers)]
+        assert sorted(res.test.name for res in runner.results[0].tests_results) == expected
+        assert sorted(commands.completed) == expected
+        assert not commands.running
+        assert not commands.cancelled
+        assert runner.stopped
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_tainted(self, workers, sut, create_runner):
@@ -558,7 +609,7 @@ class TestSuiteScheduler:
         assert len(runner.results[0].tests_results) == len(tests)
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_suite_timeout(self, workers, create_runner):
+    async def test_schedule_suite_timeout(self, workers, create_runner, commands):
         """
         Test the schedule method on suite timeout.
         """
@@ -569,8 +620,7 @@ class TestSuiteScheduler:
             tests.append(
                 Test(
                     name=f"test{i}",
-                    cmd="sleep",
-                    args=["0.5"],
+                    cmd=f"test{i}",
                     parallelizable=True,
                 )
             )
@@ -578,6 +628,10 @@ class TestSuiteScheduler:
 
         assert runner.results[0].exec_time == 0.0
         assert len(runner.results[0].tests_results) == len(tests)
+        assert commands.started.is_set()
+        assert sorted(commands.cancelled) == [f"test{i}" for i in range(workers)]
+        assert not commands.running
+        assert not commands.completed
 
         for i in range(len(tests)):
             res = runner.results[0].tests_results[i]

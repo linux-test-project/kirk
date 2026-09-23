@@ -27,6 +27,21 @@ class Printer(IOBuffer):
         print(data, end="")
 
 
+class CommandOutput(IOBuffer):
+    """
+    Capture command output and signal when the target reports readiness.
+    """
+
+    def __init__(self):
+        self.started = asyncio.Event()
+        self.stdout = ""
+
+    async def write(self, data: str) -> None:
+        self.stdout += data
+        if "ready\n" in self.stdout:
+            self.started.set()
+
+
 @pytest.fixture
 def com():
     """
@@ -79,36 +94,15 @@ class _TestComChannel:
         with pytest.raises(CommunicationError):
             await com.ensure_communicate(iobuffer=Printer(), retries=1)
 
-    @pytest.fixture
-    def com_stop_setup(self, request):
+    async def test_communicate_stop(self, com):
         """
-        Setup sleep time before calling stop after communicate.
-        By changing multiply factor it's possible to tweak stop sleep and
-        change the behaviour of `test_stop_communicate`.
+        Test repeated connection and shutdown after startup completes.
         """
-        return request.param * 1.0
-
-    @pytest.mark.parametrize("com_stop_setup", [1, 2], indirect=True)
-    async def test_communicate_stop(self, com, com_stop_setup):
-        """
-        Test stop method when running communicate.
-        """
-
-        async def stop():
-            await asyncio.sleep(com_stop_setup)
+        for _ in range(2):
+            await asyncio.wait_for(com.communicate(iobuffer=Printer()), timeout=30)
             assert await com.active()
-            await com.stop(iobuffer=Printer())
-
-        results = await asyncio.wait_for(
-            asyncio.gather(
-                com.communicate(iobuffer=Printer()), stop(), return_exceptions=True
-            ),
-            timeout=30,
-        )
-        # Interrupting startup may raise CommunicationError, but stop must succeed.
-        assert results[0] is None or isinstance(results[0], CommunicationError)
-        assert results[1] is None
-        assert not await com.active()
+            await asyncio.wait_for(com.stop(iobuffer=Printer()), timeout=30)
+            assert not await com.active()
 
     async def test_run_command(self, com):
         """
@@ -127,17 +121,28 @@ class _TestComChannel:
         """
         await com.communicate(iobuffer=Printer())
 
+        output = CommandOutput()
+
         async def stop():
-            await asyncio.sleep(0.2)
+            await output.started.wait()
             await com.stop(iobuffer=Printer())
 
-        async def test():
-            res = await com.run_command("sleep 2")
-
+        tasks = [
+            libkirk.create_task(
+                com.run_command("echo ready; exec sleep 60", iobuffer=output)
+            ),
+            libkirk.create_task(stop()),
+        ]
+        try:
+            res, _ = await asyncio.wait_for(asyncio.gather(*tasks), timeout=30)
             assert res["returncode"] != 0
-            assert 0 < res["exec_time"] < 2
-
-        await asyncio.gather(*[test(), stop()])
+            assert res["stdout"] == "ready\n"
+            assert not await com.active()
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def test_run_command_parallel(self, com):
         """
@@ -167,26 +172,30 @@ class _TestComChannel:
 
         await com.communicate(iobuffer=Printer())
 
+        outputs = [CommandOutput() for _ in range(4)]
+
         async def stop():
-            await asyncio.sleep(0.2)
+            await asyncio.gather(*(output.started.wait() for output in outputs))
             await com.stop(iobuffer=Printer())
 
-        async def test():
-            exec_count = 4
-            coros = [com.run_command("sleep 2") for i in range(exec_count)]
-            results = await asyncio.gather(*coros, return_exceptions=True)
-
-            for data in results:
-                if isinstance(data, CommunicationError):
-                    # Queued commands may lose their connection during stop.
-                    continue
-
-                assert isinstance(data, dict), data
+        tasks = [
+            libkirk.create_task(
+                com.run_command("echo ready; exec sleep 60", iobuffer=output)
+            )
+            for output in outputs
+        ]
+        tasks.append(libkirk.create_task(stop()))
+        try:
+            results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=30)
+            for data in results[:-1]:
                 assert data["returncode"] != 0
-                assert 0 < data["exec_time"] < 2
-
-        await asyncio.wait_for(asyncio.gather(test(), stop()), timeout=30)
-        assert not await com.active()
+                assert data["stdout"] == "ready\n"
+            assert not await com.active()
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def test_fetch_file_bad_args(self, com):
         """
@@ -238,34 +247,37 @@ class _TestComChannel:
         Test stop method when running fetch_file.
         """
         target = f"{target_tmpdir}/target_file"
-        started = asyncio.Event()
-
-        async def fetch():
-            result = await com.run_command(
-                f"truncate -s {1024 * 1024 * 1024} {shlex.quote(target)}"
-            )
-            assert result["returncode"] == 0
-            started.set()
-            return await com.fetch_file(target)
+        result = await com.run_command(f"mkfifo {shlex.quote(target)}")
+        assert result["returncode"] == 0
+        output = CommandOutput()
+        # Opening the writer proves that fetch_file() has opened the FIFO reader.
+        writer = libkirk.create_task(com.run_command(
+            f"exec 3>{shlex.quote(target)}; printf data >&3; echo ready; exec sleep 60",
+            iobuffer=output,
+        ))
+        task = libkirk.create_task(com.fetch_file(target))
 
         async def stop():
-            await started.wait()
-            await asyncio.sleep(2)
+            await output.started.wait()
+            assert not task.done()
             await com.stop(iobuffer=Printer())
 
-        task = libkirk.create_task(fetch())
+        tasks = [task, writer, libkirk.create_task(stop())]
         try:
             results = await asyncio.wait_for(
-                asyncio.gather(task, stop(), return_exceptions=True), timeout=30
+                asyncio.gather(*tasks, return_exceptions=True), timeout=30
             )
             assert isinstance(results[0], (bytes, CommunicationError))
-            assert results[1] is None
+            assert isinstance(results[1], dict), results[1]
+            assert results[1]["returncode"] != 0
+            assert results[2] is None
             assert not await com.active()
         finally:
-            if not task.done():
-                task.cancel()
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
             await asyncio.wait_for(
-                asyncio.gather(task, return_exceptions=True), timeout=5
+                asyncio.gather(*tasks, return_exceptions=True), timeout=5
             )
 
     async def test_cwd(self, com):

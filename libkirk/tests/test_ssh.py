@@ -75,9 +75,7 @@ class _TestSSHComChannel(_TestComChannel):
             data = ""
 
             async def write(self, data: str) -> None:
-                self.data = data
-                # wait for data inside the buffer
-                await asyncio.sleep(0.1)
+                self.data += data
 
         buffer = MyBuffer()
         try:
