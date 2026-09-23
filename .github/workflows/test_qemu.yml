@@ -3,6 +3,9 @@
 name: "Test QEMU"
 on: [push, pull_request]
 
+env:
+  ALPINE_KERNEL_URL: https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/netboot-3.24.2/vmlinuz-virt
+
 jobs:
   python3:
     runs-on: ubuntu-22.04
@@ -22,36 +25,34 @@ jobs:
           "3.14"
         ]
 
+    container:
+      image: python:${{ matrix.python-version }}-alpine
+      options: --device /dev/kvm
+
     steps:
     - name: Show OS
       run: cat /etc/os-release
 
+    - name: Install QEMU and Busybox
+      run: apk add --no-cache git qemu-system-x86_64 busybox-static
+
     - name: Git checkout
       uses: actions/checkout@v7
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: pip install .[testing]
 
-    - name: Install QEMU and Busybox
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y qemu-system-x86 busybox-static
-        sudo chmod 666 /dev/kvm || true
-        sudo chmod +r /boot/vmlinuz* || true
+    - name: Download Alpine kernel
+      run: wget -q -O /tmp/vmlinuz-virt "$ALPINE_KERNEL_URL"
 
     - name: Create Busybox initramfs
       run: |
-        mkdir -p /tmp/initramfs/{bin,dev,proc,sys,tmp}
-        cp "$(which busybox)" /tmp/initramfs/bin/busybox
+        mkdir -p /tmp/initramfs/bin /tmp/initramfs/dev /tmp/initramfs/proc \
+          /tmp/initramfs/sys /tmp/initramfs/tmp
+        cp /bin/busybox.static /tmp/initramfs/bin/busybox
         cat << 'EOF' > /tmp/initramfs/init
         #!/bin/busybox sh
         /bin/busybox --install -s /bin
-        mkdir -p /dev /proc /sys /tmp
         mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
         mount -t proc proc /proc 2>/dev/null || true
         mount -t sysfs sysfs /sys 2>/dev/null || true
@@ -60,8 +61,9 @@ jobs:
         [ -c /dev/ttyS1 ] || mknod /dev/ttyS1 c 4 65
         export PS1='/ # '
         stty -F /dev/ttyS0 isig 2>/dev/null || true
+        # ttyS0 must be the controlling terminal to deliver CTRL+C
         while true; do
-            setsid cttyhack /bin/sh </dev/ttyS0 >/dev/ttyS0 2>&1 || /bin/sh
+            setsid -c /bin/sh </dev/ttyS0 >/dev/ttyS0 2>&1
         done
         EOF
         chmod +x /tmp/initramfs/init
@@ -69,7 +71,7 @@ jobs:
 
     - name: Test with pytest
       timeout-minutes: 10
-      run: |
-        KERNEL=$(ls -v /boot/vmlinuz* | grep -v '\.old' | head -n 1)
-        TEST_QEMU_KERNEL="$KERNEL" TEST_QEMU_BUSYBOX="/tmp/initrd.img" \
-          python3 -m pytest -m "qemu"
+      env:
+        TEST_QEMU_KERNEL: /tmp/vmlinuz-virt
+        TEST_QEMU_BUSYBOX: /tmp/initrd.img
+      run: python3 -m pytest -m "qemu"
