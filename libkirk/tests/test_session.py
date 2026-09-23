@@ -9,6 +9,7 @@ from typing import List
 
 import pytest
 
+import libkirk
 from libkirk.ltp import LTPFramework
 from libkirk.com import ComChannel, IOBuffer
 from libkirk.data import Test, Suite
@@ -255,17 +256,34 @@ class _TestSession:
         report_data = await self.read_report(report)
         assert len(report_data["results"]) == 2
 
-    async def test_run_dry_run(self, tmpdir, session):
+    async def test_run_dry_run(self, tmpdir, session, monkeypatch, run_events):
         """
         Test run method with dry_run: no tests are executed and no report
         is generated.
         """
+        selected = asyncio.Queue()
+
+        async def report_selection(suites):
+            await selected.put([
+                (suite.name, [test.name for test in suite.tests]) for suite in suites
+            ])
+
+        async def unexpected_schedule(jobs):
+            pytest.fail("Dry run must not schedule tests")
+
+        libkirk.events.register("session_dry_run", report_selection)
+        monkeypatch.setattr(session._scheduler, "schedule", unexpected_schedule)
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01", "suite02"], report_path=report, dry_run=True
+            suites=["suite01", "suite02"], pattern="^test01$",
+            report_path=report, dry_run=True
         )
 
+        assert await asyncio.wait_for(selected.get(), timeout=5) == [
+            ("suite01", ["test01"]), ("suite02", ["test01"])
+        ]
         assert not os.path.exists(report)
+        assert not os.path.exists(os.path.join(session._tmpdir.abspath, "results.json"))
         assert session._results == []
 
     @pytest.fixture
