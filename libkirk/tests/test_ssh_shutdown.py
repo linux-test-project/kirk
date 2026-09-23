@@ -1,4 +1,6 @@
-"""SSH shutdown races without a remote server."""
+"""
+SSH shutdown races without a remote server.
+"""
 
 import asyncio
 from unittest.mock import Mock

@@ -60,7 +60,9 @@ class TestSUTShellComChannel(_TestSUT):
 
     @pytest.fixture
     def sut_stop_sleep(self, request):
-        """The local shell starts immediately; no startup delay is needed."""
+        """
+        The local shell starts immediately; no startup delay is needed.
+        """
         return request.param * 0
 
 

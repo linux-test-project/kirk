@@ -28,7 +28,9 @@ if not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY):
 
 @pytest.fixture
 def ltx_transport(tmpdir):
-    """Own the LTX process and both parent FIFO descriptors."""
+    """
+    Own the LTX process and both parent FIFO descriptors.
+    """
     infile = str(tmpdir / "transport.in")
     outfile = str(tmpdir / "transport.out")
     os.mkfifo(infile)

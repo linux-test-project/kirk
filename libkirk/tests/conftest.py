@@ -53,7 +53,9 @@ def _reset_events():
 
 @pytest.fixture
 async def run_events(_reset_events):
-    """Run the event consumer and always stop and await it after the test."""
+    """
+    Run the event consumer and always stop and await it after the test.
+    """
     task = libkirk.create_task(libkirk.events.start())
     await asyncio.sleep(0)
     try:

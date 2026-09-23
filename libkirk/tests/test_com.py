@@ -203,7 +203,9 @@ class _TestComChannel:
 
     @pytest.fixture
     async def target_tmpdir(self, com):
-        """Create and remove a private directory on the target."""
+        """
+        Create and remove a private directory on the target.
+        """
         await com.communicate(iobuffer=Printer())
         result = await com.run_command("mktemp -d /tmp/kirk-test.XXXXXXXX")
         assert result["returncode"] == 0

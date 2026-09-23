@@ -317,7 +317,9 @@ class TestTestScheduler:
         "error", [KernelPanicError, KernelTimeoutError, RuntimeError, asyncio.CancelledError]
     )
     async def test_schedule_error_cleanup(self, create_runner, monkeypatch, error):
-        """Wait for sibling cancellation cleanup before propagating an error."""
+        """
+        Wait for sibling cancellation cleanup before propagating an error.
+        """
         runner = create_runner(max_workers=2)
         started = asyncio.Event()
         blocked = asyncio.Event()

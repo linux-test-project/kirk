@@ -62,7 +62,9 @@ async def test_write(tmpdir):
 
 
 async def test_context_exception(tmpdir):
-    """Context exit must close the file without suppressing exceptions."""
+    """
+    Context exit must close the file without suppressing exceptions.
+    """
     raw_file = None
     try:
         with pytest.raises(RuntimeError, match="context failure"):

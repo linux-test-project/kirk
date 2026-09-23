@@ -296,7 +296,9 @@ class _TestSession:
 
     @pytest.fixture
     async def running_test(self, session, monkeypatch):
-        """Signal when the sleep test is running on the target."""
+        """
+        Signal when the sleep test is running on the target.
+        """
         started = asyncio.Event()
         channel = session._sut.get_channel()
         run_command = channel.run_command
@@ -320,7 +322,9 @@ class _TestSession:
         return started
 
     async def test_run_stop(self, tmpdir, session, running_test):
-        """Graceful stop finishes the running test and leaves queued tests unrun."""
+        """
+        Graceful stop finishes the running test and leaves queued tests unrun.
+        """
         report = str(tmpdir / "report.json")
 
         async def stop():
@@ -339,7 +343,9 @@ class _TestSession:
         assert not await session._sut.is_running()
 
     async def test_run_force_stop(self, tmpdir, session, running_test):
-        """A second stop kills the running test and leaves queued tests unrun."""
+        """
+        A second stop kills the running test and leaves queued tests unrun.
+        """
         report = str(tmpdir / "report.json")
 
         async def stop():
@@ -431,7 +437,9 @@ class _TestSession:
         assert [result["test_fqn"] for result in report_data["results"]] == expected
 
     async def test_run_runtime(self, tmpdir, session, monkeypatch):
-        """Runtime expiry cancels the active iteration and saves completed results."""
+        """
+        Runtime expiry cancels the active iteration and saves completed results.
+        """
         iterations = []
         cancelled = asyncio.Event()
         cleaned = asyncio.Event()
