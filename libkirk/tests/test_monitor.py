@@ -49,45 +49,35 @@ async def run_events():
 @pytest.fixture
 async def read_monitor(tmpdir):
     """
-    Read a single line inside the monitor file.
+    Wait for the expected monitor file contents.
     """
     fpath = tmpdir / MONITOR_FILE
 
-    async def _read():
-        data = None
-        while not data:
+    async def _read(expected):
+        while True:
             async with AsyncFile(fpath, "r") as fdata:
-                data = await fdata.readline()
+                data = await fdata.read()
 
-            if data:
-                try:
-                    json.loads(data)
-                except json.JSONDecodeError:
-                    data = None
-                    await asyncio.sleep(0.01)
+            if data == expected:
+                return
 
-        return data
+            await asyncio.sleep(0.01)
 
-    async def _wrap(position, msg):
-        for _ in range(0, position - 1):
-            await asyncio.wait_for(_read(), 1)
-
-        data = await asyncio.wait_for(_read(), 1)
-        assert data == msg
+    async def _wrap(msg):
+        await asyncio.wait_for(_read(msg), 1)
 
     return _wrap
 
 
 async def test_single_write(read_monitor):
     """
-    Test if a single event will cause to write inside the monitor file
-    only once.
+    Test that each event replaces the monitor file contents.
     """
-    msg = json.dumps({"type": "session_stopped", "message": {}})
-
-    for _ in range(1, 10):
-        await libkirk.events.fire("session_stopped")
-        await read_monitor(1, msg)
+    for index in range(1, 10):
+        message = f"warning {index}"
+        await libkirk.events.fire("session_warning", message)
+        msg = json.dumps({"type": "session_warning", "message": {"message": message}})
+        await read_monitor(msg)
 
 
 async def test_override_events(tmpdir, read_monitor):
@@ -100,7 +90,7 @@ async def test_override_events(tmpdir, read_monitor):
 
     msg = json.dumps({"type": "session_stopped", "message": {}})
 
-    await read_monitor(3, msg)
+    await read_monitor(msg)
 
 
 async def test_session_restore(read_monitor):
@@ -109,7 +99,7 @@ async def test_session_restore(read_monitor):
     """
     await libkirk.events.fire("session_restore", "/tmp/restore")
     msg = json.dumps({"type": "session_restore", "message": {"restore": "/tmp/restore"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_sut_stdout(read_monitor):
@@ -118,7 +108,7 @@ async def test_sut_stdout(read_monitor):
     """
     await libkirk.events.fire("sut_stdout", "mysut", "hello")
     msg = json.dumps({"type": "sut_stdout", "message": {"sut": "mysut", "data": "hello"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_sut_start(read_monitor):
@@ -127,7 +117,7 @@ async def test_sut_start(read_monitor):
     """
     await libkirk.events.fire("sut_start", "mysut")
     msg = json.dumps({"type": "sut_start", "message": {"sut": "mysut"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_sut_stop(read_monitor):
@@ -136,7 +126,7 @@ async def test_sut_stop(read_monitor):
     """
     await libkirk.events.fire("sut_stop", "mysut")
     msg = json.dumps({"type": "sut_stop", "message": {"sut": "mysut"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_sut_restart(read_monitor):
@@ -145,7 +135,7 @@ async def test_sut_restart(read_monitor):
     """
     await libkirk.events.fire("sut_restart", "mysut")
     msg = json.dumps({"type": "sut_restart", "message": {"sut": "mysut"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_sut_not_responding(read_monitor):
@@ -154,7 +144,7 @@ async def test_sut_not_responding(read_monitor):
     """
     await libkirk.events.fire("sut_not_responding")
     msg = json.dumps({"type": "sut_not_responding", "message": {}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_run_cmd_start(read_monitor):
@@ -163,7 +153,7 @@ async def test_run_cmd_start(read_monitor):
     """
     await libkirk.events.fire("run_cmd_start", "ls -la")
     msg = json.dumps({"type": "run_cmd_start", "message": {"cmd": "ls -la"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_run_cmd_stop(read_monitor):
@@ -175,7 +165,7 @@ async def test_run_cmd_stop(read_monitor):
         "type": "run_cmd_stop",
         "message": {"command": "ls -la", "stdout": "output", "returncode": 0},
     })
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_test_started(read_monitor):
@@ -198,7 +188,7 @@ async def test_test_started(read_monitor):
             "env": {},
         }},
     })
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_test_stdout(read_monitor):
@@ -224,7 +214,7 @@ async def test_test_stdout(read_monitor):
             "data": "output",
         },
     })
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_test_timed_out(read_monitor):
@@ -250,7 +240,7 @@ async def test_test_timed_out(read_monitor):
             "timeout": 30,
         },
     })
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_suite_started(read_monitor):
@@ -277,7 +267,7 @@ async def test_suite_started(read_monitor):
             }],
         },
     })
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_suite_timeout(read_monitor):
@@ -307,7 +297,7 @@ async def test_suite_timeout(read_monitor):
             "timeout": 60.0,
         },
     })
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_session_warning(read_monitor):
@@ -316,7 +306,7 @@ async def test_session_warning(read_monitor):
     """
     await libkirk.events.fire("session_warning", "beware")
     msg = json.dumps({"type": "session_warning", "message": {"message": "beware"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_session_error(read_monitor):
@@ -325,7 +315,7 @@ async def test_session_error(read_monitor):
     """
     await libkirk.events.fire("session_error", "oops")
     msg = json.dumps({"type": "session_error", "message": {"error": "oops"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
 
 
 async def test_kernel_tainted(read_monitor):
@@ -334,4 +324,4 @@ async def test_kernel_tainted(read_monitor):
     """
     await libkirk.events.fire("kernel_tainted", "proprietary module")
     msg = json.dumps({"type": "kernel_tainted", "message": {"message": "proprietary module"}})
-    await read_monitor(1, msg)
+    await read_monitor(msg)
