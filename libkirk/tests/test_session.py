@@ -473,16 +473,27 @@ class _TestSession:
         assert len(data["results"]) == 1
         assert data["results"][0]["test_fqn"] == expected_test
 
-    async def test_run_shard_multiple_suites(self, tmpdir, session):
+    async def test_run_shard_multiple_suites(self, tmpdir, session, monkeypatch):
         """
         Test sharding across multiple suites with empty suite pruning.
         """
+        scheduled = []
+        schedule = session._scheduler.schedule
+
+        async def record_schedule(suites):
+            scheduled.extend(
+                (suite.name, [test.name for test in suite.tests]) for suite in suites
+            )
+            await schedule(suites)
+
+        monkeypatch.setattr(session._scheduler, "schedule", record_schedule)
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01", "suite02"], shard=(1, 2), report_path=report
+            suites=["suite01", "environ", "suite02"], shard=(2, 2), report_path=report
         )
+        assert scheduled == [("suite01", ["test02"]), ("suite02", ["test02"])]
         data = await self.read_report(report)
-        assert len(data["results"]) == 2
+        assert [result["test_fqn"] for result in data["results"]] == ["test02", "test02"]
 
     async def test_run_shard_with_restore(self, tmpdir, session):
         """
