@@ -7,25 +7,21 @@ jobs:
   build:
     runs-on: ubuntu-22.04
 
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9"]
+    container:
+      image: python:3.9-alpine
 
     steps:
     - name: Show OS
       run: cat /etc/os-release
 
-    - name: Git checkout
-      uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: apk add --no-cache git gcc musl-dev
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+    - name: Git checkout
+      uses: actions/checkout@v7
 
     - name: Install dependencies
-      run: python3 -m pip install .[testing,ssh,ltx] ruff pyrefly
+      run: pip install .[testing,ssh,ltx] ruff pyrefly
 
     - name: Test kirk
       run: ./kirk --help

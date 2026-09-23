@@ -4,32 +4,6 @@ name: "Test packages"
 on: [push, pull_request]
 
 jobs:
-  python3-deprecated:
-    runs-on: ubuntu-22.04
-
-    container:
-      # Leap 15.3 is the last release shipping python3 3.6
-      image: opensuse/leap:15.3
-
-    steps:
-    - name: Show OS
-      run: cat /etc/os-release
-
-    - name: Install checkout dependencies
-      run: zypper install -y tar gzip
-
-    - name: Git checkout
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      run: zypper install -y python3-pip make
-
-    - name: Install dependencies
-      run: pip install pytest pytest-asyncio
-
-    - name: Test with pytest
-      run: pytest -m "not qemu and not ssh and not ltx"
-
   python3:
     runs-on: ubuntu-22.04
 
@@ -47,23 +21,24 @@ jobs:
           "3.14"
         ]
 
+    container:
+      image: python:${{ matrix.python-version }}-alpine
+
     steps:
     - name: Show OS
       run: cat /etc/os-release
 
-    - name: Git checkout
-      uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: apk add --no-cache git coreutils
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+    - name: Git checkout
+      uses: actions/checkout@v7
 
     - name: Install dependencies
-      run: python3 -m pip install .[testing] build
+      run: pip install .[testing] build
 
     - name: Build package
       run: python3 -m build
 
     - name: Test with pytest
-      run: python3 -m pytest -m "not qemu and not ssh and not ltx"
+      run: pytest -m "not qemu and not ssh and not ltx"

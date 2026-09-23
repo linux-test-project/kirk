@@ -21,23 +21,24 @@ jobs:
           "3.14"
         ]
 
+    container:
+      image: python:${{ matrix.python-version }}-alpine
+
     steps:
     - name: Show OS
       run: cat /etc/os-release
 
-    - name: Git checkout
-      uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: apk add --no-cache git make gcc musl-dev linux-headers
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+    - name: Git checkout
+      uses: actions/checkout@v7
 
     - name: Install dependencies
       run: pip install .[testing,ltx]
 
     - name: Checkout ltx
-      uses: actions/checkout@v5
+      uses: actions/checkout@v7
       with:
         repository: linux-test-project/ltx
         path: ltx

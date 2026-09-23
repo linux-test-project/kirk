@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Andrea Cervesato <andrea.cervesato@suse.com>
 
 name: "Test SSH"
-on: push
+on: [push, pull_request]
 
 env:
-  TEST_SSH_KEY_FILE: /home/runner/.ssh/id_rsa
+  TEST_SSH_KEY_FILE: /tmp/id_rsa
   TEST_SSH_USERNAME: runner
   TEST_SSH_PASSWORD: password
   TEST_SSH_PORT: 22
@@ -27,42 +27,41 @@ jobs:
           "3.14"
         ]
 
+    container:
+      image: python:${{ matrix.python-version }}-alpine
+
     steps:
     - name: Show OS
       run: cat /etc/os-release
 
-    - name: Git checkout
-      uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: apk add --no-cache git openssh sudo gcc musl-dev libffi-dev
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+    - name: Git checkout
+      uses: actions/checkout@v7
 
     - name: Install dependencies
-      run: python3 -m pip install .[testing,ssh] build
+      run: pip install .[testing,ssh]
 
-    - name: Setup user password
-      run: echo "$TEST_SSH_USERNAME:$TEST_SSH_PASSWORD" | sudo chpasswd
-
-    - name: Install Private SSH Key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        name: id_rsa
-        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
-
-    - name: Install Public SSH Key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_PUBLIC_KEY }}
-        name: id_rsa.pub
-        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
-
-    - name: Generate known hosts
+    - name: Setup SSH server and keys
       run: |
-        cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
-        ssh-keyscan -H localhost > ~/.ssh/known_hosts
+        ssh-keygen -A
+        adduser -D -s /bin/sh "$TEST_SSH_USERNAME"
+        echo "$TEST_SSH_USERNAME:$TEST_SSH_PASSWORD" | chpasswd
+        echo "$TEST_SSH_USERNAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/runner
+        mkdir -p "/home/$TEST_SSH_USERNAME/.ssh" "$HOME/.ssh" /root/.ssh
+        ssh-keygen -t rsa -N "" -f "$TEST_SSH_KEY_FILE"
+        cp "$TEST_SSH_KEY_FILE.pub" "/home/$TEST_SSH_USERNAME/.ssh/authorized_keys"
+        chown -R "$TEST_SSH_USERNAME:$TEST_SSH_USERNAME" "/home/$TEST_SSH_USERNAME/.ssh"
+        chmod 700 "/home/$TEST_SSH_USERNAME/.ssh"
+        chmod 600 "/home/$TEST_SSH_USERNAME/.ssh/authorized_keys"
+        echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+        echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+        /usr/sbin/sshd
+        ssh-keyscan -H localhost > "$HOME/.ssh/known_hosts"
+        ssh-keyscan -H 127.0.0.1 >> "$HOME/.ssh/known_hosts"
+        ssh-keyscan -H ::1 >> "$HOME/.ssh/known_hosts"
+        cp -a "$HOME/.ssh/." /root/.ssh/ 2>/dev/null || true
 
     - name: Test with pytest
-      run: python3 -m pytest -m "ssh"
+      run: pytest -m "ssh"
