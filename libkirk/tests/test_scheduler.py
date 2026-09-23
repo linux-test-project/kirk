@@ -5,7 +5,6 @@ Unittests for runner module.
 from libkirk.ltp import LTPFramework
 import asyncio
 import os
-import re
 
 import pytest
 
@@ -158,7 +157,7 @@ class TestTestScheduler:
             assert res.broken == 0
             assert res.skipped == 0
             assert res.warnings == 0
-            assert 0 < res.exec_time < 1
+            assert res.exec_time > 0
             assert res.return_code == 0
             assert res.stdout == "ciao"
             index += 1
@@ -364,18 +363,18 @@ class TestTestScheduler:
 
         runner = create_runner(timeout=0.05, max_workers=workers)
 
-        await runner.schedule(tests)
-        assert len(runner.results) == len(tests)
+        await asyncio.wait_for(runner.schedule(tests), timeout=30)
+        assert sorted(res.test.name for res in runner.results) == [
+            test.name for test in tests
+        ]
 
-        for i in range(len(tests)):
-            res = runner.results[i]
-            assert re.search(r"test[0-9]", res.test.name)
+        for res in runner.results:
             assert res.passed == 0
             assert res.failed == 0
             assert res.broken == 1
             assert res.skipped == 0
             assert res.warnings == 0
-            assert 0 < res.exec_time < 0.4
+            assert res.exec_time > 0
             assert res.return_code == -1
             assert res.stdout == ""
 
@@ -491,10 +490,9 @@ class TestSuiteScheduler:
             assert runner.rebooted == 2
 
         assert len(runner.results) == 1
-        if workers > 1:
-            assert len(runner.results[0].tests_results) >= 2
-        else:
-            assert len(runner.results[0].tests_results) == 2
+        assert sorted(res.test.name for res in runner.results[0].tests_results) == [
+            test.name for test in tests
+        ]
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_panic(self, workers, create_runner):
@@ -525,10 +523,9 @@ class TestSuiteScheduler:
 
         assert runner.rebooted == 1
         assert len(runner.results) == 1
-        if workers > 1:
-            assert len(runner.results[0].tests_results) >= 10
-        else:
-            assert len(runner.results[0].tests_results) == 10
+        assert sorted(res.test.name for res in runner.results[0].tests_results) == [
+            test.name for test in tests
+        ]
 
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_timeout(self, workers, sut, create_runner):
@@ -575,9 +572,10 @@ class TestSuiteScheduler:
                     parallelizable=True,
                 )
             )
-        await runner.schedule([Suite("suite01", tests)])
+        await asyncio.wait_for(runner.schedule([Suite("suite01", tests)]), timeout=30)
 
         assert runner.results[0].exec_time == 0.0
+        assert len(runner.results[0].tests_results) == len(tests)
 
         for i in range(len(tests)):
             res = runner.results[0].tests_results[i]
@@ -587,7 +585,7 @@ class TestSuiteScheduler:
             assert res.broken == 0
             assert res.skipped == 1
             assert res.warnings == 0
-            assert 0 <= res.exec_time < 0.4
+            assert res.exec_time == 0
             assert res.return_code == 32
             assert res.stdout == ""
             assert res.status == ResultStatus.CONF

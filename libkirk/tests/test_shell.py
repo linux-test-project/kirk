@@ -35,7 +35,7 @@ class TestShellComChannel(_TestComChannel):
         """
         return request.param * 0
 
-    async def test_fetch_file_stop(self, com):
+    async def test_fetch_file_stop(self, com, target_tmpdir=None):
         pytest.skip(reason="Coroutines don't support I/O file handling")
 
 

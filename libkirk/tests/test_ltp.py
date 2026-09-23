@@ -41,11 +41,11 @@ class TestLTPFramework:
         yield fw
 
     @pytest.fixture(autouse=True)
-    def prepare_tmpdir(self, tmpdir):
+    def prepare_tmpdir(self, tmpdir, monkeypatch):
         """
         Prepare the temporary directory adding runtest folder.
         """
-        os.environ["LTPROOT"] = str(tmpdir)
+        monkeypatch.setenv("LTPROOT", str(tmpdir))
 
         # create simple testing suites
         content = ""

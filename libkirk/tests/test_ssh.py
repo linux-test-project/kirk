@@ -71,7 +71,6 @@ class _TestSSHComChannel(_TestComChannel):
 
         com = SSHComChannel()
         com.setup(**kwargs)
-        await com.communicate()
 
         class MyBuffer(IOBuffer):
             data = ""
@@ -82,7 +81,12 @@ class _TestSSHComChannel(_TestComChannel):
                 await asyncio.sleep(0.1)
 
         buffer = MyBuffer()
-        await com.stop(iobuffer=buffer)
+        try:
+            await com.communicate()
+            await com.stop(iobuffer=buffer)
+        finally:
+            if await com.active():
+                await com.stop()
 
         assert buffer.data == "ciao\n"
 
@@ -96,14 +100,18 @@ class _TestSSHComChannel(_TestComChannel):
 
         com = SSHComChannel()
         com.setup(**kwargs)
-        await com.communicate()
-        ret = await com.run_command("whoami")
-        assert ret is not None
+        try:
+            await com.communicate()
+            ret = await com.run_command("whoami")
+            assert ret is not None
 
-        if enable == "1":
-            assert ret["stdout"] == "root\n"
-        else:
-            assert ret["stdout"] != "root\n"
+            if enable == "1":
+                assert ret["stdout"] == "root\n"
+            else:
+                assert ret["stdout"] != "root\n"
+        finally:
+            if await com.active():
+                await com.stop()
 
     async def test_kernel_panic(self, com):
         """

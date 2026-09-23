@@ -362,98 +362,68 @@ async def test_is_fault_injection_not_running(mock_sut):
         await mock_sut.is_fault_injection_enabled()
 
 
-async def test_redirect_sut_stdout_sut_event():
+async def test_redirect_sut_stdout_sut_event(run_events):
     """
     Test RedirectSUTStdout fires sut_stdout event.
     """
     import libkirk
 
-    received = []
+    received = asyncio.Queue()
 
     async def handler(name, data):
-        received.append((name, data))
+        await received.put((name, data))
 
     libkirk.events.register("sut_stdout", handler)
-
-    async def start():
-        await libkirk.events.start()
-
-    libkirk.create_task(start())
 
     mock = MockSUT()
     redirect = libkirk.sut.RedirectSUTStdout(mock, is_cmd=False)
     await redirect.write("hello")
 
-    while not received:
-        await asyncio.sleep(1e-3)
-
-    await libkirk.events.stop()
-
-    assert received[0] == ("mock", "hello")
+    assert await asyncio.wait_for(received.get(), timeout=5) == ("mock", "hello")
 
 
-async def test_redirect_sut_stdout_cmd_event():
+async def test_redirect_sut_stdout_cmd_event(run_events):
     """
     Test RedirectSUTStdout fires run_cmd_stdout event when is_cmd=True.
     """
     import libkirk
 
-    received = []
+    received = asyncio.Queue()
 
     async def handler(data):
-        received.append(data)
+        await received.put(data)
 
     libkirk.events.register("run_cmd_stdout", handler)
-
-    async def start():
-        await libkirk.events.start()
-
-    libkirk.create_task(start())
 
     mock = MockSUT()
     redirect = libkirk.sut.RedirectSUTStdout(mock, is_cmd=True)
     await redirect.write("cmd output")
 
-    while not received:
-        await asyncio.sleep(1e-3)
-
-    await libkirk.events.stop()
-
-    assert received[0] == "cmd output"
+    assert await asyncio.wait_for(received.get(), timeout=5) == "cmd output"
 
 
-async def test_redirect_test_stdout():
+async def test_redirect_test_stdout(run_events):
     """
     Test RedirectTestStdout fires test_stdout event and captures stdout.
     """
     import libkirk
     from libkirk.data import Test
 
-    received = []
+    received = asyncio.Queue()
 
     async def handler(test, data):
-        received.append((test, data))
+        await received.put((test, data))
 
     libkirk.events.register("test_stdout", handler)
-
-    async def start():
-        await libkirk.events.start()
-
-    libkirk.create_task(start())
 
     test = Test(name="mytest", cmd="echo")
     redirect = libkirk.sut.RedirectTestStdout(test)
     await redirect.write("output1")
     await redirect.write("output2")
 
-    while len(received) < 2:
-        await asyncio.sleep(1e-3)
-
-    await libkirk.events.stop()
-
     assert redirect.stdout == "output1output2"
-    assert received[0][1] == "output1"
-    assert received[1][1] == "output2"
+    assert await asyncio.wait_for(received.get(), timeout=5) == (test, "output1")
+    assert await asyncio.wait_for(received.get(), timeout=5) == (test, "output2")
 
 
 async def test_setup_fault_injection(mock_sut):

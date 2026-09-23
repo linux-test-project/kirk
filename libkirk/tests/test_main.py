@@ -602,20 +602,22 @@ class TestMain:
         report = self.read_report(temp)
         assert len(report["results"]) == 8
 
-    def test_randomize(self, tmpdir):
+    @pytest.mark.parametrize("randomize", [False, True])
+    def test_randomize(self, tmpdir, monkeypatch, randomize):
         """
         Test --randomize option.
         """
-        num_of_suites = 10
+        monkeypatch.setattr("libkirk.session.random.shuffle", lambda tests: tests.reverse())
 
         temp = tmpdir.mkdir("temp")
         cmd_args = [
             "--tmp-dir",
             str(temp),
             "--run-suite",
+            "suite01",
         ]
-        cmd_args.extend(["suite01"] * num_of_suites)
-        cmd_args.append("--randomize")
+        if randomize:
+            cmd_args.append("--randomize")
 
         with pytest.raises(SystemExit) as excinfo:
             libkirk.main.run(cmd_args=cmd_args)
@@ -623,13 +625,8 @@ class TestMain:
         assert excinfo.value.code == libkirk.main.RC_OK
 
         report = self.read_report(temp)
-        assert len(report["results"]) == 2 * num_of_suites
-
-        tests_names = []
-        for test in report["results"]:
-            tests_names.append(test["test_fqn"])
-
-        assert ["test01", "test02"] * num_of_suites != tests_names
+        expected = ["test02", "test01"] if randomize else ["test01", "test02"]
+        assert [test["test_fqn"] for test in report["results"]] == expected
 
     def test_runtime(self, tmpdir):
         """

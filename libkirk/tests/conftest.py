@@ -2,6 +2,7 @@
 Generic stuff for pytest.
 """
 
+import asyncio
 import os
 
 import pytest
@@ -51,11 +52,30 @@ def _reset_events():
 
 
 @pytest.fixture
-def ltpdir(tmpdir):
+async def run_events(_reset_events):
+    """Run the event consumer and always stop and await it after the test."""
+    task = libkirk.create_task(libkirk.events.start())
+    await asyncio.sleep(0)
+    try:
+        yield
+    finally:
+        try:
+            await asyncio.wait_for(libkirk.events.stop(), timeout=5)
+        finally:
+            if not task.done():
+                task.cancel()
+            results = await asyncio.wait_for(
+                asyncio.gather(task, return_exceptions=True), timeout=5
+            )
+            assert results[0] is None or isinstance(results[0], asyncio.CancelledError)
+
+
+@pytest.fixture
+def ltpdir(tmpdir, monkeypatch):
     """
     Setup the temporary folder with LTP tests.
     """
-    os.environ["LTPROOT"] = str(tmpdir)
+    monkeypatch.setenv("LTPROOT", str(tmpdir))
 
     tmpdir.mkdir("testcases").mkdir("bin")
     runtest = tmpdir.mkdir("runtest")

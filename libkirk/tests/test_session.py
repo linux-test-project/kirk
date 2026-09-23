@@ -4,7 +4,6 @@ Unittests for the session module.
 
 import os
 import json
-import pathlib
 import asyncio
 from typing import List
 
@@ -175,12 +174,12 @@ class _TestSession:
     """
 
     @pytest.fixture
-    async def session(self, tmpdir, sut):
+    async def session(self, tmpdir, sut, monkeypatch):
         """
         Session communication object.
         """
-        # make sure that ltp folder is present inside the host
-        pathlib.Path("/opt/ltp").mkdir(parents=True, exist_ok=True)
+        # Dummy suites only use shell commands; /tmp also exists on remote targets.
+        monkeypatch.setenv("LTPROOT", "/tmp")
 
         session = Session(tmpdir=TempDir(tmpdir), sut=sut)
         session._framework = DummyFramework()

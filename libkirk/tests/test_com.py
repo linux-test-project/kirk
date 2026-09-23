@@ -5,6 +5,7 @@ Test ComChannel implementations.
 import asyncio
 import logging
 import os
+import shlex
 import time
 
 import pytest
@@ -152,9 +153,9 @@ class _TestComChannel:
 
         results = await asyncio.gather(*coros)
 
+        assert [int(data["stdout"]) for data in results] == list(range(exec_count))
         for data in results:
             assert data["returncode"] == 0
-            assert 0 <= int(data["stdout"]) < exec_count
             assert 0 < data["exec_time"] < time.time()
 
     async def test_run_command_stop_parallel(self, com):
@@ -176,14 +177,16 @@ class _TestComChannel:
             results = await asyncio.gather(*coros, return_exceptions=True)
 
             for data in results:
-                if not isinstance(data, dict):
-                    # we also have stop() return
+                if isinstance(data, CommunicationError):
+                    # Queued commands may lose their connection during stop.
                     continue
 
+                assert isinstance(data, dict), data
                 assert data["returncode"] != 0
                 assert 0 < data["exec_time"] < 2
 
-        await asyncio.gather(*[test(), stop()])
+        await asyncio.wait_for(asyncio.gather(test(), stop()), timeout=30)
+        assert not await com.active()
 
     async def test_fetch_file_bad_args(self, com):
         """
@@ -198,37 +201,70 @@ class _TestComChannel:
         with pytest.raises(CommunicationError):
             await com.fetch_file("this_file_doesnt_exist")
 
-    async def test_fetch_file(self, com):
+    @pytest.fixture
+    async def target_tmpdir(self, com):
+        """Create and remove a private directory on the target."""
+        await com.communicate(iobuffer=Printer())
+        result = await com.run_command("mktemp -d /tmp/kirk-test.XXXXXXXX")
+        assert result["returncode"] == 0
+        path = result["stdout"].strip()
+        assert path.startswith("/tmp/kirk-test.")
+        try:
+            yield path
+        finally:
+            if not await com.active():
+                await asyncio.wait_for(com.communicate(), timeout=30)
+            result = await asyncio.wait_for(
+                com.run_command(f"rm -rf -- {shlex.quote(path)}"), timeout=30
+            )
+            assert result["returncode"] == 0
+
+    async def test_fetch_file(self, com, target_tmpdir):
         """
         Test fetch_file method.
         """
-        await com.communicate(iobuffer=Printer())
-
         for i in range(0, 5):
-            myfile = f"/tmp/myfile{i}"
-            await com.run_command(f"echo -n 'mytests' > {myfile}")
+            myfile = f"{target_tmpdir}/myfile{i}"
+            result = await com.run_command(f"echo -n 'mytests' > {shlex.quote(myfile)}")
+            assert result["returncode"] == 0
             data = await com.fetch_file(myfile)
 
             assert data == b"mytests"
 
-    async def test_fetch_file_stop(self, com):
+    async def test_fetch_file_stop(self, com, target_tmpdir):
         """
         Test stop method when running fetch_file.
         """
-        target = "/tmp/target_file"
-        await com.communicate(iobuffer=Printer())
+        target = f"{target_tmpdir}/target_file"
+        started = asyncio.Event()
 
         async def fetch():
-            (await com.run_command(f"truncate -s {1024 * 1024 * 1024} {target}"),)
-            await com.fetch_file(target)
+            result = await com.run_command(
+                f"truncate -s {1024 * 1024 * 1024} {shlex.quote(target)}"
+            )
+            assert result["returncode"] == 0
+            started.set()
+            return await com.fetch_file(target)
 
         async def stop():
+            await started.wait()
             await asyncio.sleep(2)
             await com.stop(iobuffer=Printer())
 
-        libkirk.create_task(fetch())
-
-        await stop()
+        task = libkirk.create_task(fetch())
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(task, stop(), return_exceptions=True), timeout=30
+            )
+            assert isinstance(results[0], (bytes, CommunicationError))
+            assert results[1] is None
+            assert not await com.active()
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.wait_for(
+                asyncio.gather(task, return_exceptions=True), timeout=5
+            )
 
     async def test_cwd(self, com):
         """

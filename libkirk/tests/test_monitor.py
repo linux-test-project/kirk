@@ -15,7 +15,7 @@ MONITOR_FILE = "monitor.json"
 
 
 @pytest.fixture(autouse=True)
-async def monitor(tmpdir):
+async def monitor(tmpdir, run_events):
     """
     Fixture containing json file monitor.
     """
@@ -29,21 +29,6 @@ async def monitor(tmpdir):
     await obj.start()
     yield
     await obj.stop()
-
-
-@pytest.fixture(autouse=True)
-async def run_events():
-    """
-    Run kirk events at the beginning of the test
-    and stop it at the end of the test.
-    """
-
-    async def start():
-        await libkirk.events.start()
-
-    libkirk.create_task(start())
-    yield
-    await libkirk.events.stop()
 
 
 @pytest.fixture

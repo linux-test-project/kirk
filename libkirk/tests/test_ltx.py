@@ -6,6 +6,7 @@ import os
 import signal
 import subprocess
 import time
+from contextlib import ExitStack
 from typing import Any, List
 
 import pytest
@@ -25,38 +26,45 @@ if not TEST_LTX_BINARY or not os.path.isfile(TEST_LTX_BINARY):
     pytestmark.append(pytest.mark.skip(reason="TEST_LTX_BINARY doesn't exist"))
 
 
+@pytest.fixture
+def ltx_transport(tmpdir):
+    """Own the LTX process and both parent FIFO descriptors."""
+    infile = str(tmpdir / "transport.in")
+    outfile = str(tmpdir / "transport.out")
+    os.mkfifo(infile)
+    os.mkfifo(outfile)
+
+    with ExitStack() as cleanup:
+        stdin = os.open(infile, os.O_RDWR | os.O_NONBLOCK)
+        cleanup.callback(os.close, stdin)
+        stdout = os.open(outfile, os.O_RDWR)
+        cleanup.callback(os.close, stdout)
+
+        assert TEST_LTX_BINARY is not None
+        proc = subprocess.Popen(TEST_LTX_BINARY, stdin=stdin, stdout=stdout)
+        try:
+            yield infile, outfile
+        finally:
+            proc.kill()
+            proc.wait()
+
+
 class TestLTX:
     """
     Test LTX implementation.
     """
 
     @pytest.fixture
-    async def ltx(self, tmpdir):
+    async def ltx(self, ltx_transport):
         """
         LTX handler.
         """
-        infile = str(tmpdir / "transport.in")
-        outfile = str(tmpdir / "transport.out")
-
-        os.mkfifo(infile)
-        os.mkfifo(outfile)
-
-        stdin = os.open(infile, os.O_RDWR | os.O_NONBLOCK)
-        stdout = os.open(outfile, os.O_RDWR)
-
-        assert TEST_LTX_BINARY is not None
-        proc = subprocess.Popen(
-            TEST_LTX_BINARY,
-            stdin=stdin,
-            stdout=stdout,
-        )
-
+        handle = LTX(*ltx_transport)
         try:
-            async with LTX(infile, outfile) as handle:
-                yield handle
+            await handle.connect()
+            yield handle
         finally:
-            proc.kill()
-            proc.wait()
+            await handle.disconnect()
 
     async def test_version(self, ltx):
         """
@@ -266,37 +274,20 @@ class TestLTX:
 
 
 @pytest.fixture
-async def com(tmpdir):
+async def com(tmpdir, ltx_transport):
     """
     LTXComChannel instance object.
     """
-    infile = str(tmpdir / "transport.in")
-    outfile = str(tmpdir / "transport.out")
-
-    os.mkfifo(infile)
-    os.mkfifo(outfile)
-
-    stdin = os.open(infile, os.O_RDONLY | os.O_NONBLOCK)
-    stdout = os.open(outfile, os.O_RDWR)
-
-    assert TEST_LTX_BINARY is not None
-    proc = subprocess.Popen(
-        TEST_LTX_BINARY,
-        stdin=stdin,
-        stdout=stdout,
-    )
+    infile, outfile = ltx_transport
 
     obj = next((c for c in libkirk.com.get_channels() if c.name == "ltx"), None)
     assert obj is not None
-    obj.setup(cwd=str(tmpdir), env=dict(HELLO="WORLD"), infile=infile, outfile=outfile)
-
-    yield obj
-
-    if await obj.active():
-        await obj.stop()
-
-    proc.kill()
-    proc.wait()
+    try:
+        obj.setup(cwd=str(tmpdir), env=dict(HELLO="WORLD"), infile=infile, outfile=outfile)
+        yield obj
+    finally:
+        if await obj.active():
+            await obj.stop()
 
 
 class TestLTXComChannel(_TestComChannel):
@@ -304,7 +295,7 @@ class TestLTXComChannel(_TestComChannel):
     Test LTXComChannel implementation.
     """
 
-    async def test_fetch_file_stop(self, com):
+    async def test_fetch_file_stop(self, com, target_tmpdir=None):
         pytest.skip(reason="LTX doesn't support stop for GET_FILE")
 
 

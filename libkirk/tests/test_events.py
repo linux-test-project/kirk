@@ -9,15 +9,6 @@ import pytest
 import libkirk
 
 
-@pytest.fixture(autouse=True)
-def cleanup():
-    """
-    Cleanup all events after each test.
-    """
-    yield
-    libkirk.events.reset()
-
-
 def test_reset():
     """
     Test reset method.
@@ -164,63 +155,47 @@ def test_event_remove_nonexistent():
     event.remove(lambda: None)
 
 
-async def test_fire_handler_exception():
+async def test_fire_handler_exception(run_events):
     """
     Test that exceptions in event handlers are caught and forwarded
     to the internal_error event.
     """
     errors = []
+    received = asyncio.Event()
 
     async def bad_handler():
         raise RuntimeError("test error")
 
     async def error_catcher(error, name):
         errors.append(error)
-
-    async def start():
-        await libkirk.events.start()
+        received.set()
 
     libkirk.events.register("bad_event", bad_handler)
     libkirk.events.register("internal_error", error_catcher)
 
-    libkirk.create_task(start())
-
     await libkirk.events.fire("bad_event")
-
-    while not errors:
-        await asyncio.sleep(1e-3)
-
-    await libkirk.events.stop()
+    await asyncio.wait_for(received.wait(), timeout=5)
 
     assert len(errors) == 1
     assert isinstance(errors[0][0], RuntimeError)
 
 
-async def test_fire():
+async def test_fire(run_events):
     """
     Test fire method.
     """
     times = 100
     called = []
+    errors = []
+    completed = asyncio.Event()
 
     async def diehard(error, name):
-        assert error is not None
-        assert name is not None
+        errors.append((error, name))
 
     async def tofire(param):
         called.append(param)
-
-    async def start():
-        await libkirk.events.start()
-
-    async def run():
-        for i in range(times):
-            await libkirk.events.fire("myevent", i)
-
-        while len(called) < times:
-            await asyncio.sleep(1e-3)
-
-        await libkirk.events.stop()
+        if len(called) == times:
+            completed.set()
 
     libkirk.events.register("myevent", tofire)
     assert libkirk.events.is_registered("myevent")
@@ -228,12 +203,9 @@ async def test_fire():
     libkirk.events.register("internal_error", diehard)
     assert libkirk.events.is_registered("internal_error")
 
-    libkirk.create_task(start())
-    await run()
-
-    while len(called) < times:
-        await asyncio.sleep(1e-3)
-
-    called.sort()
     for i in range(times):
-        assert called[i] == i
+        await libkirk.events.fire("myevent", i)
+
+    await asyncio.wait_for(completed.wait(), timeout=5)
+    assert sorted(called) == list(range(times))
+    assert errors == []

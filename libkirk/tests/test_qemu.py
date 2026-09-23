@@ -52,7 +52,7 @@ class _TestQemuComChannel(_TestComChannel):
         with pytest.raises(KernelPanicError):
             await com.run_command("cat /tmp/panic.txt", iobuffer=iobuff)
 
-    async def test_fetch_file_stop(self, com):
+    async def test_fetch_file_stop(self, com, target_tmpdir=None):
         pytest.skip(reason="Coroutines don't support I/O file handling")
 
 

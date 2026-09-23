@@ -136,72 +136,47 @@ class TestSimpleUserInterface:
             stdout="",
         )
 
-    async def test_sut_not_responding(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_sut_not_responding(self, ui, capsys, run_events):
         await ui.sut_not_responding()
 
         # test_completed should skip printing result
         results = self._make_results(passed=1)
         await ui.test_completed(results)
 
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "SUT not responding" in out
 
-    async def test_kernel_panic(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_kernel_panic(self, ui, capsys, run_events):
         await ui.kernel_panic()
 
         results = self._make_results(passed=1)
         await ui.test_completed(results)
 
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "kernel panic" in out
 
-    async def test_kernel_tainted(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_kernel_tainted(self, ui, capsys, run_events):
         await ui.kernel_tainted("proprietary module")
         results = self._make_results(passed=1)
         await ui.test_completed(results)
 
-        # wait for events to process
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "tainted" in out
 
-    async def test_test_timed_out(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_test_timed_out(self, ui, capsys, run_events):
         test = self._make_test()
         await ui.test_timed_out(test, 30)
 
         results = self._make_results(passed=1)
         await ui.test_completed(results)
 
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "timed out" in out
@@ -216,40 +191,23 @@ class TestVerboseUserInterface:
     def ui(self):
         return VerboseUserInterface(no_colors=True)
 
-    async def test_sut_stdout(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_sut_stdout(self, ui, capsys, run_events):
         await ui.sut_stdout("mysut", "hello from sut")
 
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "hello from sut" in out
 
-    async def test_kernel_tainted(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_kernel_tainted(self, ui, capsys, run_events):
         await ui.kernel_tainted("proprietary module")
 
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "Tainted kernel" in out
 
-    async def test_test_timed_out(self, ui, capsys):
-        async def start():
-            await libkirk.events.start()
-
-        libkirk.create_task(start())
-
+    async def test_test_timed_out(self, ui, capsys, run_events):
         test = Test(name="t1", cmd="echo")
         await ui.test_timed_out(test, 30)
 
@@ -266,8 +224,7 @@ class TestVerboseUserInterface:
         )
         await ui.test_completed(results)
 
-        await asyncio.sleep(0.05)
-        await libkirk.events.stop()
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
 
         out, _ = capsys.readouterr()
         assert "timed out" in out
