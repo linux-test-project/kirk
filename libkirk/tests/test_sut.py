@@ -10,6 +10,7 @@ import pytest
 
 import libkirk.sut
 from libkirk.com import IOBuffer
+from libkirk.errors import CommunicationError
 
 
 class Printer(IOBuffer):
@@ -67,11 +68,18 @@ class _TestSUT:
         """
         async def stop():
             await asyncio.sleep(sut_stop_sleep)
+            assert await sut.is_running()
             await sut.stop(iobuffer=Printer())
 
-        await asyncio.gather(
-            *[sut.start(iobuffer=Printer()), stop()], return_exceptions=True
+        results = await asyncio.wait_for(
+            asyncio.gather(
+                sut.start(iobuffer=Printer()), stop(), return_exceptions=True
+            ),
+            timeout=30,
         )
+        assert results[0] is None or isinstance(results[0], CommunicationError)
+        assert results[1] is None
+        assert not await sut.is_running()
 
     async def test_config_help(self, sut):
         """
@@ -115,6 +123,7 @@ class MockChannel(libkirk.com.ComChannel):
 
     def __init__(self):
         self._responses = {}
+        self.commands = []
 
     def set_response(self, cmd, returncode=0, stdout=""):
         self._responses[cmd] = {"returncode": returncode, "stdout": stdout}
@@ -126,6 +135,7 @@ class MockChannel(libkirk.com.ComChannel):
         env: Optional[Dict[str, str]] = None,
         iobuffer: Optional[IOBuffer] = None,
     ) -> Optional[Dict[str, Any]]:
+        self.commands.append(command)
         for key, resp in self._responses.items():
             if key in command:
                 return resp
@@ -451,7 +461,14 @@ async def test_setup_fault_injection(mock_sut):
     Test setup_fault_injection configures kernel fault injection.
     """
     mock_sut._channel.set_response("echo", stdout="")
-    await mock_sut.setup_fault_injection(50)
+    await mock_sut.setup_fault_injection(50, interval=7)
+    assert mock_sut._channel.commands == [
+        f"echo {value} > /sys/kernel/debug/{ftype}/{setting}"
+        for ftype in mock_sut.FAULT_INJECTION_FILES
+        for setting, value in [
+            ("space", 0), ("times", -1), ("interval", 7), ("probability", 50)
+        ]
+    ]
 
 
 async def test_setup_fault_injection_reset(mock_sut):
@@ -459,7 +476,14 @@ async def test_setup_fault_injection_reset(mock_sut):
     Test setup_fault_injection with prob=0 resets to defaults.
     """
     mock_sut._channel.set_response("echo", stdout="")
-    await mock_sut.setup_fault_injection(0)
+    await mock_sut.setup_fault_injection(0, interval=7)
+    assert mock_sut._channel.commands == [
+        f"echo {value} > /sys/kernel/debug/{ftype}/{setting}"
+        for ftype in mock_sut.FAULT_INJECTION_FILES
+        for setting, value in [
+            ("space", 0), ("times", 1), ("interval", 1), ("probability", 0)
+        ]
+    ]
 
 
 async def test_setup_fault_injection_not_running(mock_sut):

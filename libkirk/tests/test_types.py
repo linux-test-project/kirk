@@ -31,6 +31,7 @@ def test_dict_item_float():
     val = libkirk.types.dict_item({"key": 10}, "key", float)
 
     assert val == 10.0
+    assert type(val) is float
 
 
 def test_dict_item_int():
@@ -40,6 +41,7 @@ def test_dict_item_int():
     val = libkirk.types.dict_item({"key": 10.0}, "key", int)
 
     assert val == 10
+    assert type(val) is int
 
 
 def test_dict_item_default_none():

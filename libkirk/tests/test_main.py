@@ -396,6 +396,7 @@ class TestMain:
 
         out, _ = capsys.readouterr()
         assert "Passed:   2" in out
+        assert "\x1b[" not in out
 
     def test_restore_suite(self, tmpdir):
         """

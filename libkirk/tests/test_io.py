@@ -61,6 +61,22 @@ async def test_write(tmpdir):
         assert fdata.read() == "kirkdata"
 
 
+async def test_context_exception(tmpdir):
+    """Context exit must close the file without suppressing exceptions."""
+    raw_file = None
+    try:
+        with pytest.raises(RuntimeError, match="context failure"):
+            async with AsyncFile(tmpdir / "myfile", "w") as fdata:
+                raw_file = fdata._file
+                raise RuntimeError("context failure")
+
+        assert raw_file is not None
+        assert raw_file.closed
+    finally:
+        if raw_file is not None:
+            raw_file.close()
+
+
 async def test_readline(tmpdir):
     """
     Test `readline()` method.

@@ -95,11 +95,19 @@ class _TestComChannel:
 
         async def stop():
             await asyncio.sleep(com_stop_setup)
+            assert await com.active()
             await com.stop(iobuffer=Printer())
 
-        await asyncio.gather(
-            *[com.communicate(iobuffer=Printer()), stop()], return_exceptions=True
+        results = await asyncio.wait_for(
+            asyncio.gather(
+                com.communicate(iobuffer=Printer()), stop(), return_exceptions=True
+            ),
+            timeout=30,
         )
+        # Interrupting startup may raise CommunicationError, but stop must succeed.
+        assert results[0] is None or isinstance(results[0], CommunicationError)
+        assert results[1] is None
+        assert not await com.active()
 
     async def test_run_command(self, com):
         """

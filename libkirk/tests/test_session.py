@@ -11,7 +11,7 @@ from typing import List
 import pytest
 
 from libkirk.ltp import LTPFramework
-from libkirk.com import ComChannel
+from libkirk.com import ComChannel, IOBuffer
 from libkirk.data import Test, Suite
 from libkirk.errors import CommunicationError
 from libkirk.results import TestResults
@@ -217,11 +217,13 @@ class _TestSession:
         """
         report = str(tmpdir / "report.json")
         await session.run(
-            suites=["suite01", "suite02"], pattern="test01|test02", report_path=report
+            suites=["suite01", "suite02"], pattern="^test01$", report_path=report
         )
 
         report_data = await self.read_report(report)
-        assert len(report_data["results"]) == 4
+        assert [result["test_fqn"] for result in report_data["results"]] == [
+            "test01", "test01"
+        ]
 
     async def test_run_report(self, tmpdir, session):
         """
@@ -267,41 +269,71 @@ class _TestSession:
         assert not os.path.exists(report)
         assert session._results == []
 
-    async def test_run_stop(self, session):
-        """
-        Test stop method during run. We are not going to generate any results
-        file, because we are not even sure some tests will be executed.
-        """
+    @pytest.fixture
+    async def running_test(self, session, monkeypatch):
+        """Signal when the sleep test is running on the target."""
+        started = asyncio.Event()
+        channel = session._sut.get_channel()
+        run_command = channel.run_command
+
+        async def run(command, cwd=None, env=None, iobuffer=None):
+            if command == "sleep 2":
+                output = iobuffer
+
+                class StartedBuffer(IOBuffer):
+                    async def write(self, data: str) -> None:
+                        if output is not None:
+                            await output.write(data)
+                        started.set()
+
+                iobuffer = StartedBuffer()
+                command = "echo ready; sleep 2; echo completed"
+
+            return await run_command(command, cwd=cwd, env=env, iobuffer=iobuffer)
+
+        monkeypatch.setattr(channel, "run_command", run)
+        return started
+
+    async def test_run_stop(self, tmpdir, session, running_test):
+        """Graceful stop finishes the running test and leaves queued tests unrun."""
+        report = str(tmpdir / "report.json")
 
         async def stop():
-            await asyncio.sleep(0.2)
+            await running_test.wait()
             await session.stop()
 
-        await asyncio.gather(
-            *[
-                session.run(suites=["sleep"]),
-                stop(),
-            ]
+        await asyncio.wait_for(
+            asyncio.gather(session.run(suites=["sleep"], report_path=report), stop()),
+            timeout=30,
         )
 
-    async def test_run_force_stop(self, session):
-        """
-        Test stop method when it's called twice. We just ensure that the
-        session implementation won't crash or generate exceptions and it will
-        forcibly stop the current run.
-        """
+        data = await self.read_report(report)
+        assert [result["test_fqn"] for result in data["results"]] == ["test01"]
+        assert data["results"][0]["test"]["retval"] == ["0"]
+        assert data["results"][0]["test"]["log"] == "ready\ncompleted\n"
+        assert not await session._sut.is_running()
+
+    async def test_run_force_stop(self, tmpdir, session, running_test):
+        """A second stop kills the running test and leaves queued tests unrun."""
+        report = str(tmpdir / "report.json")
 
         async def stop():
-            await asyncio.sleep(0.1)
-            await session.stop()
+            await running_test.wait()
+            await asyncio.gather(session.stop(), session.stop())
 
-        await asyncio.gather(
-            *[
-                session.run(suites=["sleep"]),
-                stop(),
-                stop(),
-            ]
+        await asyncio.wait_for(
+            asyncio.gather(session.run(suites=["sleep"], report_path=report), stop()),
+            timeout=30,
         )
+
+        data = await self.read_report(report)
+        # Channels may omit the killed test or report its interrupted result.
+        assert len(data["results"]) <= 1
+        for result in data["results"]:
+            assert result["test_fqn"] == "test01"
+            assert result["test"]["retval"] != ["0"]
+            assert "completed" not in result["test"]["log"]
+        assert not await session._sut.is_running()
 
     async def test_run_command(self, session):
         """
