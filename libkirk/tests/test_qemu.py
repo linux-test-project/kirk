@@ -22,14 +22,13 @@ TEST_QEMU_PASSWORD = os.environ.get("TEST_QEMU_PASSWORD", None)
 TEST_QEMU_KERNEL = os.environ.get("TEST_QEMU_KERNEL", None)
 TEST_QEMU_BUSYBOX = os.environ.get("TEST_QEMU_BUSYBOX", None)
 
-if not TEST_QEMU_IMAGE:
-    pytestmark.append(pytest.mark.skip(reason="TEST_QEMU_IMAGE not defined"))
+SKIP_IMAGE = not (TEST_QEMU_IMAGE and TEST_QEMU_USERNAME and TEST_QEMU_PASSWORD)
+SKIP_BUSYBOX = not (TEST_QEMU_KERNEL and TEST_QEMU_BUSYBOX)
 
-if not TEST_QEMU_USERNAME:
-    pytestmark.append(pytest.mark.skip(reason="TEST_QEMU_USERNAME not defined"))
-
-if not TEST_QEMU_PASSWORD:
-    pytestmark.append(pytest.mark.skip(reason="TEST_QEMU_PASSWORD not defined"))
+if SKIP_IMAGE and SKIP_BUSYBOX:
+    pytestmark.append(
+        pytest.mark.skip(reason="Neither QEMU image nor kernel/busybox defined")
+    )
 
 
 class _TestQemuComChannel(_TestComChannel):
@@ -100,6 +99,7 @@ async def com_virtio(tmpdir):
         await runner.stop()
 
 
+@pytest.mark.skipif(SKIP_IMAGE, reason="TEST_QEMU_IMAGE config not defined")
 class TestQemuComChannelISA(_TestQemuComChannel):
     """
     Test QemuComChannel implementation using ISA protocol.
@@ -110,6 +110,7 @@ class TestQemuComChannelISA(_TestQemuComChannel):
         yield com_isa
 
 
+@pytest.mark.skipif(SKIP_IMAGE, reason="TEST_QEMU_IMAGE config not defined")
 class TestQemuComChannelVirtIO(_TestQemuComChannel):
     """
     Test QemuComChannel implementation using VirtIO protocol.
@@ -160,6 +161,7 @@ async def sut(com_isa):
         await obj.stop()
 
 
+@pytest.mark.skipif(SKIP_IMAGE, reason="TEST_QEMU_IMAGE config not defined")
 class TestSUTQemu(_TestSUT):
     """
     Test GenericSUT using Qemu support. We don't need varius supports, because
@@ -167,6 +169,7 @@ class TestSUTQemu(_TestSUT):
     """
 
 
+@pytest.mark.skipif(SKIP_IMAGE, reason="TEST_QEMU_IMAGE config not defined")
 class TestSessionQemu(_TestSession):
     """
     Test Session using QemuComChannel.
