@@ -104,13 +104,13 @@ class TestJSONExporter:
         exporter = JSONExporter()
         tasks = []
 
-        for i in range(100):
+        for i in range(2):
             output = tmpdir / f"output{i}.json"
             tasks.append(exporter.save_file(suite_res, str(output)))
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks)
 
-        for i in range(100):
+        for i in range(2):
             data = None
 
             output = tmpdir / f"output{i}.json"

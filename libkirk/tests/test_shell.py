@@ -28,10 +28,10 @@ class TestShellComChannel(_TestComChannel):
     """
 
     @pytest.fixture
-    def com_stop_sleep(self, request):
+    def com_stop_setup(self, request):
         """
         ShellComChannel test doesn't require time sleep in
-        `test_stop_communicate`.
+        `test_communicate_stop`.
         """
         return request.param * 0
 
@@ -57,6 +57,11 @@ class TestSUTShellComChannel(_TestSUT):
     """
     Test GenericSUT using ShellComChannel.
     """
+
+    @pytest.fixture
+    def sut_stop_sleep(self, request):
+        """The local shell starts immediately; no startup delay is needed."""
+        return request.param * 0
 
 
 class TestSessionShellComChannel(_TestSession):

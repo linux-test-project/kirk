@@ -40,7 +40,11 @@ class TestLTPFramework:
         fw = LTPFramework()
         yield fw
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture
+    def prepared_framework(self, prepare_tmpdir):
+        return LTPFramework()
+
+    @pytest.fixture
     def prepare_tmpdir(self, tmpdir, monkeypatch):
         """
         Prepare the temporary directory adding runtest folder.
@@ -81,21 +85,21 @@ class TestLTPFramework:
         test_sh = testcases / "test.sh"
         test_sh.write("#!/bin/bash\necho $1 $2\n")
 
-    async def test_get_suites(self, framework, sut):
+    async def test_get_suites(self, prepared_framework, sut):
         """
         Test get_suites method.
         """
-        suites = await framework.get_suites(sut)
+        suites = await prepared_framework.get_suites(sut)
         assert "suite0" in suites
         assert "suite1" in suites
         assert "suite2" in suites
         assert "slow_suite" in suites
 
-    async def test_find_command(self, framework, sut, tmpdir):
+    async def test_find_command(self, prepared_framework, sut, tmpdir):
         """
         Test find_command method.
         """
-        test = await framework.find_command(sut, "test.sh ciao bepi")
+        test = await prepared_framework.find_command(sut, "test.sh ciao bepi")
         assert test.name == "test.sh"
         assert test.command == "test.sh"
         assert test.arguments == ["ciao", "bepi"]
@@ -103,12 +107,12 @@ class TestLTPFramework:
         assert test.cwd == tmpdir / "testcases" / "bin"
         assert test.env
 
-    async def test_find_suite(self, framework, sut, tmpdir):
+    async def test_find_suite(self, prepared_framework, sut, tmpdir):
         """
         Test find_suite method.
         """
         for i in range(self.SUITES_NUM):
-            suite = await framework.find_suite(sut, f"suite{i}")
+            suite = await prepared_framework.find_suite(sut, f"suite{i}")
             assert len(suite.tests) == self.TESTS_NUM
 
             for j in range(self.TESTS_NUM):
@@ -122,7 +126,7 @@ class TestLTPFramework:
                 assert "TMPDIR" in test.env
                 assert "LTP_COLORIZE_OUTPUT" in test.env
 
-        suite = await framework.find_suite(sut, "slow_suite")
+        suite = await prepared_framework.find_suite(sut, "slow_suite")
         assert len(suite.tests) == self.TESTS_NUM
 
         for test in suite.tests:
@@ -134,7 +138,7 @@ class TestLTPFramework:
             assert "TMPDIR" in test.env
             assert "LTP_COLORIZE_OUTPUT" in test.env
 
-    async def test_find_suite_network_vars(self, sut, monkeypatch):
+    async def test_find_suite_network_vars(self, sut, monkeypatch, prepare_tmpdir):
         """
         Test that all SUPPORTED_ENV variables and TST_/LTP_ prefixed variables
         are forwarded to tests.
@@ -162,7 +166,7 @@ class TestLTPFramework:
                 assert key in test.env, f"{key} not found in test env"
                 assert test.env[key] == val
 
-    async def test_find_suite_max_runtime(self, sut):
+    async def test_find_suite_max_runtime(self, sut, prepare_tmpdir):
         """
         Test find_suite method when max_runtime is defined.
         """
@@ -274,7 +278,7 @@ class TestLTPFramework:
         assert result.passed == 2
         assert result.failed == 1
 
-    async def test_get_suites_errors(self, sut):
+    async def test_get_suites_errors(self):
         """
         Test get_suites with invalid inputs.
         """
@@ -310,7 +314,7 @@ class TestLTPFramework:
         with pytest.raises(ValueError):
             await framework.find_suite(sut, "")
 
-    async def test_find_suite_nonexistent(self, sut):
+    async def test_find_suite_nonexistent(self, sut, prepare_tmpdir):
         """
         Test find_suite with a nonexistent suite name.
         """
@@ -320,7 +324,7 @@ class TestLTPFramework:
         with pytest.raises(FrameworkError):
             await framework.find_suite(sut, "nonexistent_suite_xyz")
 
-    async def test_timeout_mul_from_env(self, sut, monkeypatch, tmpdir):
+    def test_timeout_mul_from_env(self, monkeypatch):
         """
         Test that LTP_TIMEOUT_MUL from env is used.
         """

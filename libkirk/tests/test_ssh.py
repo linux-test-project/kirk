@@ -4,7 +4,6 @@ Unittests for SSHComChannel.
 
 import asyncio
 import os
-import subprocess
 
 import pytest
 
@@ -138,16 +137,9 @@ class _TestSSHComChannel(_TestComChannel):
         """
         await com.communicate()
 
-        result = subprocess.run(
-            "tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 10000",
-            shell=True,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-
-        ret = await com.run_command(f"echo -n {result.stdout}")
-        assert ret["stdout"] == result.stdout
+        output = "aB3xY7zQ9M" * 1000
+        ret = await com.run_command(f"echo -n {output}")
+        assert ret["stdout"] == output
 
 
 @pytest.fixture

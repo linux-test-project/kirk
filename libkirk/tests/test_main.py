@@ -18,7 +18,7 @@ import libkirk.sut
 from libkirk.evt import EventsHandler
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def isolated_loop(monkeypatch):
     """
     Give every TestMain test its own event loop so that
@@ -164,6 +164,7 @@ class TestHelpers:
         assert result == "test01|test02"
 
 
+@pytest.mark.usefixtures("isolated_loop")
 class TestMainErrors:
     """
     Test error paths in argument validation.
@@ -236,6 +237,7 @@ class TestMainErrors:
         assert excinfo.value.code == 2
 
 
+@pytest.mark.usefixtures("isolated_loop")
 class TestMain:
     """
     The the main module entry point.
@@ -557,7 +559,7 @@ class TestMain:
             "--run-suite",
             "suite01",
             "--workers",
-            str(os.cpu_count()),
+            "4",
         ]
 
         with pytest.raises(SystemExit) as excinfo:

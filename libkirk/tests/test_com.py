@@ -148,7 +148,7 @@ class _TestComChannel:
 
         await com.communicate(iobuffer=Printer())
 
-        exec_count = os.cpu_count() or 1
+        exec_count = 4
         coros = [com.run_command(f"echo {i}") for i in range(exec_count)]
 
         results = await asyncio.gather(*coros)
@@ -172,7 +172,7 @@ class _TestComChannel:
             await com.stop(iobuffer=Printer())
 
         async def test():
-            exec_count = os.cpu_count() or 1
+            exec_count = 4
             coros = [com.run_command("sleep 2") for i in range(exec_count)]
             results = await asyncio.gather(*coros, return_exceptions=True)
 
