@@ -31,6 +31,11 @@ def test_clone(tmpdir):
     Test if ``clone`` method properly forks inside ``Plugin``.
     """
     plugins = libkirk.plugin.discover(Plugin, str(tmpdir))
-    newplugin = plugins[0].clone("myclone")
+    original = plugins[0]
+    original_name = original.name
+    newplugin = original.clone("myclone")
 
+    assert newplugin is not original
+    assert type(newplugin) is type(original)
     assert newplugin.name == "myclone"
+    assert original.name == original_name
