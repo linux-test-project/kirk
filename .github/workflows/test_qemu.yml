@@ -1,0 +1,75 @@
+# Copyright (c) 2026 Andrea Cervesato <andrea.cervesato@suse.com>
+
+name: "Test QEMU"
+on: [push, pull_request]
+
+jobs:
+  python3:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [
+          "3.7",
+          "3.8",
+          "3.9",
+          "3.10",
+          "3.11",
+          "3.12",
+          "3.13",
+          "3.14"
+        ]
+
+    steps:
+    - name: Show OS
+      run: cat /etc/os-release
+
+    - name: Git checkout
+      uses: actions/checkout@v7
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: pip install .[testing]
+
+    - name: Install QEMU and Busybox
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-system-x86 busybox-static
+        sudo chmod 666 /dev/kvm || true
+        sudo chmod +r /boot/vmlinuz* || true
+
+    - name: Create Busybox initramfs
+      run: |
+        mkdir -p /tmp/initramfs/{bin,dev,proc,sys,tmp}
+        cp "$(which busybox)" /tmp/initramfs/bin/busybox
+        cat << 'EOF' > /tmp/initramfs/init
+        #!/bin/busybox sh
+        /bin/busybox --install -s /bin
+        mkdir -p /dev /proc /sys /tmp
+        mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+        mount -t proc proc /proc 2>/dev/null || true
+        mount -t sysfs sysfs /sys 2>/dev/null || true
+        chmod 1777 /tmp
+        [ -c /dev/ttyS0 ] || mknod /dev/ttyS0 c 4 64
+        [ -c /dev/ttyS1 ] || mknod /dev/ttyS1 c 4 65
+        export PS1='/ # '
+        stty -F /dev/ttyS0 isig 2>/dev/null || true
+        while true; do
+            setsid cttyhack /bin/sh </dev/ttyS0 >/dev/ttyS0 2>&1 || /bin/sh
+        done
+        EOF
+        chmod +x /tmp/initramfs/init
+        (cd /tmp/initramfs && find . | cpio -o -H newc | gzip -9) > /tmp/initrd.img
+
+    - name: Test with pytest
+      timeout-minutes: 10
+      run: |
+        KERNEL=$(ls -v /boot/vmlinuz* | grep -v '\.old' | head -n 1)
+        TEST_QEMU_KERNEL="$KERNEL" TEST_QEMU_BUSYBOX="/tmp/initrd.img" \
+          python3 -m pytest -m "qemu"
