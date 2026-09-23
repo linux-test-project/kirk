@@ -291,11 +291,10 @@ class SSHComChannel(ComChannel):
             if self._channels:
                 self._logger.info("Killing %d process(es)", len(self._channels))
 
-                for proc in self._channels:
+                # run_command() removes entries as commands finish.
+                for proc in list(self._channels):
                     proc.kill()
                     await proc.wait_closed()
-
-                self._channels.clear()
 
             self._logger.info("Closing connection")
             # pyrefly: ignore[missing-attribute]
