@@ -27,6 +27,7 @@ from libkirk.data import (
     Test,
 )
 from libkirk.errors import (
+    CommunicationError,
     KernelPanicError,
     KernelTaintedError,
     KernelTimeoutError,
@@ -210,6 +211,166 @@ class TestScheduler(Scheduler):
 
         self._logger.info("All tests have been completed")
 
+    async def _run_reboot_test(self, test: Test) -> None:
+        """
+        Run a test that reboots the SUT in two phases:
+        Phase 1: Run test with -P 1 to trigger reboot.
+        Wait for SUT to reboot and reconnect.
+        Phase 2: Run test with -P 2 to verify system state after reboot.
+        """
+        channel = self._sut.get_channel()
+        if not self._sut.supports_reboot:
+            self._logger.warning(
+                "Test '%s' requires reboot, but SUT channel '%s' does not support it",
+                test.name,
+                channel.name,
+            )
+            skip_msg = (
+                f"{test.name} 1 TCONF: SUT channel '{channel.name}' "
+                "does not support reboot\n"
+            )
+            results = TestResults(
+                test=test,
+                failed=0,
+                passed=0,
+                broken=0,
+                skipped=1,
+                warnings=0,
+                exec_time=0.0,
+                retcode=32,
+                stdout=skip_msg,
+                status=ResultStatus.CONF,
+            )
+            self._results.append(results)
+            await libkirk.events.fire("test_completed", results)
+            return
+
+        self._logger.info("Running reboot test (Phase 1): %s", test.name)
+        await libkirk.events.fire("test_started", test)
+        await self._write_kmsg(test, None)
+
+        start_t = time.time()
+        iobuffer = RedirectTestStdout(test)
+        phase1_stdout = ""
+        phase1_retcode = 0
+
+        phase1_args = list(test.arguments) + ["-P", "1"]
+        phase1_cmd = f"{test.command} {' '.join(phase1_args)}"
+
+        try:
+            ret = await asyncio.wait_for(
+                channel.run_command(
+                    phase1_cmd, cwd=test.cwd, env=test.env, iobuffer=iobuffer
+                ),
+                timeout=self._timeout or 300.0,
+            )
+            if ret:
+                phase1_stdout = ret.get("stdout", "")
+                phase1_retcode = ret.get("returncode", 0)
+        except (
+            CommunicationError,
+            ConnectionError,
+            BrokenPipeError,
+            EOFError,
+            asyncio.TimeoutError,
+        ) as err:
+            self._logger.info("Phase 1 disconnected/timed out during reboot: %s", err)
+            phase1_stdout = iobuffer.stdout
+        except KernelPanicError:
+            self._logger.info("Recognised Kernel panic during Phase 1")
+            phase1_stdout = iobuffer.stdout
+            results = await self._framework.read_result(
+                test, phase1_stdout, -1, time.time() - start_t
+            )
+            self._results.append(results)
+            await libkirk.events.fire("test_completed", results)
+            await libkirk.events.fire("kernel_panic")
+            raise
+
+        if phase1_retcode != 0:
+            exec_time = time.time() - start_t
+            results = await self._framework.read_result(
+                test, phase1_stdout, phase1_retcode, exec_time
+            )
+            self._results.append(results)
+            await libkirk.events.fire("test_completed", results)
+            await self._write_kmsg(test, results)
+            return
+
+        self._logger.info("Waiting for SUT to reboot and reconnect...")
+        await libkirk.events.fire("sut_restart", self._sut.name)
+
+        await asyncio.sleep(1.0)
+
+        try:
+            await self._sut.restart(iobuffer=RedirectSUTStdout(self._sut))
+        except (CommunicationError, KirkException, asyncio.TimeoutError) as err:
+            self._logger.error("Failed to reconnect to SUT after reboot: %s", err)
+            exec_time = time.time() - start_t
+            results = TestResults(
+                test=test,
+                failed=1,
+                passed=0,
+                broken=0,
+                skipped=0,
+                warnings=0,
+                exec_time=exec_time,
+                retcode=-1,
+                stdout=(
+                    f"{phase1_stdout}\nTBROK: Failed to reconnect to SUT after"
+                    f" reboot: {err}\n"
+                ),
+                status=ResultStatus.FAIL,
+            )
+            self._results.append(results)
+            await libkirk.events.fire("test_completed", results)
+            await libkirk.events.fire("sut_not_responding")
+            raise KernelTimeoutError() from err
+
+        if self._stop_cnt > 0:
+            self._logger.info("Test '%s' stopped before phase 2", test.name)
+            return
+
+        self._logger.info("Running reboot test (Phase 2): %s", test.name)
+        phase2_args = list(test.arguments) + ["-P", "2"]
+        phase2_cmd = f"{test.command} {' '.join(phase2_args)}"
+
+        channel = self._sut.get_channel()
+        iobuffer2 = RedirectTestStdout(test)
+        phase2_stdout = ""
+        phase2_retcode = 0
+        try:
+            ret2 = await asyncio.wait_for(
+                channel.run_command(
+                    phase2_cmd, cwd=test.cwd, env=test.env, iobuffer=iobuffer2
+                ),
+                timeout=self._timeout or 300.0,
+            )
+            if ret2:
+                phase2_stdout = ret2.get("stdout", "")
+                phase2_retcode = ret2.get("returncode", -1)
+            else:
+                phase2_retcode = -1
+        except asyncio.TimeoutError:
+            phase2_stdout = iobuffer2.stdout
+            phase2_retcode = -1
+        except KernelPanicError:
+            await libkirk.events.fire("kernel_panic")
+            raise
+
+        exec_time = time.time() - start_t
+        combined_stdout = f"{phase1_stdout}\n{phase2_stdout}".strip()
+        results = await self._framework.read_result(
+            test, combined_stdout, phase2_retcode, exec_time
+        )
+
+        self._logger.debug("results=%s", results)
+        self._results.append(results)
+
+        await libkirk.events.fire("test_completed", results)
+        await self._write_kmsg(test, results)
+        self._logger.info("Reboot test completed: %s", test.name)
+
     async def _run_test(self, test: Test) -> None:
         """
         Run a single test and populate the results array.
@@ -217,6 +378,10 @@ class TestScheduler(Scheduler):
         async with self._running_tests_sem:
             if self._stop_cnt > 0:
                 self._logger.info("Test '%s' has been stopped", test.name)
+                return
+
+            if test.reboots_sut:
+                await self._run_reboot_test(test)
                 return
 
             self._logger.info("Running test %s", test.name)

@@ -6,6 +6,7 @@
 .. moduleauthor:: Andrea Cervesato <andrea.cervesato@suse.com>
 """
 
+import asyncio
 from typing import (
     Any,
     Dict,
@@ -53,6 +54,14 @@ class ComChannel(Plugin):
         :rtype: bool
         """
         raise NotImplementedError()
+
+    @property
+    def supports_reboot(self) -> bool:
+        """
+        :return: If True, communication supports SUT reboot.
+        :rtype: bool
+        """
+        return False
 
     async def active(self) -> bool:
         """
@@ -134,7 +143,10 @@ class ComChannel(Plugin):
         raise NotImplementedError()
 
     async def ensure_communicate(
-        self, iobuffer: Optional[IOBuffer] = None, retries: int = 10
+        self,
+        iobuffer: Optional[IOBuffer] = None,
+        retries: int = 10,
+        delay: float = 0.0,
     ) -> None:
         """
         Ensure that communicate is completed, retrying as many times we
@@ -145,6 +157,8 @@ class ComChannel(Plugin):
         :type iobuffer: IOBuffer
         :param retries: Number of times we retry to communicate.
         :type retries: int
+        :param delay: Delay between retries in seconds.
+        :type delay: float
         """
         retries = max(retries, 1)
 
@@ -157,6 +171,8 @@ class ComChannel(Plugin):
                     raise err
 
                 await self.stop(iobuffer=iobuffer)
+                if delay > 0:
+                    await asyncio.sleep(delay)
 
 
 def discover(path: str, extend: bool = True) -> None:

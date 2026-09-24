@@ -78,9 +78,16 @@ class GenericSUT(SUT):
 
         await self.get_channel().stop(iobuffer)
 
-    async def restart(self, iobuffer: Optional[IOBuffer] = None) -> None:
+    async def restart(
+        self,
+        iobuffer: Optional[IOBuffer] = None,
+        retries: int = 150,
+        delay: float = 2.0,
+    ) -> None:
         await self.stop(iobuffer)
-        await self.start(iobuffer)
+        await self.get_channel().ensure_communicate(
+            iobuffer, retries=retries, delay=delay
+        )
 
     async def is_running(self) -> bool:
         return await self.get_channel().active()
