@@ -627,3 +627,78 @@ class _TestSession:
         data = await self.read_report(report)
         assert len(data["results"]) == 1
         assert data["results"][0]["test_fqn"] == "test02"
+
+    async def test_non_parallel_channel_clamps_workers(self, tmpdir, monkeypatch):
+        """
+        Channels with parallel_execution=False must clamp workers=1 so
+        tests are scheduled sequentially. Otherwise tasks queue behind the
+        channel lock, burning their test timeout while waiting and causing
+        spurious timeouts/BROK statuses.
+        """
+        monkeypatch.setenv("LTPROOT", "/tmp")
+
+        class SerialComChannel(ComChannel):
+            _name = "dummy_serial"
+
+            def __init__(self):
+                self._lock = asyncio.Lock()
+
+            @property
+            def parallel_execution(self) -> bool:
+                return False
+
+            async def active(self) -> bool:
+                return True
+
+            async def ping(self) -> float:
+                return 0.0
+
+            async def stop(self, iobuffer=None) -> None:
+                pass
+
+            async def run_command(self, command, cwd=None, env=None, iobuffer=None):
+                async with self._lock:
+                    if command.startswith("cat /proc/sys/kernel/tainted"):
+                        return {"command": command, "returncode": 0, "stdout": "0\n", "exec_time": 0}
+                    if command == "id -u":
+                        return {"command": command, "returncode": 0, "stdout": "1000\n", "exec_time": 0}
+                    # Each test takes 0.2s
+                    await asyncio.sleep(0.2)
+                    return {"command": command, "returncode": 0, "stdout": "ok\n", "exec_time": 0.2}
+
+        class SerialFramework(LTPFramework):
+            async def find_suite(self, channel, name):
+                tests = [
+                    Test(name=f"t{i}", cmd="true", parallelizable=True)
+                    for i in range(4)
+                ]
+                return Suite(name, tests)
+
+        from libkirk.sut_base import GenericSUT
+
+        sut = GenericSUT()
+        sut._com = SerialComChannel()
+
+        # timeout=0.35s: enough for one test (0.2s), but not for two queued (0.4s).
+        # If workers remained 4, t1..t3 would time out waiting for the lock.
+        session = Session(
+            tmpdir=TempDir(tmpdir),
+            sut=sut,
+            exec_timeout=0.35,
+            workers=4,
+        )
+        session._framework = SerialFramework()
+
+        # The scheduler's max_workers must have been clamped to 1
+        assert session._scheduler._scheduler._max_workers == 1
+
+        report = str(tmpdir / "report.json")
+        await session.run(suites=["suite01"], report_path=report)
+
+        data = await self.read_report(report)
+        assert len(data["results"]) == 4
+        # Every test must PASS (status 0). If workers were still 4,
+        # tests t1..t3 would be BROK (status 2, retcode -1).
+        for res in data["results"]:
+            assert res["status"] == "pass", f"Test {res['test_fqn']} failed: {res}"
+

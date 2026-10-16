@@ -79,6 +79,15 @@ class Session:
             timeout=self._exec_timeout,
         )
 
+        # Channels without parallel execution serialize commands internally,
+        # so extra workers would only queue up behind the channel lock and
+        # burn their test timeout while waiting. Clamp before building the
+        # scheduler so the limit is actually enforced.
+        parallel = self._sut.get_channel().parallel_execution
+        requested_workers = workers
+        if not parallel:
+            workers = 1
+
         self._scheduler = SuiteScheduler(
             sut=self._sut,
             framework=self._framework,
@@ -91,7 +100,7 @@ class Session:
         self._setup_debug_log()
         self._setup_test_save()
 
-        if not self._sut.get_channel().parallel_execution:
+        if not parallel and requested_workers > 1:
             self._logger.info(
                 "SUT doesn't support parallel execution. Forcing workers=1."
             )
