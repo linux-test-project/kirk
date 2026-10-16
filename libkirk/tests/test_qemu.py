@@ -2,6 +2,7 @@
 Unittest for QemuComChannel.
 """
 
+import asyncio
 import os
 
 import pytest
@@ -53,6 +54,25 @@ class _TestQemuComChannel(_TestComChannel):
 
     async def test_fetch_file_stop(self, com, target_tmpdir=None):
         pytest.skip(reason="Coroutines don't support I/O file handling")
+
+    async def test_cancelled_command_resync(self, com):
+        """
+        Cancelling an in-flight command must resynchronize the serial line
+        so subsequent commands do not read leftover markers or corrupted output.
+        """
+        iobuff = Printer()
+        await com.communicate(iobuffer=iobuff)
+
+        # Start a slow command and cancel it via wait_for timeout
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(com.run_command("sleep 10"), timeout=0.5)
+
+        # The next command must execute cleanly and return its own output
+        ret = await com.run_command("echo hello_clean_output", iobuffer=iobuff)
+        assert ret is not None
+        assert ret["returncode"] == 0
+        assert "hello_clean_output" in ret["stdout"]
+
 
 
 @pytest.fixture

@@ -337,6 +337,29 @@ class QemuComChannel(ComChannel):
         # pyrefly: ignore[missing-attribute]
         await self._proc.wait()
 
+    async def _resync(self) -> None:
+        """
+        Resynchronize serial line by interrupting the current command and
+        waiting for a dedicated sync marker.
+        """
+        if not await self.active():
+            return
+
+        self._logger.info("Resynchronizing serial console after cancellation")
+
+        # Send interrupt character (Ctrl+C) to cancel guest command
+        await self._write_stdin("\x03")
+
+        # Discard any buffered leftover data from the interrupted command
+        self._last_read = ""
+
+        # Emit and wait for a fresh marker
+        sync_code = f"sync-{self._generate_string()}"
+        await self._write_stdin(f"echo {sync_code}\n")
+
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(self._wait_for(sync_code), timeout=5.0)
+
     async def _exec(self, command: str, iobuffer: Optional[IOBuffer] = None) -> tuple:
         """
         Execute a command and return set(stdout, retcode, exec_time).
@@ -353,8 +376,13 @@ class QemuComChannel(ComChannel):
 
         t_start = time.time()
 
-        await self._write_stdin(msg)
-        stdout = await self._wait_for(code, iobuffer)
+        try:
+            await self._write_stdin(msg)
+            stdout = await self._wait_for(code, iobuffer)
+        except asyncio.CancelledError:
+            if not self._stop:
+                await asyncio.shield(self._resync())
+            raise
 
         exec_time = time.time() - t_start
 
