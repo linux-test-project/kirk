@@ -73,6 +73,25 @@ class _TestQemuComChannel(_TestComChannel):
         assert ret["returncode"] == 0
         assert "hello_clean_output" in ret["stdout"]
 
+    async def test_concurrent_console_access_serialized(self, com):
+        """
+        Concurrent console calls (e.g. ping and run_command) must be serialized
+        by _cmd_lock and not collide on stdout.read().
+        """
+        iobuff = Printer()
+        await com.communicate(iobuffer=iobuff)
+
+        # Gather ping and run_command concurrently
+        results = await asyncio.gather(
+            com.ping(),
+            com.run_command("echo serialized", iobuffer=iobuff),
+        )
+        ping_time, cmd_ret = results
+        assert ping_time >= 0
+        assert cmd_ret["returncode"] == 0
+        assert "serialized" in cmd_ret["stdout"]
+
+
 
 
 @pytest.fixture

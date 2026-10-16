@@ -45,7 +45,6 @@ class QemuComChannel(ComChannel):
         self._logger = logging.getLogger("kirk.qemu")
         self._comm_lock = asyncio.Lock()
         self._cmd_lock = asyncio.Lock()
-        self._fetch_lock = asyncio.Lock()
         self._tmpdir = ""
         self._proc = None
         self._stop = False
@@ -235,7 +234,8 @@ class QemuComChannel(ComChannel):
         if not await self.active():
             raise CommunicationError("Qemu is not running")
 
-        _, _, exec_time = await self._exec("test .", None)
+        async with self._cmd_lock:
+            _, _, exec_time = await self._exec("test .", None)
 
         return exec_time
 
@@ -322,9 +322,6 @@ class QemuComChannel(ComChannel):
             pass
 
         async with self._cmd_lock:
-            pass
-
-        async with self._fetch_lock:
             pass
 
     async def _wait_poweroff(self, iobuffer: Optional[IOBuffer] = None) -> None:
@@ -420,7 +417,7 @@ class QemuComChannel(ComChannel):
         try:
             if not self._panic:
                 # stop command first
-                if self._cmd_lock.locked() or self._fetch_lock.locked():
+                if self._cmd_lock.locked():
                     self._logger.info("Stop running command")
 
                     # send interrupt character (equivalent of CTRL+C)
@@ -572,7 +569,7 @@ class QemuComChannel(ComChannel):
         if not await self.active():
             raise CommunicationError("Virtual machine is not running")
 
-        async with self._fetch_lock:
+        async with self._cmd_lock:
             self._logger.info("Downloading %s", target_path)
 
             _, retcode, _ = await self._exec(f"test -f {target_path}", None)
