@@ -414,12 +414,19 @@ class RedirectTestStdout(IOBuffer):
     """
 
     def __init__(self, test: Test) -> None:
-        self.stdout = ""
+        self._stdout_chunks: List[str] = []
         self._test = test
+
+    @property
+    def stdout(self) -> str:
+        """
+        Return the combined stdout string.
+        """
+        return "".join(self._stdout_chunks)
 
     async def write(self, data: str) -> None:
         await libkirk.events.fire("test_stdout", self._test, data)
-        self.stdout += data
+        self._stdout_chunks.append(data)
 
 
 class RedirectSUTStdout(IOBuffer):
