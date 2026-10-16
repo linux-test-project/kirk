@@ -148,7 +148,10 @@ class SUT(Plugin):
         """
         Return the distro version.
         """
-        return await self._run_cmd('. /etc/os-release && echo "$VERSION_ID"')
+        ver = await self._run_cmd(
+            '. /etc/os-release && echo "${VERSION_ID:-$BUILD_ID}"'
+        )
+        return ver or "unknown"
 
     async def _get_kernel(self) -> str:
         """

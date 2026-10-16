@@ -166,7 +166,7 @@ async def test_get_info(mock_sut):
     """
     mock_sut._channel.set_response("os-release && echo \"$ID\"", stdout="opensuse\n")
     mock_sut._channel.set_response(
-        "os-release && echo \"$VERSION_ID\"", stdout="15.5\n"
+        "VERSION_ID", stdout="15.5\n"
     )
     mock_sut._channel.set_response("uname -s -r -v", stdout="Linux 6.1.0\n")
     mock_sut._channel.set_response("cat /proc/cmdline", stdout="root=/dev/sda\n")
@@ -185,6 +185,18 @@ async def test_get_info(mock_sut):
     assert info["swap"] == "8192 kB"
 
 
+async def test_get_info_distro_ver_fallback(mock_sut):
+    """
+    Test get_info falls back to 'unknown' when VERSION_ID and BUILD_ID are empty.
+    """
+    mock_sut._channel.set_response("os-release && echo \"$ID\"", stdout="gentoo\n")
+    mock_sut._channel.set_response("VERSION_ID", stdout="\n")
+
+    info = await mock_sut.get_info()
+    assert info["distro"] == "gentoo"
+    assert info["distro_ver"] == "unknown"
+
+
 async def test_get_info_optimized(mock_sut):
     """
     Test get_info with optimize=True uses asyncio.gather.
@@ -192,7 +204,7 @@ async def test_get_info_optimized(mock_sut):
     mock_sut.optimize = True
     mock_sut._channel.set_response("os-release && echo \"$ID\"", stdout="fedora\n")
     mock_sut._channel.set_response(
-        "os-release && echo \"$VERSION_ID\"", stdout="39\n"
+        "VERSION_ID", stdout="39\n"
     )
     mock_sut._channel.set_response("uname -s -r -v", stdout="Linux 6.5.0\n")
     mock_sut._channel.set_response("cat /proc/cmdline", stdout="root=/dev/sda\n")
