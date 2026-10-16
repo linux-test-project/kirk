@@ -144,7 +144,6 @@ class TestScheduler(Scheduler):
         for msg in messages:
             if msg:
                 self._logger.debug("Kernel tainted (%d): %s", code, msg)
-                await libkirk.events.fire("kernel_tainted", msg)
 
         return code, messages
 
@@ -230,12 +229,19 @@ class TestScheduler(Scheduler):
             start_t = time.time()
             exec_time = 0
             test_data: Dict[str, Any] = {}
-            tainted_msg = None
+            tainted_msg: List[str] = []
             status = TestStatus.OK
             channel = self._sut.get_channel()
+            check_taint = self._max_workers == 1 or not test.parallelizable
 
             try:
-                tainted_code1, _ = await self._get_tainted_status()
+                # When running sequentially (single worker or non-parallelizable test),
+                # taint checks before/after the test reliably detect if this specific
+                # test tainted the kernel. When running parallel workers, taint deltas
+                # cannot be attributed to a specific test and are checked per batch.
+                tainted_code1 = 0
+                if check_taint:
+                    tainted_code1, _ = await self._get_tainted_status()
 
                 # pyrefly: ignore[bad-assignment]
                 test_data = await asyncio.wait_for(
@@ -248,12 +254,13 @@ class TestScheduler(Scheduler):
                 if test_data is None:
                     raise SchedulerError("Test command return None")
 
-                tainted_code2, tainted_msg2 = await self._get_tainted_status()
-                if tainted_code2 != tainted_code1:
-                    self._logger.info("Recognised Kernel tainted: %s", tainted_msg2)
+                if check_taint:
+                    tainted_code2, tainted_msg2 = await self._get_tainted_status()
+                    if tainted_code2 != tainted_code1:
+                        self._logger.info("Recognised Kernel tainted: %s", tainted_msg2)
 
-                    tainted_msg = tainted_msg2
-                    status = TestStatus.KERNEL_TAINTED
+                        tainted_msg = tainted_msg2
+                        status = TestStatus.KERNEL_TAINTED
             except KernelPanicError:
                 exec_time = time.time() - start_t
 
@@ -299,6 +306,11 @@ class TestScheduler(Scheduler):
             self._logger.debug("results=%s", results)
             self._results.append(results)
 
+            if status == TestStatus.KERNEL_TAINTED:
+                for msg in tainted_msg:
+                    if msg:
+                        await libkirk.events.fire("kernel_tainted", msg)
+
             await libkirk.events.fire("test_completed", results)
             await self._write_kmsg(test, results)
 
@@ -307,7 +319,6 @@ class TestScheduler(Scheduler):
 
             # raise kernel errors at the end so we can collect test results
             if status == TestStatus.KERNEL_TAINTED:
-                await libkirk.events.fire("kernel_tainted", tainted_msg)
                 raise KernelTaintedError()
 
             if status == TestStatus.KERNEL_PANIC:
@@ -340,20 +351,42 @@ class TestScheduler(Scheduler):
             return
 
         self._running_tests_sem = asyncio.Semaphore(self._max_workers)
-        tasks = [libkirk.create_task(self._run_test(test)) for test in tests]
 
         self._logger.info(
-            "Scheduling %d tests on %d workers", len(tasks), self._max_workers
+            "Scheduling %d tests on %d workers", len(tests), self._max_workers
         )
 
-        try:
-            await asyncio.gather(*tasks)
-        finally:
-            # gather() leaves sibling tasks running when one raises an error.
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+        tainted_code1, _ = await self._get_tainted_status()
+
+        for i in range(0, len(tests), self._max_workers):
+            if self._stop_cnt > 0:
+                return
+
+            batch = tests[i : i + self._max_workers]
+            tasks = [libkirk.create_task(self._run_test(test)) for test in batch]
+
+            try:
+                await asyncio.gather(*tasks)
+            finally:
+                # gather() leaves sibling tasks running when one raises an error.
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+            if self._stop_cnt > 0:
+                return
+
+            tainted_code2, tainted_msg2 = await self._get_tainted_status()
+            if tainted_code2 != tainted_code1:
+                self._logger.info(
+                    "Recognised Kernel tainted after parallel tests: %s",
+                    tainted_msg2,
+                )
+                for msg in tainted_msg2:
+                    if msg:
+                        await libkirk.events.fire("kernel_tainted", msg)
+                raise KernelTaintedError()
 
     async def schedule(self, jobs: List[Any]) -> None:
         if not jobs:

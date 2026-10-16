@@ -262,6 +262,72 @@ class TestTestScheduler:
         with pytest.raises(KernelTaintedError):
             await runner.schedule(tests)
 
+        # When workers=1, taint is caught per-test so execution stops after the first test.
+        # When workers=10, parallel tests complete the batch and taint is caught at batch level.
+        expected_len = 1 if workers == 1 else 10
+        assert len(runner.results) == expected_len
+        for res in runner.results:
+            assert res.passed == 1
+            assert res.broken == 0
+
+    async def test_schedule_kernel_tainted_sequential_with_workers(self, create_runner):
+        """
+        Test that non-parallelizable tests still check taint per-test when max_workers > 1.
+        """
+        tainted = []
+
+        async def mock_tainted():
+            if tainted:
+                return 1, ["proprietary module was loaded"]
+
+            tainted.append(1)
+            return 0, [""]
+
+        runner = create_runner(max_workers=4)
+        runner._get_tainted_status = mock_tainted
+
+        tests = [
+            Test(name=f"test{i}", cmd="echo", args=["-n", "ciao"], parallelizable=False)
+            for i in range(4)
+        ]
+
+        with pytest.raises(KernelTaintedError):
+            await runner.schedule(tests)
+
+        assert len(runner.results) == 1
+        assert runner.results[0].passed == 1
+        assert runner.results[0].broken == 0
+
+    async def test_schedule_kernel_tainted_parallel_batches(self, create_runner):
+        """
+        Test that parallel execution checks taint after each batch of max_workers
+        rather than running remaining batches on a tainted kernel.
+        """
+        tainted = []
+
+        async def mock_tainted():
+            if tainted:
+                return 1, ["proprietary module was loaded"]
+
+            tainted.append(1)
+            return 0, [""]
+
+        runner = create_runner(max_workers=2)
+        runner._get_tainted_status = mock_tainted
+
+        tests = [
+            Test(name=f"test{i}", cmd="echo", args=["-n", "ciao"], parallelizable=True)
+            for i in range(4)
+        ]
+
+        with pytest.raises(KernelTaintedError):
+            await runner.schedule(tests)
+
+        assert len(runner.results) == 2
+        for res in runner.results:
+            assert res.passed == 1
+            assert res.broken == 0
+
     @pytest.mark.parametrize("workers", [1, 10])
     async def test_schedule_kernel_panic(self, workers, sut, create_runner, monkeypatch):
         """

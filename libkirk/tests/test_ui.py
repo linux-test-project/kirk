@@ -228,3 +228,54 @@ class TestVerboseUserInterface:
 
         out, _ = capsys.readouterr()
         assert "timed out" in out
+
+
+class TestParallelUserInterface:
+    """
+    Test ParallelUserInterface event handlers.
+    """
+
+    @pytest.fixture
+    def ui(self):
+        return ParallelUserInterface(no_colors=True)
+
+    def _make_results(self, name="t1", parallelizable=True, passed=1):
+        test = Test(name=name, cmd="echo", parallelizable=parallelizable)
+        return TestResults(
+            test=test,
+            passed=passed,
+            failed=0,
+            broken=0,
+            skipped=0,
+            warnings=0,
+            exec_time=0.1,
+            retcode=0,
+            stdout="",
+        )
+
+    async def test_kernel_tainted_parallel_batch(self, ui, capsys, run_events):
+        suite = Suite("s1", [Test(name="t1", cmd="echo", parallelizable=True)])
+        await ui.print_parallel(suite)
+        await ui.test_completed(self._make_results("t1", parallelizable=True))
+        await ui.kernel_tainted("proprietary module")
+        # Next test should not inherit stale taint flag from the parallel batch
+        await ui.test_started(Test(name="t2", cmd="echo", parallelizable=False))
+        await ui.test_completed(self._make_results("t2", parallelizable=False))
+
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
+
+        out, _ = capsys.readouterr()
+        assert "Tainted kernel: proprietary module" in out
+        assert "t2: pass  (" in out
+        assert "t2: pass | tainted" not in out
+
+    async def test_kernel_tainted_serial_test(self, ui, capsys, run_events):
+        serial_test = Test(name="t_serial", cmd="echo", parallelizable=False)
+        await ui.test_started(serial_test)
+        await ui.kernel_tainted("proprietary module")
+        await ui.test_completed(self._make_results("t_serial", parallelizable=False))
+
+        await asyncio.wait_for(libkirk.events.stop(), timeout=5)
+
+        out, _ = capsys.readouterr()
+        assert "t_serial: pass | tainted" in out

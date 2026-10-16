@@ -473,6 +473,7 @@ class ParallelUserInterface(ConsoleUserInterface):
         self._sut_not_responding = False
         self._kernel_panic = False
         self._kernel_tainted: Optional[str] = None
+        self._serial_running = False
         self._timed_out = False
         self._pl_total = 0
         self._pl_done = 0
@@ -481,6 +482,7 @@ class ParallelUserInterface(ConsoleUserInterface):
         libkirk.events.register("kernel_panic", self.kernel_panic)
         libkirk.events.register("kernel_tainted", self.kernel_tainted)
         libkirk.events.register("suite_started", self.print_parallel)
+        libkirk.events.register("test_started", self.test_started)
         libkirk.events.register("test_timed_out", self.test_timed_out)
         libkirk.events.register("test_completed", self.test_completed)
 
@@ -490,8 +492,15 @@ class ParallelUserInterface(ConsoleUserInterface):
     async def kernel_panic(self) -> None:
         self._kernel_panic = True
 
+    async def test_started(self, test: Test) -> None:
+        if not test.parallelizable:
+            self._serial_running = True
+
     async def kernel_tainted(self, message: str) -> None:
-        self._kernel_tainted = message
+        if self._serial_running:
+            self._kernel_tainted = message
+        else:
+            await self._print(f"Tainted kernel: {message}", color=self.YELLOW)
 
     async def test_timed_out(self, _: Test, timeout: int) -> None:
         self._timed_out = True
@@ -537,4 +546,5 @@ class ParallelUserInterface(ConsoleUserInterface):
         self._sut_not_responding = False
         self._kernel_panic = False
         self._kernel_tainted = None
+        self._serial_running = False
         self._timed_out = False
