@@ -306,13 +306,19 @@ class TestScheduler(Scheduler):
             self._logger.debug("results=%s", results)
             self._results.append(results)
 
-            if status == TestStatus.KERNEL_TAINTED:
+            # fire the events which describe the test status before
+            # test_completed, so handlers know the status of the test when
+            # they process its results
+            if status == TestStatus.TEST_TIMEOUT:
+                await libkirk.events.fire("test_timed_out", test, self._timeout)
+            elif status == TestStatus.KERNEL_TAINTED:
                 for msg in tainted_msg:
                     if msg:
                         await libkirk.events.fire("kernel_tainted", msg)
-
-            if status == TestStatus.TEST_TIMEOUT:
-                await libkirk.events.fire("test_timed_out", test, self._timeout)
+            elif status == TestStatus.KERNEL_PANIC:
+                await libkirk.events.fire("kernel_panic")
+            elif status == TestStatus.KERNEL_TIMEOUT:
+                await libkirk.events.fire("sut_not_responding")
 
             await libkirk.events.fire("test_completed", results)
             await self._write_kmsg(test, results)
@@ -325,11 +331,9 @@ class TestScheduler(Scheduler):
                 raise KernelTaintedError()
 
             if status == TestStatus.KERNEL_PANIC:
-                await libkirk.events.fire("kernel_panic")
                 raise KernelPanicError()
 
             if status == TestStatus.KERNEL_TIMEOUT:
-                await libkirk.events.fire("sut_not_responding")
                 raise KernelTimeoutError()
 
     async def _run_and_wait(self, tests: List[Test]) -> None:

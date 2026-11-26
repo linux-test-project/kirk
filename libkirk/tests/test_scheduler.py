@@ -420,6 +420,67 @@ class TestTestScheduler:
             await runner.schedule(tests)
 
     @pytest.mark.parametrize(
+        "event,error",
+        [
+            ("kernel_tainted", KernelTaintedError),
+            ("kernel_panic", KernelPanicError),
+            ("sut_not_responding", KernelTimeoutError),
+        ],
+    )
+    async def test_schedule_kernel_events_order(
+        self, sut, create_runner, monkeypatch, run_events, event, error
+    ):
+        """
+        Test that kernel events are fired before test_completed.
+        """
+        events = []
+
+        async def kernel_event(*args):
+            events.append(event)
+
+        async def completed(results):
+            events.append(("completed", results.test.name))
+
+        libkirk.events.register(event, kernel_event)
+        libkirk.events.register("test_completed", completed)
+
+        runner = create_runner()
+
+        if error is KernelTaintedError:
+            tainted = []
+
+            async def mock_tainted():
+                if tainted:
+                    return 1, ["proprietary module was loaded"]
+
+                # switch to tainted status _after_ test
+                tainted.append(1)
+                return 0, [""]
+
+            monkeypatch.setattr(runner, "_get_tainted_status", mock_tainted)
+        else:
+
+            async def run_command(command, cwd=None, env=None, iobuffer=None):
+                if error is KernelPanicError:
+                    raise KernelPanicError()
+
+                raise asyncio.TimeoutError()
+
+            monkeypatch.setattr(sut.get_channel(), "run_command", run_command)
+
+        tests = [
+            Test(name="test0", cmd="echo", args=["-n", "ciao"]),
+            Test(name="test1", cmd="echo", args=["-n", "ciao"]),
+        ]
+
+        with pytest.raises(error):
+            await asyncio.wait_for(runner.schedule(tests), timeout=30)
+
+        await asyncio.sleep(0.1)
+
+        assert events == [event, ("completed", "test0")]
+
+    @pytest.mark.parametrize(
         "error", [KernelPanicError, KernelTimeoutError, RuntimeError, asyncio.CancelledError]
     )
     async def test_schedule_error_cleanup(self, create_runner, monkeypatch, error):
