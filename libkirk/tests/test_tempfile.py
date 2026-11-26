@@ -48,6 +48,59 @@ class TestTempDir:
 
         assert total == max_rotate
 
+    def test_rotate_skip_symlinks(self, tmpdir):
+        """
+        Test that folders rotation doesn't follow symlinks.
+        """
+        max_rotate = 2
+
+        outside = tmpdir.mkdir("outside")
+        outside.join("file").write("data")
+
+        root = tmpdir.mkdir("root")
+        tempdir = TempDir(str(root), max_rotate=max_rotate)
+        tmpbase = os.path.dirname(tempdir.abspath)
+
+        evil = os.path.join(tmpbase, "evil")
+        os.symlink(str(outside), evil)
+        # make the symlink the oldest entry
+        os.utime(evil, (0, 0), follow_symlinks=False)
+
+        for _ in range(max_rotate * 2):
+            TempDir(str(root), max_rotate=max_rotate)
+
+        assert os.path.isfile(str(outside.join("file")))
+        assert os.path.islink(evil)
+
+    def test_rotate_skip_files(self, tmpdir):
+        """
+        Test that folders rotation ignores entries which are not directories.
+        """
+        max_rotate = 2
+
+        tempdir = TempDir(str(tmpdir), max_rotate=max_rotate)
+        tmpbase = os.path.dirname(tempdir.abspath)
+
+        myfile = os.path.join(tmpbase, "myfile")
+        with open(myfile, "w", encoding="utf-8") as f:
+            f.write("data")
+
+        # make the file the oldest entry
+        os.utime(myfile, (0, 0))
+
+        for _ in range(max_rotate * 2):
+            tempdir = TempDir(str(tmpdir), max_rotate=max_rotate)
+
+        assert os.path.isfile(myfile)
+
+        dirs = [
+            name
+            for name in os.listdir(tmpbase)
+            if name != tempdir.SYMLINK_NAME
+            and os.path.isdir(os.path.join(tmpbase, name))
+        ]
+        assert len(dirs) == max_rotate
+
     def test_rotate_empty_root(self):
         """
         Test folders rotation with empty root.

@@ -37,6 +37,19 @@ class TestUserFriendlyDuration:
         result = ConsoleUserInterface._user_friendly_duration(3661)
         assert result == "1h 1m 1s"
 
+    @pytest.mark.parametrize(
+        "duration,expected",
+        [
+            (59.9999, "1m 0s"),
+            (119.7, "2m 0s"),
+            (3599.6, "1h 0m 0s"),
+            (3659.6, "1h 1m 0s"),
+        ],
+    )
+    def test_rounding(self, duration, expected):
+        result = ConsoleUserInterface._user_friendly_duration(duration)
+        assert result == expected
+
 
 class TestFormatCmdline:
     """

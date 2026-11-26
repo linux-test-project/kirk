@@ -301,6 +301,9 @@ class TestLTPFramework:
         with pytest.raises(ValueError):
             await framework.find_command(sut, "")
 
+        with pytest.raises(ValueError):
+            await framework.find_command(sut, "  \t ")
+
     async def test_find_suite_errors(self, sut):
         """
         Test find_suite with invalid inputs.

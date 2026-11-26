@@ -420,6 +420,67 @@ class TestTestScheduler:
             await runner.schedule(tests)
 
     @pytest.mark.parametrize(
+        "event,error",
+        [
+            ("kernel_tainted", KernelTaintedError),
+            ("kernel_panic", KernelPanicError),
+            ("sut_not_responding", KernelTimeoutError),
+        ],
+    )
+    async def test_schedule_kernel_events_order(
+        self, sut, create_runner, monkeypatch, run_events, event, error
+    ):
+        """
+        Test that kernel events are fired before test_completed.
+        """
+        events = []
+
+        async def kernel_event(*args):
+            events.append(event)
+
+        async def completed(results):
+            events.append(("completed", results.test.name))
+
+        libkirk.events.register(event, kernel_event)
+        libkirk.events.register("test_completed", completed)
+
+        runner = create_runner()
+
+        if error is KernelTaintedError:
+            tainted = []
+
+            async def mock_tainted():
+                if tainted:
+                    return 1, ["proprietary module was loaded"]
+
+                # switch to tainted status _after_ test
+                tainted.append(1)
+                return 0, [""]
+
+            monkeypatch.setattr(runner, "_get_tainted_status", mock_tainted)
+        else:
+
+            async def run_command(command, cwd=None, env=None, iobuffer=None):
+                if error is KernelPanicError:
+                    raise KernelPanicError()
+
+                raise asyncio.TimeoutError()
+
+            monkeypatch.setattr(sut.get_channel(), "run_command", run_command)
+
+        tests = [
+            Test(name="test0", cmd="echo", args=["-n", "ciao"]),
+            Test(name="test1", cmd="echo", args=["-n", "ciao"]),
+        ]
+
+        with pytest.raises(error):
+            await asyncio.wait_for(runner.schedule(tests), timeout=30)
+
+        await asyncio.sleep(0.1)
+
+        assert events == [event, ("completed", "test0")]
+
+    @pytest.mark.parametrize(
         "error", [KernelPanicError, KernelTimeoutError, RuntimeError, asyncio.CancelledError]
     )
     async def test_schedule_error_cleanup(self, create_runner, monkeypatch, error):
@@ -454,10 +515,23 @@ class TestTestScheduler:
         assert cleaned.is_set()
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_test_timeout(self, workers, create_runner, commands):
+    async def test_schedule_test_timeout(
+        self, workers, create_runner, commands, run_events
+    ):
         """
         Test the schedule method on test timeout.
         """
+        events: list = []
+
+        async def timed_out(test, timeout):
+            events.append(("timed_out", test.name, timeout))
+
+        async def completed(results):
+            events.append(("completed", results.test.name))
+
+        libkirk.events.register("test_timed_out", timed_out)
+        libkirk.events.register("test_completed", completed)
+
         tests = []
         for i in range(10):
             tests.append(
@@ -471,6 +545,13 @@ class TestTestScheduler:
         runner = create_runner(timeout=0.05, max_workers=workers)
 
         await asyncio.wait_for(runner.schedule(tests), timeout=30)
+        await asyncio.sleep(0.1)
+
+        assert len(events) == 2 * len(tests)
+        for test in tests:
+            index = events.index(("timed_out", test.name, 0.05))
+            assert events[index + 1] == ("completed", test.name)
+
         assert sorted(res.test.name for res in runner.results) == [
             test.name for test in tests
         ]
@@ -487,6 +568,19 @@ class TestTestScheduler:
             assert res.exec_time > 0
             assert res.return_code == -1
             assert res.stdout == ""
+
+    async def test_schedule_no_timeout(self, create_runner):
+        """
+        Test the schedule method when timeout is disabled.
+        """
+        tests = [Test(name="test0", cmd="sleep", args=["0.2"])]
+
+        runner = create_runner(timeout=0)
+
+        await asyncio.wait_for(runner.schedule(tests), timeout=30)
+        assert len(runner.results) == 1
+        assert runner.results[0].return_code == 0
+        assert runner.results[0].broken == 0
 
 
 class TestSuiteScheduler:
@@ -711,3 +805,19 @@ class TestSuiteScheduler:
             assert res.return_code == 32
             assert res.stdout == ""
             assert res.status == ResultStatus.CONF
+
+    async def test_schedule_no_suite_timeout(self, create_runner):
+        """
+        Test the schedule method when suite timeout is disabled.
+        """
+        runner = create_runner(suite_timeout=0)
+
+        tests = [Test(name=f"test{i}", cmd="sleep", args=["0.1"]) for i in range(2)]
+        await asyncio.wait_for(runner.schedule([Suite("suite01", tests)]), timeout=30)
+
+        assert len(runner.results) == 1
+        results = runner.results[0].tests_results
+        assert len(results) == len(tests)
+        for res in results:
+            assert res.return_code == 0
+            assert res.skipped == 0

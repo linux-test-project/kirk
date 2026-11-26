@@ -352,7 +352,7 @@ class Session:
                         env=test.env,
                         iobuffer=RedirectSUTStdout(self._sut, True),
                     ),
-                    timeout=self._exec_timeout,
+                    timeout=self._exec_timeout or None,
                 )
                 if not ret:
                     raise SessionError(f"Can't execute command '{test.full_command}'")
@@ -562,12 +562,15 @@ class Session:
                     if self._results:
                         exporter = JSONExporter()
 
-                        tasks = [
-                            exporter.save_file(
-                                self._results,
-                                os.path.join(self._tmpdir.abspath, "results.json"),
+                        tasks = []
+
+                        if self._tmpdir.abspath:
+                            tasks.append(
+                                exporter.save_file(
+                                    self._results,
+                                    os.path.join(self._tmpdir.abspath, "results.json"),
+                                )
                             )
-                        ]
 
                         if report_path:
                             tasks.append(exporter.save_file(self._results, report_path))

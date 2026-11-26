@@ -113,7 +113,7 @@ class TestScheduler(Scheduler):
         :type sut: SUT
         :param framework: Framework handler.
         :type framework: Framework
-        :param timeout: Timeout for tests execution.
+        :param timeout: Timeout for tests execution. 0 disables it.
         :type timeout: float
         :param max_workers: Maximum number of workers to schedule jobs.
         :type max_workers: int
@@ -248,7 +248,7 @@ class TestScheduler(Scheduler):
                     channel.run_command(
                         cmd, cwd=test.cwd, env=test.env, iobuffer=iobuffer
                     ),
-                    timeout=self._timeout,
+                    timeout=self._timeout or None,
                 )
 
                 if test_data is None:
@@ -306,10 +306,19 @@ class TestScheduler(Scheduler):
             self._logger.debug("results=%s", results)
             self._results.append(results)
 
-            if status == TestStatus.KERNEL_TAINTED:
+            # fire the events which describe the test status before
+            # test_completed, so handlers know the status of the test when
+            # they process its results
+            if status == TestStatus.TEST_TIMEOUT:
+                await libkirk.events.fire("test_timed_out", test, self._timeout)
+            elif status == TestStatus.KERNEL_TAINTED:
                 for msg in tainted_msg:
                     if msg:
                         await libkirk.events.fire("kernel_tainted", msg)
+            elif status == TestStatus.KERNEL_PANIC:
+                await libkirk.events.fire("kernel_panic")
+            elif status == TestStatus.KERNEL_TIMEOUT:
+                await libkirk.events.fire("sut_not_responding")
 
             await libkirk.events.fire("test_completed", results)
             await self._write_kmsg(test, results)
@@ -322,11 +331,9 @@ class TestScheduler(Scheduler):
                 raise KernelTaintedError()
 
             if status == TestStatus.KERNEL_PANIC:
-                await libkirk.events.fire("kernel_panic")
                 raise KernelPanicError()
 
             if status == TestStatus.KERNEL_TIMEOUT:
-                await libkirk.events.fire("sut_not_responding")
                 raise KernelTimeoutError()
 
     async def _run_and_wait(self, tests: List[Test]) -> None:
@@ -445,8 +452,10 @@ class SuiteScheduler(Scheduler):
         :param framework: Framework handler.
         :type framework: Framework
         :param suite_timeout: Timeout before stopping testing suite.
+            0 disables it.
         :type suite_timeout: float
         :param exec_timeout: Timeout before stopping single execution.
+            0 disables it.
         :type exec_timeout: float
         :param max_workers: Maximum number of workers to schedule jobs.
         :type max_workers: int
@@ -542,7 +551,7 @@ class SuiteScheduler(Scheduler):
                     start_t = time.time()
                     await asyncio.wait_for(
                         self._scheduler.schedule(tests_left),
-                        timeout=self._suite_timeout,
+                        timeout=self._suite_timeout or None,
                     )
                 except asyncio.TimeoutError:
                     self._logger.info("Testing suite timed out: %s", suite.name)

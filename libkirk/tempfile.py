@@ -50,10 +50,13 @@ class TempDir:
 
         os.makedirs(tmpbase, exist_ok=True)
 
-        # filter out symlink before sorting and counting
+        # filter out symlinks and anything that is not a directory before
+        # sorting and counting, so we never follow symlinks and remove
+        # something outside of the temporary folder
         all_paths = list(pathlib.Path(tmpbase).iterdir())
         sorted_paths = sorted(
-            (p for p in all_paths if p.name != self.SYMLINK_NAME), key=os.path.getmtime
+            (p for p in all_paths if p.is_dir() and not p.is_symlink()),
+            key=lambda p: os.lstat(str(p)).st_mtime,
         )
 
         num_paths = len(sorted_paths)
@@ -63,7 +66,7 @@ class TempDir:
             paths_to_remove = sorted_paths[:max_items]
 
             for path in paths_to_remove:
-                shutil.rmtree(str(path.resolve()))
+                shutil.rmtree(str(path))
 
         # create a new folder
         folder = tempfile.mkdtemp(dir=tmpbase)

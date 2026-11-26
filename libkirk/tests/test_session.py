@@ -390,6 +390,65 @@ class _TestSession:
         """
         await session.run(command="test")
 
+    async def test_run_no_exec_timeout(self, tmpdir, sut, monkeypatch, run_events):
+        """
+        Test run method when exec timeout is disabled.
+        """
+        monkeypatch.setenv("LTPROOT", "/tmp")
+
+        session = Session(tmpdir=TempDir(tmpdir), sut=sut, exec_timeout=0)
+        session._framework = DummyFramework()
+
+        stopped = []
+
+        async def command_stopped(command, stdout, returncode):
+            stopped.append(returncode)
+
+        libkirk.events.register("run_cmd_stop", command_stopped)
+
+        report = str(tmpdir / "report.json")
+        try:
+            await session.run(command="sleep 0.1")
+            await session.run(suites=["suite01"], report_path=report)
+        finally:
+            await asyncio.wait_for(session.stop(), timeout=30)
+
+        assert stopped == [0]
+
+        report_data = await self.read_report(report)
+        assert len(report_data["results"]) == 2
+        for result in report_data["results"]:
+            assert result["status"] == "pass"
+
+    async def test_run_no_tmpdir(self, tmpdir, sut, monkeypatch):
+        """
+        Test run method without temporary directory. No results file must
+        be written in the current working directory.
+        """
+        monkeypatch.setenv("LTPROOT", "/tmp")
+
+        cwd = tmpdir.mkdir("cwd")
+        monkeypatch.chdir(cwd)
+
+        session = Session(tmpdir=TempDir(None), sut=sut)
+        session._framework = DummyFramework()
+
+        report = str(tmpdir / "report.json")
+        try:
+            # run twice, so we also check that nothing collides
+            for _ in range(2):
+                if os.path.isfile(report):
+                    os.remove(report)
+
+                await session.run(suites=["suite01"], report_path=report)
+
+                report_data = await self.read_report(report)
+                assert len(report_data["results"]) == 2
+        finally:
+            await asyncio.wait_for(session.stop(), timeout=30)
+
+        assert not os.listdir(str(cwd))
+
     async def test_run_command_stop(self, session, run_events):
         """
         Stop a command after target startup and verify its interrupted result.
