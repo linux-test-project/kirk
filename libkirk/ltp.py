@@ -326,6 +326,9 @@ class LTPFramework(Framework):
             raise ValueError("command is empty")
 
         cmd_args = self._get_cmd_args(command)
+        if not cmd_args:
+            raise ValueError("command is empty")
+
         cwd = None
         env = None
 
