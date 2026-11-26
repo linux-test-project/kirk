@@ -36,6 +36,9 @@ class ShellComChannel(ComChannel):
 
     BUFFSIZE = 1024
 
+    # maximum time to read buffered output after the process has exited
+    DRAIN_TIMEOUT = 1.0
+
     _name = "shell"
 
     def __init__(self) -> None:
@@ -175,9 +178,24 @@ class ShellComChannel(ComChannel):
 
             t_start = time.time()
             panic = False
+            drain_end = None
 
             while True:
-                line = await proc.stdout.read(self.BUFFSIZE)
+                if drain_end is None:
+                    line = await proc.stdout.read(self.BUFFSIZE)
+                else:
+                    remaining = drain_end - time.time()
+                    if remaining <= 0:
+                        break
+
+                    try:
+                        line = await asyncio.wait_for(
+                            proc.stdout.read(self.BUFFSIZE), timeout=remaining
+                        )
+                    except asyncio.TimeoutError:
+                        # a process outside of the session holds the pipe
+                        break
+
                 if not line:
                     break
 
@@ -189,8 +207,13 @@ class ShellComChannel(ComChannel):
                 stdout += sline
                 panic = "Kernel panic" in stdout[-2 * self.BUFFSIZE :]
 
-                if not await self._process_alive(proc):
-                    break
+                if drain_end is None and not await self._process_alive(proc):
+                    # The process has exited, but part of its output can
+                    # still be buffered. Kill the processes left in its
+                    # session, so they can't keep the pipe open, then read
+                    # until EOF.
+                    await self._kill_process(proc)
+                    drain_end = time.time() + self.DRAIN_TIMEOUT
 
             await proc.wait()
 
