@@ -311,6 +311,9 @@ class TestScheduler(Scheduler):
                     if msg:
                         await libkirk.events.fire("kernel_tainted", msg)
 
+            if status == TestStatus.TEST_TIMEOUT:
+                await libkirk.events.fire("test_timed_out", test, self._timeout)
+
             await libkirk.events.fire("test_completed", results)
             await self._write_kmsg(test, results)
 

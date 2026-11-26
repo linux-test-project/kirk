@@ -454,10 +454,23 @@ class TestTestScheduler:
         assert cleaned.is_set()
 
     @pytest.mark.parametrize("workers", [1, 10])
-    async def test_schedule_test_timeout(self, workers, create_runner, commands):
+    async def test_schedule_test_timeout(
+        self, workers, create_runner, commands, run_events
+    ):
         """
         Test the schedule method on test timeout.
         """
+        events: list = []
+
+        async def timed_out(test, timeout):
+            events.append(("timed_out", test.name, timeout))
+
+        async def completed(results):
+            events.append(("completed", results.test.name))
+
+        libkirk.events.register("test_timed_out", timed_out)
+        libkirk.events.register("test_completed", completed)
+
         tests = []
         for i in range(10):
             tests.append(
@@ -471,6 +484,13 @@ class TestTestScheduler:
         runner = create_runner(timeout=0.05, max_workers=workers)
 
         await asyncio.wait_for(runner.schedule(tests), timeout=30)
+        await asyncio.sleep(0.1)
+
+        assert len(events) == 2 * len(tests)
+        for test in tests:
+            index = events.index(("timed_out", test.name, 0.05))
+            assert events[index + 1] == ("completed", test.name)
+
         assert sorted(res.test.name for res in runner.results) == [
             test.name for test in tests
         ]
