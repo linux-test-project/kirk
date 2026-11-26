@@ -562,12 +562,15 @@ class Session:
                     if self._results:
                         exporter = JSONExporter()
 
-                        tasks = [
-                            exporter.save_file(
-                                self._results,
-                                os.path.join(self._tmpdir.abspath, "results.json"),
+                        tasks = []
+
+                        if self._tmpdir.abspath:
+                            tasks.append(
+                                exporter.save_file(
+                                    self._results,
+                                    os.path.join(self._tmpdir.abspath, "results.json"),
+                                )
                             )
-                        ]
 
                         if report_path:
                             tasks.append(exporter.save_file(self._results, report_path))
