@@ -123,6 +123,16 @@ class SUT(Plugin):
         """
         self._optimize = value
 
+    @property
+    def supports_reboot(self) -> bool:
+        """
+        Return True if the SUT communication channel supports reboot.
+        """
+        try:
+            return self.get_channel().supports_reboot
+        except Exception:
+            return False
+
     async def _run_cmd(self, cmd: str) -> str:
         """
         Run command, check for returncode and return command's stdout.

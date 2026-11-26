@@ -246,6 +246,10 @@ class SSHComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return True
 
+    @property
+    def supports_reboot(self) -> bool:
+        return True
+
     async def active(self) -> bool:
         return self._conn is not None
 

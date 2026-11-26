@@ -76,6 +76,10 @@ class LTXComChannel(ComChannel):
     def parallel_execution(self) -> bool:
         return True
 
+    @property
+    def supports_reboot(self) -> bool:
+        return True
+
     async def active(self) -> bool:
         if not self._ltx:
             return False

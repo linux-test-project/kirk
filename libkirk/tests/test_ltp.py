@@ -340,3 +340,41 @@ class TestLTPFramework:
         framework._env.pop("PATH", None)
         env = await framework._read_path(sut)
         assert "PATH" in env
+
+    async def test_find_suite_reboots_sut(self, sut, tmpdir, monkeypatch):
+        """
+        Test find_suite with reboots_sut tag in metadata.
+        """
+        monkeypatch.setenv("LTPROOT", str(tmpdir))
+
+        runtest = tmpdir / "runtest"
+        (runtest / "reboot_suite").write("reboot01 reboot01\n", ensure=True)
+
+        metadata = tmpdir / "metadata" / "ltp.json"
+        metadata.write(
+            json.dumps({"tests": {"reboot01": {"reboots_sut": "1"}}}), ensure=True
+        )
+
+        framework = LTPFramework()
+        suite = await framework.find_suite(sut, "reboot_suite")
+        assert len(suite.tests) == 1
+        assert suite.tests[0].name == "reboot01"
+        assert suite.tests[0].reboots_sut is True
+        assert suite.tests[0].parallelizable is False
+
+    async def test_find_command_reboots_sut(self, sut, tmpdir, monkeypatch):
+        """
+        Test find_command when test has reboots_sut in metadata.
+        """
+        monkeypatch.setenv("LTPROOT", str(tmpdir))
+
+        metadata = tmpdir / "metadata" / "ltp.json"
+        metadata.write(
+            json.dumps({"tests": {"reboot01": {"reboots_sut": "1"}}}), ensure=True
+        )
+
+        framework = LTPFramework()
+        test = await framework.find_command(sut, "reboot01")
+        assert test.name == "reboot01"
+        assert test.reboots_sut is True
+        assert test.parallelizable is False
