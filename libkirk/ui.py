@@ -108,15 +108,17 @@ class ConsoleUserInterface:
         if duration == 0:
             return "0h 0m 0s"
 
-        minutes, seconds = divmod(duration, 60)
+        if round(duration, 3) < 60:
+            return f"{duration:.3f}s"
+
+        # round before splitting, so seconds never show up as 60
+        minutes, seconds = divmod(int(round(duration)), 60)
         hours, minutes = divmod(minutes, 60)
 
         if hours > 0:
-            return f"{hours:.0f}h {minutes:.0f}m {seconds:.0f}s"
-        elif minutes > 0:
-            return f"{minutes:.0f}m {seconds:.0f}s"
-        else:
-            return f"{seconds:.3f}s"
+            return f"{hours}h {minutes}m {seconds}s"
+
+        return f"{minutes}m {seconds}s"
 
     @staticmethod
     def _format_cmdline(cmdline: Optional[str]) -> str:
