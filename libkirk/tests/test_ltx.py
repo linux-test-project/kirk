@@ -209,6 +209,20 @@ class TestLTX:
         assert reply[2] == 0
         assert reply[3] == "CIAO"
 
+    async def test_env_empty(self, ltx):
+        """
+        Test env request with an empty value.
+        """
+        set_req = Requests.env(0, "HELLO", "CIAO")
+        empty_req = Requests.env(0, "HELLO", "")
+        exec_req = Requests.execute(0, 'echo -n "[$HELLO]"')
+        replies = await ltx.gather([set_req, empty_req, exec_req])
+        reply = replies[exec_req]
+
+        assert reply[1] == 1
+        assert reply[2] == 0
+        assert reply[3] == "[]"
+
     async def test_env_multiple(self, ltx):
         """
         Test env request.

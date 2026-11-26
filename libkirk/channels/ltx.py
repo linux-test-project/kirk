@@ -187,8 +187,8 @@ class Requests:
             if not key:
                 raise ValueError("key is empty")
 
-            if not value:
-                raise ValueError("value is empty")
+            if value is None:
+                raise ValueError("value is None")
 
             self._slot_id = self.ALL_SLOTS if slot_id is None else slot_id
             self._key = key
