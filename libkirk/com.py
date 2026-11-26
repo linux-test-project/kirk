@@ -54,6 +54,14 @@ class ComChannel(Plugin):
         """
         raise NotImplementedError()
 
+    @property
+    def supports_reboot(self) -> bool:
+        """
+        :return: If True, communication supports SUT reboot.
+        :rtype: bool
+        """
+        return False
+
     async def active(self) -> bool:
         """
         :return: Return True if communication is active. False otherwise.
