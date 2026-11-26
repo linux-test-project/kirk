@@ -298,9 +298,9 @@ class TestMain:
             "--tmp-dir",
             str(temp),
             "--run-command",
-            "ls",
+            "sleep 2",
             "--exec-timeout",
-            "0",
+            "1",
         ]
 
         with pytest.raises(SystemExit) as excinfo:

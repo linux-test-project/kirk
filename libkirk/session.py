@@ -352,7 +352,7 @@ class Session:
                         env=test.env,
                         iobuffer=RedirectSUTStdout(self._sut, True),
                     ),
-                    timeout=self._exec_timeout,
+                    timeout=self._exec_timeout or None,
                 )
                 if not ret:
                     raise SessionError(f"Can't execute command '{test.full_command}'")

@@ -488,6 +488,19 @@ class TestTestScheduler:
             assert res.return_code == -1
             assert res.stdout == ""
 
+    async def test_schedule_no_timeout(self, create_runner):
+        """
+        Test the schedule method when timeout is disabled.
+        """
+        tests = [Test(name="test0", cmd="sleep", args=["0.2"])]
+
+        runner = create_runner(timeout=0)
+
+        await asyncio.wait_for(runner.schedule(tests), timeout=30)
+        assert len(runner.results) == 1
+        assert runner.results[0].return_code == 0
+        assert runner.results[0].broken == 0
+
 
 class TestSuiteScheduler:
     """

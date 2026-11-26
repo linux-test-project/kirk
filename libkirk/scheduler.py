@@ -113,7 +113,7 @@ class TestScheduler(Scheduler):
         :type sut: SUT
         :param framework: Framework handler.
         :type framework: Framework
-        :param timeout: Timeout for tests execution.
+        :param timeout: Timeout for tests execution. 0 disables it.
         :type timeout: float
         :param max_workers: Maximum number of workers to schedule jobs.
         :type max_workers: int
@@ -248,7 +248,7 @@ class TestScheduler(Scheduler):
                     channel.run_command(
                         cmd, cwd=test.cwd, env=test.env, iobuffer=iobuffer
                     ),
-                    timeout=self._timeout,
+                    timeout=self._timeout or None,
                 )
 
                 if test_data is None:
