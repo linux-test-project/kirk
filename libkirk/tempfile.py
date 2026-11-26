@@ -50,11 +50,12 @@ class TempDir:
 
         os.makedirs(tmpbase, exist_ok=True)
 
-        # filter out symlinks before sorting and counting, so we never follow
-        # them and remove something outside of the temporary folder
+        # filter out symlinks and anything that is not a directory before
+        # sorting and counting, so we never follow symlinks and remove
+        # something outside of the temporary folder
         all_paths = list(pathlib.Path(tmpbase).iterdir())
         sorted_paths = sorted(
-            (p for p in all_paths if not p.is_symlink()),
+            (p for p in all_paths if p.is_dir() and not p.is_symlink()),
             key=lambda p: os.lstat(str(p)).st_mtime,
         )
 
