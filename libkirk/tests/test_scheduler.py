@@ -724,3 +724,19 @@ class TestSuiteScheduler:
             assert res.return_code == 32
             assert res.stdout == ""
             assert res.status == ResultStatus.CONF
+
+    async def test_schedule_no_suite_timeout(self, create_runner):
+        """
+        Test the schedule method when suite timeout is disabled.
+        """
+        runner = create_runner(suite_timeout=0)
+
+        tests = [Test(name=f"test{i}", cmd="sleep", args=["0.1"]) for i in range(2)]
+        await asyncio.wait_for(runner.schedule([Suite("suite01", tests)]), timeout=30)
+
+        assert len(runner.results) == 1
+        results = runner.results[0].tests_results
+        assert len(results) == len(tests)
+        for res in results:
+            assert res.return_code == 0
+            assert res.skipped == 0

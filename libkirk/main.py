@@ -511,7 +511,7 @@ def run(cmd_args: Optional[List[str]] = None) -> None:
         "-T",
         type=_time_config,
         default="1h",
-        help="Timeout before stopping the suite (default: 1h)",
+        help="Timeout before stopping the suite. Use 0 to disable it (default: 1h)",
     )
     exec_opts.add_argument(
         "--exec-timeout",

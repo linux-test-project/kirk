@@ -337,9 +337,9 @@ class TestMain:
             "--tmp-dir",
             str(temp),
             "--run-suite",
-            "suite01",
+            "sleep",
             "--suite-timeout",
-            "0",
+            "1",
         ]
 
         with pytest.raises(SystemExit) as excinfo:

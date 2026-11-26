@@ -445,8 +445,10 @@ class SuiteScheduler(Scheduler):
         :param framework: Framework handler.
         :type framework: Framework
         :param suite_timeout: Timeout before stopping testing suite.
+            0 disables it.
         :type suite_timeout: float
         :param exec_timeout: Timeout before stopping single execution.
+            0 disables it.
         :type exec_timeout: float
         :param max_workers: Maximum number of workers to schedule jobs.
         :type max_workers: int
@@ -542,7 +544,7 @@ class SuiteScheduler(Scheduler):
                     start_t = time.time()
                     await asyncio.wait_for(
                         self._scheduler.schedule(tests_left),
-                        timeout=self._suite_timeout,
+                        timeout=self._suite_timeout or None,
                     )
                 except asyncio.TimeoutError:
                     self._logger.info("Testing suite timed out: %s", suite.name)
